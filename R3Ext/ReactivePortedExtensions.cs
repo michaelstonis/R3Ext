@@ -1196,4 +1196,27 @@ public static class ReactivePortedExtensions
             });
         });
     }
+
+    /// <summary>
+    /// In-place Fisher-Yates shuffle for lists.
+    /// </summary>
+    public static void Shuffle<T>(this System.Collections.Generic.IList<T> list, Random? rng = null)
+    {
+        if (list is null) throw new ArgumentNullException(nameof(list));
+        rng ??= Random.Shared;
+        for (int i = list.Count - 1; i > 0; i--)
+        {
+            int j = rng.Next(i + 1);
+            (list[i], list[j]) = (list[j], list[i]);
+        }
+    }
+
+    /// <summary>
+    /// In-place Fisher-Yates shuffle for arrays.
+    /// </summary>
+    public static void Shuffle<T>(this T[] array, Random? rng = null)
+    {
+        if (array is null) throw new ArgumentNullException(nameof(array));
+        ((System.Collections.Generic.IList<T>)array).Shuffle(rng);
+    }
 }
