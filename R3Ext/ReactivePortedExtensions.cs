@@ -201,4 +201,110 @@ public static class ReactivePortedExtensions
             });
         });
     }
+
+    /// <summary>
+    /// Wrapper emitted by DetectStale indicating either a fresh value or a stale marker when inactivity is detected.
+    /// </summary>
+    public readonly struct StaleEvent<T>
+    {
+        public bool IsStale { get; }
+        public T? Value { get; }
+        internal StaleEvent(bool isStale, T? value)
+        {
+            IsStale = isStale;
+            Value = value;
+        }
+    }
+
+    /// <summary>
+    /// DetectStale emits a single stale marker (IsStale = true) after <paramref name="quietPeriod"/> of inactivity.
+    /// Fresh values are wrapped with IsStale = false. After emitting a stale marker, no further stale markers are
+    /// produced until a new value arrives and the quiet timer resets.
+    /// </summary>
+    public static Observable<StaleEvent<T>> DetectStale<T>(this Observable<T> source, TimeSpan quietPeriod, TimeProvider? timeProvider = null)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (quietPeriod <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(quietPeriod));
+        var tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
+
+        return Observable.Create<StaleEvent<T>>(observer =>
+        {
+            object gate = new();
+            bool disposed = false;
+            bool staleEmitted = false;
+            IDisposable? upstream = null;
+            System.Threading.ITimer? timer = null;
+
+            void EnsureTimer()
+            {
+                if (timer is null)
+                {
+                    timer = tp.CreateTimer(_ =>
+                    {
+                        lock (gate)
+                        {
+                            if (disposed) return;
+                            if (!staleEmitted)
+                            {
+                                observer.OnNext(new StaleEvent<T>(true, default));
+                                staleEmitted = true;
+                            }
+                            // Stop timer until next value arrives.
+                            timer!.Change(System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+                        }
+                    }, null, System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+                }
+            }
+
+            void ResetQuietTimer()
+            {
+                EnsureTimer();
+                staleEmitted = false;
+                timer!.Change(quietPeriod, System.Threading.Timeout.InfiniteTimeSpan);
+            }
+
+            // Start timer immediately to detect initial inactivity.
+            ResetQuietTimer();
+
+            upstream = source.Subscribe(
+                x =>
+                {
+                    lock (gate)
+                    {
+                        if (disposed) return;
+                        observer.OnNext(new StaleEvent<T>(false, x));
+                        ResetQuietTimer();
+                    }
+                },
+                ex =>
+                {
+                    lock (gate)
+                    {
+                        if (disposed) return;
+                        timer?.Change(System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+                        observer.OnErrorResume(ex);
+                    }
+                },
+                r =>
+                {
+                    lock (gate)
+                    {
+                        if (disposed) return;
+                        timer?.Dispose();
+                        observer.OnCompleted(r);
+                    }
+                });
+
+            return Disposable.Create(() =>
+            {
+                lock (gate)
+                {
+                    if (disposed) return;
+                    disposed = true;
+                    timer?.Dispose();
+                    upstream?.Dispose();
+                }
+            });
+        });
+    }
 }
