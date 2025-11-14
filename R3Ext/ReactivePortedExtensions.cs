@@ -141,6 +141,40 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Expand sequences emitted by the source into individual items.
+    /// Optimized for arrays and IList to avoid iterator allocations.
+    /// </summary>
+    public static Observable<T> ForEach<T>(this Observable<System.Collections.Generic.IEnumerable<T>> source)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return Observable.Create<T>(observer =>
+        {
+            return source.Subscribe(seq =>
+            {
+                if (seq is null) return;
+                // Fast path for arrays
+                if (seq is T[] arr)
+                {
+                    for (int i = 0; i < arr.Length; i++) observer.OnNext(arr[i]);
+                    return;
+                }
+                // Fast path for IList
+                if (seq is System.Collections.Generic.IList<T> list)
+                {
+                    for (int i = 0; i < list.Count; i++) observer.OnNext(list[i]);
+                    return;
+                }
+                foreach (var item in seq)
+                {
+                    observer.OnNext(item);
+                }
+            },
+            observer.OnErrorResume,
+            observer.OnCompleted);
+        });
+    }
+
+    /// <summary>
     /// Logical NOT for boolean streams.
     /// </summary>
     public static Observable<bool> Not(this Observable<bool> source)
