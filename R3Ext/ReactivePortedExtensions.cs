@@ -591,6 +591,16 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Emit the first value matching the predicate, then complete.
+    /// </summary>
+    public static Observable<T> WaitUntil<T>(this Observable<T> source, Func<T, bool> predicate)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        return source.Where(predicate).Take(1);
+    }
+
+    /// <summary>
     /// Ignore errors from the source and complete instead.
     /// </summary>
     public static Observable<T> CatchIgnore<T>(this Observable<T> source)
