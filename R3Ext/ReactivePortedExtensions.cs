@@ -731,6 +731,28 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Starts an action asynchronously and emits Unit on completion.
+    /// </summary>
+    public static Observable<Unit> Start(Action action, bool configureAwait = true)
+    {
+        if (action is null) throw new ArgumentNullException(nameof(action));
+        return Observable.FromAsync(async ct =>
+        {
+            action();
+            await ValueTask.CompletedTask;
+        }, configureAwait);
+    }
+
+    /// <summary>
+    /// Starts a function asynchronously and emits its result, then completes.
+    /// </summary>
+    public static Observable<TResult> Start<TResult>(Func<TResult> func, bool configureAwait = true)
+    {
+        if (func is null) throw new ArgumentNullException(nameof(func));
+        return Observable.FromAsync(ct => new ValueTask<TResult>(func()), configureAwait);
+    }
+
+    /// <summary>
     /// Returns true when all latest values are true across the provided boolean observables.
     /// </summary>
     public static Observable<bool> CombineLatestValuesAreAllTrue(this System.Collections.Generic.IEnumerable<Observable<bool>> sources)
