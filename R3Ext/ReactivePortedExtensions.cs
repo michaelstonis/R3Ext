@@ -307,4 +307,107 @@ public static class ReactivePortedExtensions
             });
         });
     }
+
+    /// <summary>
+    /// BufferUntilInactive groups values into arrays separated by periods of inactivity.
+    /// When no value is received for <paramref name="quietPeriod"/>, the current buffer is emitted.
+    /// </summary>
+    public static Observable<T[]> BufferUntilInactive<T>(this Observable<T> source, TimeSpan quietPeriod, TimeProvider? timeProvider = null)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (quietPeriod <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(quietPeriod));
+        var tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
+
+        return Observable.Create<T[]>(observer =>
+        {
+            object gate = new();
+            bool disposed = false;
+            var buffer = new System.Collections.Generic.List<T>();
+            IDisposable? upstream = null;
+            System.Threading.ITimer? timer = null;
+
+            void EnsureTimer()
+            {
+                if (timer is null)
+                {
+                    timer = tp.CreateTimer(_ =>
+                    {
+                        T[]? toEmit = null;
+                        lock (gate)
+                        {
+                            if (disposed) return;
+                            if (buffer.Count > 0)
+                            {
+                                toEmit = buffer.ToArray();
+                                buffer.Clear();
+                            }
+                            // Stop timer after firing; restarted on next value.
+                            timer!.Change(System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+                        }
+                        if (toEmit is not null)
+                        {
+                            observer.OnNext(toEmit);
+                        }
+                    }, null, System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+                }
+            }
+
+            void ResetQuietTimer()
+            {
+                EnsureTimer();
+                timer!.Change(quietPeriod, System.Threading.Timeout.InfiniteTimeSpan);
+            }
+
+            upstream = source.Subscribe(
+                x =>
+                {
+                    lock (gate)
+                    {
+                        if (disposed) return;
+                        buffer.Add(x);
+                        ResetQuietTimer();
+                    }
+                },
+                ex =>
+                {
+                    lock (gate)
+                    {
+                        if (disposed) return;
+                        // Flush any pending on error then propagate
+                        if (buffer.Count > 0)
+                        {
+                            observer.OnNext(buffer.ToArray());
+                            buffer.Clear();
+                        }
+                        observer.OnErrorResume(ex);
+                    }
+                },
+                r =>
+                {
+                    lock (gate)
+                    {
+                        if (disposed) return;
+                        timer?.Dispose();
+                        if (buffer.Count > 0)
+                        {
+                            observer.OnNext(buffer.ToArray());
+                            buffer.Clear();
+                        }
+                        observer.OnCompleted(r);
+                    }
+                });
+
+            return Disposable.Create(() =>
+            {
+                lock (gate)
+                {
+                    if (disposed) return;
+                    disposed = true;
+                    timer?.Dispose();
+                    upstream?.Dispose();
+                    buffer.Clear();
+                }
+            });
+        });
+    }
 }
