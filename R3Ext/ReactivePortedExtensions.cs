@@ -601,6 +601,29 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Take values until predicate matches, including the matching value, then complete.
+    /// </summary>
+    public static Observable<T> TakeUntil<T>(this Observable<T> source, Func<T, bool> predicate)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        return Observable.Create<T>(observer =>
+        {
+            return source.Subscribe(
+                x =>
+                {
+                    observer.OnNext(x);
+                    if (predicate(x))
+                    {
+                        observer.OnCompleted();
+                    }
+                },
+                observer.OnErrorResume,
+                observer.OnCompleted);
+        });
+    }
+
+    /// <summary>
     /// Ignore errors from the source and complete instead.
     /// </summary>
     public static Observable<T> CatchIgnore<T>(this Observable<T> source)
