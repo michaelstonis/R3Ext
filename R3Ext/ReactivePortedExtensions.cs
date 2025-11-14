@@ -54,6 +54,33 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Project values to tasks sequentially (queue new values until the current task completes).
+    /// Uses AwaitOperation.Sequential.
+    /// </summary>
+    public static Observable<TResult> SelectAsyncSequential<TSource, TResult>(this Observable<TSource> source,
+        Func<TSource, CancellationToken, ValueTask<TResult>> selector,
+        bool configureAwait = true,
+        bool cancelOnCompleted = true)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (selector is null) throw new ArgumentNullException(nameof(selector));
+        return source.SelectAwait(selector, AwaitOperation.Sequential, configureAwait, cancelOnCompleted);
+    }
+
+    /// <summary>
+    /// SelectAsyncSequential overload for Task-returning projector.
+    /// </summary>
+    public static Observable<TResult> SelectAsyncSequential<TSource, TResult>(this Observable<TSource> source,
+        Func<TSource, Task<TResult>> selector,
+        bool configureAwait = true,
+        bool cancelOnCompleted = true)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (selector is null) throw new ArgumentNullException(nameof(selector));
+        return source.SelectAwait<TSource, TResult>((x, ct) => new ValueTask<TResult>(selector(x)), AwaitOperation.Sequential, configureAwait, cancelOnCompleted);
+    }
+
+    /// <summary>
     /// Logical NOT for boolean streams.
     /// </summary>
     public static Observable<bool> Not(this Observable<bool> source)
