@@ -81,6 +81,36 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Project values concurrently up to maxConcurrency. Uses AwaitOperation.Parallel.
+    /// </summary>
+    public static Observable<TResult> SelectAsyncConcurrent<TSource, TResult>(this Observable<TSource> source,
+        Func<TSource, CancellationToken, ValueTask<TResult>> selector,
+        int maxConcurrency,
+        bool configureAwait = true,
+        bool cancelOnCompleted = true)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (selector is null) throw new ArgumentNullException(nameof(selector));
+        if (maxConcurrency == 0) throw new ArgumentOutOfRangeException(nameof(maxConcurrency));
+        return source.SelectAwait(selector, AwaitOperation.Parallel, configureAwait, cancelOnCompleted, maxConcurrency);
+    }
+
+    /// <summary>
+    /// SelectAsyncConcurrent overload for Task-returning projector.
+    /// </summary>
+    public static Observable<TResult> SelectAsyncConcurrent<TSource, TResult>(this Observable<TSource> source,
+        Func<TSource, Task<TResult>> selector,
+        int maxConcurrency,
+        bool configureAwait = true,
+        bool cancelOnCompleted = true)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (selector is null) throw new ArgumentNullException(nameof(selector));
+        if (maxConcurrency == 0) throw new ArgumentOutOfRangeException(nameof(maxConcurrency));
+        return source.SelectAwait<TSource, TResult>((x, ct) => new ValueTask<TResult>(selector(x)), AwaitOperation.Parallel, configureAwait, cancelOnCompleted, maxConcurrency);
+    }
+
+    /// <summary>
     /// Logical NOT for boolean streams.
     /// </summary>
     public static Observable<bool> Not(this Observable<bool> source)
