@@ -141,6 +141,23 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Create an observable sequence from provided items, emitting synchronously then completing.
+    /// </summary>
+    public static Observable<T> FromArray<T>(params T[] items)
+    {
+        items ??= Array.Empty<T>();
+        return Observable.Create<T>(observer =>
+        {
+            for (int i = 0; i < items.Length; i++)
+            {
+                observer.OnNext(items[i]);
+            }
+            observer.OnCompleted();
+            return Disposable.Create(() => { });
+        });
+    }
+
+    /// <summary>
     /// Expand sequences emitted by the source into individual items.
     /// Optimized for arrays and IList to avoid iterator allocations.
     /// </summary>
