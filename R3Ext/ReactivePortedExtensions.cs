@@ -624,6 +624,17 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Filter string values by a regular expression pattern.
+    /// </summary>
+    public static Observable<string> Filter(this Observable<string> source, string pattern, System.Text.RegularExpressions.RegexOptions options = System.Text.RegularExpressions.RegexOptions.None)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (pattern is null) throw new ArgumentNullException(nameof(pattern));
+        var regex = new System.Text.RegularExpressions.Regex(pattern, options);
+        return source.Where(s => s != null && regex.IsMatch(s));
+    }
+
+    /// <summary>
     /// Ignore errors from the source and complete instead.
     /// </summary>
     public static Observable<T> CatchIgnore<T>(this Observable<T> source)
