@@ -277,6 +277,27 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Repeats the source sequence while the condition evaluates to true.
+    /// </summary>
+    public static Observable<T> While<T>(this Observable<T> source, Func<bool> condition)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (condition is null) throw new ArgumentNullException(nameof(condition));
+        return Observable.Defer(() =>
+        {
+            if (condition())
+            {
+                // Concat source then recurse via Defer
+                return Observable.Concat(source, Observable.Defer(() => source.While(condition)));
+            }
+            else
+            {
+                return Observable.Empty<T>();
+            }
+        });
+    }
+
+    /// <summary>
     /// DebounceImmediate: emits the first item immediately, then debounces subsequent items.
     /// Equivalent to combining Take(1) with Debounce for the remainder of the stream.
     /// </summary>
