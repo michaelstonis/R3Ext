@@ -559,6 +559,18 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Partition a stream into two by predicate: matching and non-matching.
+    /// </summary>
+    public static (Observable<T> True, Observable<T> False) Partition<T>(this Observable<T> source, Func<T, bool> predicate)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        var t = source.Where(predicate);
+        var f = source.Where(x => !predicate(x));
+        return (t, f);
+    }
+
+    /// <summary>
     /// Ignore errors from the source and complete instead.
     /// </summary>
     public static Observable<T> CatchIgnore<T>(this Observable<T> source)
