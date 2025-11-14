@@ -11,6 +11,16 @@ namespace R3Ext;
 public static class ReactivePortedExtensions
 {
     /// <summary>
+    /// Converts any upstream values to a Unit signal.
+    /// Equivalent to Rx's AsSignal; maps to R3's AsUnitObservable.
+    /// </summary>
+    public static Observable<Unit> AsSignal<T>(this Observable<T> source)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return source.AsUnitObservable();
+    }
+
+    /// <summary>
     /// Filters out null values for nullable reference types and casts to non-nullable.
     /// </summary>
     public static Observable<T> WhereIsNotNull<T>(this Observable<T?> source) where T : class
