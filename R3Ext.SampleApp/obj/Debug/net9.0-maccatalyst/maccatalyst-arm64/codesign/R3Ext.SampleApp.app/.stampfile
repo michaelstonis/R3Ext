@@ -1,0 +1,1 @@
+-v --force --timestamp=none --sign - --entitlements /Users/mstonis/Developer/R3Ext/R3Ext.SampleApp/obj/Debug/net9.0-maccatalyst/maccatalyst-arm64/Entitlements.xcent /Users/mstonis/Developer/R3Ext/R3Ext.SampleApp/bin/Debug/net9.0-maccatalyst/maccatalyst-arm64/R3Ext.SampleApp.app

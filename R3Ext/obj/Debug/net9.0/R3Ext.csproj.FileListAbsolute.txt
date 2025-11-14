@@ -1,0 +1,12 @@
+/Users/mstonis/Developer/R3Ext/R3Ext/obj/Debug/net9.0/R3Ext.csproj.AssemblyReference.cache
+/Users/mstonis/Developer/R3Ext/R3Ext/obj/Debug/net9.0/R3Ext.GeneratedMSBuildEditorConfig.editorconfig
+/Users/mstonis/Developer/R3Ext/R3Ext/obj/Debug/net9.0/R3Ext.AssemblyInfoInputs.cache
+/Users/mstonis/Developer/R3Ext/R3Ext/obj/Debug/net9.0/R3Ext.AssemblyInfo.cs
+/Users/mstonis/Developer/R3Ext/R3Ext/obj/Debug/net9.0/R3Ext.csproj.CoreCompileInputs.cache
+/Users/mstonis/Developer/R3Ext/R3Ext/bin/Debug/net9.0/R3Ext.deps.json
+/Users/mstonis/Developer/R3Ext/R3Ext/bin/Debug/net9.0/R3Ext.dll
+/Users/mstonis/Developer/R3Ext/R3Ext/bin/Debug/net9.0/R3Ext.pdb
+/Users/mstonis/Developer/R3Ext/R3Ext/obj/Debug/net9.0/R3Ext.dll
+/Users/mstonis/Developer/R3Ext/R3Ext/obj/Debug/net9.0/refint/R3Ext.dll
+/Users/mstonis/Developer/R3Ext/R3Ext/obj/Debug/net9.0/R3Ext.pdb
+/Users/mstonis/Developer/R3Ext/R3Ext/obj/Debug/net9.0/ref/R3Ext.dll

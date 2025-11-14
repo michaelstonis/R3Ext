@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "dgSpecHash": "5rBbU/Dxy7E=",
+  "success": false,
+  "projectFilePath": "/Users/mstonis/Developer/R3Ext/R3Ext.SampleApp/R3Ext.SampleApp.csproj",
+  "expectedPackageFiles": [
+    "/Users/mstonis/.nuget/packages/microsoft.netcore.app.ref/9.0.11/microsoft.netcore.app.ref.9.0.11.nupkg.sha512",
+    "/Users/mstonis/.nuget/packages/microsoft.aspnetcore.app.ref/9.0.11/microsoft.aspnetcore.app.ref.9.0.11.nupkg.sha512",
+    "/Users/mstonis/.nuget/packages/microsoft.netcore.app.ref/9.0.11/microsoft.netcore.app.ref.9.0.11.nupkg.sha512",
+    "/Users/mstonis/.nuget/packages/microsoft.aspnetcore.app.ref/9.0.11/microsoft.aspnetcore.app.ref.9.0.11.nupkg.sha512",
+    "/Users/mstonis/.nuget/packages/microsoft.netcore.app.ref/9.0.11/microsoft.netcore.app.ref.9.0.11.nupkg.sha512",
+    "/Users/mstonis/.nuget/packages/microsoft.aspnetcore.app.ref/9.0.11/microsoft.aspnetcore.app.ref.9.0.11.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1012",
+      "level": "Error",
+      "message": "Platform version is not present for one or more target frameworks, even though they have specified a platform: net9.0-maccatalyst",
+      "projectPath": "/Users/mstonis/Developer/R3Ext/R3Ext.SampleApp/R3Ext.SampleApp.csproj",
+      "filePath": "/Users/mstonis/Developer/R3Ext/R3Ext.SampleApp/R3Ext.SampleApp.csproj",
+      "targetGraphs": []
+    }
+  ]
+}
