@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
+using System.Threading.Tasks;
 using R3;
 
 namespace R3Ext;
@@ -18,6 +20,37 @@ public static class ReactivePortedExtensions
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
         return source.AsUnitObservable();
+    }
+
+    /// <summary>
+    /// Project values to tasks, cancelling the previous task when a new value arrives (latest only).
+    /// Cancellation is propagated via CancellationToken; uses AwaitOperation.Switch.
+    /// </summary>
+    public static Observable<TResult> SelectLatestAsync<TSource, TResult>(this Observable<TSource> source,
+        Func<TSource, CancellationToken, ValueTask<TResult>> selector,
+        bool configureAwait = true,
+        bool cancelOnCompleted = true)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (selector is null) throw new ArgumentNullException(nameof(selector));
+        return source.SelectAwait(selector, AwaitOperation.Switch, configureAwait, cancelOnCompleted);
+    }
+
+    /// <summary>
+    /// SelectLatestAsync overload for Task-returning projector.
+    /// </summary>
+    public static Observable<TResult> SelectLatestAsync<TSource, TResult>(this Observable<TSource> source,
+        Func<TSource, Task<TResult>> selector,
+        bool configureAwait = true,
+        bool cancelOnCompleted = true)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (selector is null) throw new ArgumentNullException(nameof(selector));
+        return source.SelectAwait<TSource, TResult>(
+            (x, ct) => new ValueTask<TResult>(selector(x)),
+            AwaitOperation.Switch,
+            configureAwait,
+            cancelOnCompleted);
     }
 
     /// <summary>
