@@ -541,6 +541,24 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Returns true when all latest values are false across the provided boolean observables.
+    /// </summary>
+    public static Observable<bool> CombineLatestValuesAreAllFalse(this System.Collections.Generic.IEnumerable<Observable<bool>> sources)
+    {
+        if (sources is null) throw new ArgumentNullException(nameof(sources));
+        var list = sources as System.Collections.Generic.IList<Observable<bool>> ?? new System.Collections.Generic.List<Observable<bool>>(sources);
+        return Observable.CombineLatest(list).Select(values =>
+        {
+            var allFalse = true;
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (values[i]) { allFalse = false; break; }
+            }
+            return allFalse;
+        });
+    }
+
+    /// <summary>
     /// Ignore errors from the source and complete instead.
     /// </summary>
     public static Observable<T> CatchIgnore<T>(this Observable<T> source)
