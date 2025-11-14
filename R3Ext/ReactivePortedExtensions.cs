@@ -192,6 +192,22 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Creates an observable sequence that depends on a resource object, disposing it when the sequence terminates.
+    /// </summary>
+    public static Observable<TResult> Using<TResource, TResult>(Func<TResource> resourceFactory, Func<TResource, Observable<TResult>> observableFactory)
+        where TResource : IDisposable
+    {
+        if (resourceFactory is null) throw new ArgumentNullException(nameof(resourceFactory));
+        if (observableFactory is null) throw new ArgumentNullException(nameof(observableFactory));
+        return Observable.Create<TResult>(observer =>
+        {
+            var resource = resourceFactory();
+            var subscription = observableFactory(resource).Subscribe(observer);
+            return Disposable.Combine(subscription, resource);
+        });
+    }
+
+    /// <summary>
     /// Logical NOT for boolean streams.
     /// </summary>
     public static Observable<bool> Not(this Observable<bool> source)
