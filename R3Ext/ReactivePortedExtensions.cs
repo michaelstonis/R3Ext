@@ -21,6 +21,15 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Logical NOT for boolean streams.
+    /// </summary>
+    public static Observable<bool> Not(this Observable<bool> source)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return source.Select(x => !x);
+    }
+
+    /// <summary>
     /// Filters out null values for nullable reference types and casts to non-nullable.
     /// </summary>
     public static Observable<T> WhereIsNotNull<T>(this Observable<T?> source) where T : class
