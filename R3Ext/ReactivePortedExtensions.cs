@@ -571,6 +571,26 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Invoke action on subscription using R3's Do(onSubscribe:).
+    /// </summary>
+    public static Observable<T> DoOnSubscribe<T>(this Observable<T> source, Action onSubscribe)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (onSubscribe is null) throw new ArgumentNullException(nameof(onSubscribe));
+        return source.Do(onSubscribe: onSubscribe);
+    }
+
+    /// <summary>
+    /// Invoke action on dispose using R3's Do(onDispose:).
+    /// </summary>
+    public static Observable<T> DoOnDispose<T>(this Observable<T> source, Action onDispose)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (onDispose is null) throw new ArgumentNullException(nameof(onDispose));
+        return source.Do(onDispose: onDispose);
+    }
+
+    /// <summary>
     /// Ignore errors from the source and complete instead.
     /// </summary>
     public static Observable<T> CatchIgnore<T>(this Observable<T> source)
