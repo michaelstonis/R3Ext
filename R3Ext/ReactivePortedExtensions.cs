@@ -110,4 +110,95 @@ public static class ReactivePortedExtensions
         var rest = shared.Skip(1).Debounce(dueTime, tp);
         return Observable.Merge(first, rest);
     }
+
+    /// <summary>
+    /// Wrapper emitted by Heartbeat indicating either a data value or a heartbeat placeholder.
+    /// </summary>
+    public readonly struct HeartbeatEvent<T>
+    {
+        public bool IsHeartbeat { get; }
+        public T? Value { get; }
+        internal HeartbeatEvent(bool isHeartbeat, T? value)
+        {
+            IsHeartbeat = isHeartbeat;
+            Value = value;
+        }
+    }
+
+    /// <summary>
+    /// Emits original values wrapped in Heartbeat along with heartbeat markers during periods of inactivity.
+    /// Heartbeats begin after <paramref name="quietPeriod"/> since the last value and repeat until a new value arrives.
+    /// </summary>
+    public static Observable<HeartbeatEvent<T>> Heartbeat<T>(this Observable<T> source, TimeSpan quietPeriod, TimeProvider? timeProvider = null)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (quietPeriod <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(quietPeriod));
+        var tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
+
+        return Observable.Create<HeartbeatEvent<T>>(observer =>
+        {
+            object gate = new();
+            bool disposed = false;
+            IDisposable? upstream = null;
+            System.Threading.ITimer? timer = null; // using ITimer from TimeProvider
+
+            void DisposeTimer()
+            {
+                timer?.Dispose();
+                timer = null;
+            }
+
+            void ScheduleHeartbeat()
+            {
+                DisposeTimer();
+                timer = tp.CreateTimer(_ =>
+                {
+                    lock (gate)
+                    {
+                        if (disposed) return;
+                        observer.OnNext(new HeartbeatEvent<T>(true, default));
+                    }
+                }, null, quietPeriod, quietPeriod);
+            }
+
+            upstream = source.Subscribe(
+                x =>
+                {
+                    lock (gate)
+                    {
+                        if (disposed) return;
+                        observer.OnNext(new HeartbeatEvent<T>(false, x));
+                        ScheduleHeartbeat();
+                    }
+                },
+                ex =>
+                {
+                    lock (gate)
+                    {
+                        if (disposed) return;
+                        observer.OnErrorResume(ex);
+                    }
+                },
+                r =>
+                {
+                    lock (gate)
+                    {
+                        if (disposed) return;
+                        DisposeTimer();
+                        observer.OnCompleted(r);
+                    }
+                });
+
+            return Disposable.Create(() =>
+            {
+                lock (gate)
+                {
+                    if (disposed) return;
+                    disposed = true;
+                    DisposeTimer();
+                    upstream?.Dispose();
+                }
+            });
+        });
+    }
 }
