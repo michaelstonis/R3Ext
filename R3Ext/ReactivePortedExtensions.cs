@@ -789,6 +789,32 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Push multiple values to an observer.
+    /// </summary>
+    public static void OnNext<T>(this Observer<T> observer, params T[] values)
+    {
+        if (observer is null) throw new ArgumentNullException(nameof(observer));
+        if (values is null) return;
+        for (int i = 0; i < values.Length; i++)
+        {
+            observer.OnNext(values[i]);
+        }
+    }
+
+    /// <summary>
+    /// Push a sequence of values to an observer.
+    /// </summary>
+    public static void OnNext<T>(this Observer<T> observer, System.Collections.Generic.IEnumerable<T> values)
+    {
+        if (observer is null) throw new ArgumentNullException(nameof(observer));
+        if (values is null) return;
+        foreach (var v in values)
+        {
+            observer.OnNext(v);
+        }
+    }
+
+    /// <summary>
     /// Partition a stream into two by predicate: matching and non-matching.
     /// </summary>
     public static (Observable<T> True, Observable<T> False) Partition<T>(this Observable<T> source, Func<T, bool> predicate)
