@@ -111,6 +111,36 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Subscribe asynchronously to each value with a specified await operation strategy.
+    /// </summary>
+    public static IDisposable SubscribeAsync<T>(this Observable<T> source,
+        Func<T, CancellationToken, ValueTask> onNextAsync,
+        AwaitOperation awaitOperation = AwaitOperation.Sequential,
+        bool configureAwait = true,
+        bool cancelOnCompleted = true,
+        int maxConcurrent = -1)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (onNextAsync is null) throw new ArgumentNullException(nameof(onNextAsync));
+        return source.SubscribeAwait(onNextAsync, awaitOperation, configureAwait, cancelOnCompleted, maxConcurrent);
+    }
+
+    /// <summary>
+    /// SubscribeAsync overload for Task-returning handler.
+    /// </summary>
+    public static IDisposable SubscribeAsync<T>(this Observable<T> source,
+        Func<T, Task> onNextAsync,
+        AwaitOperation awaitOperation = AwaitOperation.Sequential,
+        bool configureAwait = true,
+        bool cancelOnCompleted = true,
+        int maxConcurrent = -1)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (onNextAsync is null) throw new ArgumentNullException(nameof(onNextAsync));
+        return source.SubscribeAwait((x, ct) => new ValueTask(onNextAsync(x)), awaitOperation, configureAwait, cancelOnCompleted, maxConcurrent);
+    }
+
+    /// <summary>
     /// Logical NOT for boolean streams.
     /// </summary>
     public static Observable<bool> Not(this Observable<bool> source)
