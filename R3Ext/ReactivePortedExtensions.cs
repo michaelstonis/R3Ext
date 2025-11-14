@@ -30,6 +30,24 @@ public static class ReactivePortedExtensions
     }
 
     /// <summary>
+    /// Filters a boolean stream to only true values.
+    /// </summary>
+    public static Observable<bool> WhereTrue(this Observable<bool> source)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return source.Where(x => x);
+    }
+
+    /// <summary>
+    /// Filters a boolean stream to only false values.
+    /// </summary>
+    public static Observable<bool> WhereFalse(this Observable<bool> source)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return source.Where(x => !x);
+    }
+
+    /// <summary>
     /// Filters out null values for nullable reference types and casts to non-nullable.
     /// </summary>
     public static Observable<T> WhereIsNotNull<T>(this Observable<T?> source) where T : class
