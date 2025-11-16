@@ -244,22 +244,27 @@ internal sealed class CodeEmitter
         sb.AppendLine("    {");
         sb.AppendLine("        if (fromObject is null || targetObject is null) return Disposable.Empty;");
         sb.AppendLine("        convert ??= v => (TTargetProperty)(object?)v!;");
-        // Generate evaluated getter chains as local functions using direct access at compile time is not possible, so we will use the lambda compiled ONLY for initial value where needed? We must avoid expression. Instead, we embed member access from parsed syntax.
-        // For maintainability, call into a generated nested class that wires events; to keep this first pass small, emit minimal manual event chain using reflection-free access via compiled member names and potential UnsafeAccessors emitted separately when needed in future passes.
-        sb.AppendLine("        return Observable.Create<Unit>(observer =>");
+        sb.AppendLine("        System.ComponentModel.PropertyChangedEventHandler? h = null;");
+        sb.AppendLine("        void Update()");
         sb.AppendLine("        {");
-        sb.AppendLine("            void Update()");
+        sb.AppendLine("            try");
         sb.AppendLine("            {");
-        sb.AppendLine("                try");
-        sb.AppendLine("                {");
         sb.AppendLine(GenerateDirectSetFromTo(m.FromLambda!, m.ToLambda!, oneWay:true));
-        sb.AppendLine("                }");
-        sb.AppendLine("                catch { }");
         sb.AppendLine("            }");
-        sb.AppendLine(GenerateWireForChains(m.FromLambda!, m.ToLambda!, oneWay:true));
-        sb.AppendLine("            Update();");
-        sb.AppendLine("            return Disposable.Create(() => { /* unsubscription handled in wire scope */ });");
-        sb.AppendLine("        }).Subscribe(_ => { }).AddTo(Disposable.Empty);");
+        sb.AppendLine("            catch { }");
+        sb.AppendLine("        }");
+        sb.AppendLine("        if (fromObject is System.ComponentModel.INotifyPropertyChanged fromNpc)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            h = (s,e) => {{ if (e.PropertyName == \"{ExtractTopMemberName(m.FromLambda!)}\") Update(); }};");
+        sb.AppendLine("            fromNpc.PropertyChanged += h;");
+        sb.AppendLine("        }");
+        sb.AppendLine("        else");
+        sb.AppendLine("        {");
+        sb.AppendLine("            // Fallback: poll changes using R3 Observable.EveryValueChanged if available (no-op if not)");
+        sb.AppendLine("            try { Observable.EveryValueChanged(fromObject, _ => " + ExtractMemberAccess(m.FromLambda!) + ").Subscribe(_ => Update()); } catch { } ");
+        sb.AppendLine("        }");
+        sb.AppendLine("        Update();");
+        sb.AppendLine("        return Disposable.Create(() => { if (h != null && fromObject is System.ComponentModel.INotifyPropertyChanged npc) npc.PropertyChanged -= h; });");
         sb.AppendLine("    }");
     }
 
@@ -271,7 +276,7 @@ internal sealed class CodeEmitter
         sb.AppendLine("        hostToTarget ??= v => (TTargetProperty)(object?)v!;");
         sb.AppendLine("        targetToHost ??= v => (TFromProperty)(object?)v!;");
         sb.AppendLine("        bool isUpdating = false;");
-        sb.AppendLine("        var cd = new System.Reactive.Disposables.CompositeDisposable();");
+        sb.AppendLine("        var disposables = new System.Collections.Generic.List<IDisposable>(2);");
         sb.AppendLine("        void UpdateTarget(){ if (isUpdating) return; isUpdating = true; try { ");
         sb.AppendLine(GenerateDirectSetFromTo(m.FromLambda!, m.ToLambda!, oneWay:false));
         sb.AppendLine("        } finally { isUpdating = false; } }");
@@ -280,7 +285,7 @@ internal sealed class CodeEmitter
         sb.AppendLine("        } finally { isUpdating = false; } }");
         sb.AppendLine(GenerateWireForChains(m.FromLambda!, m.ToLambda!, oneWay:false));
         sb.AppendLine("        UpdateTarget();");
-        sb.AppendLine("        return cd;");
+        sb.AppendLine("        return Disposable.Create(() => { foreach (var d in disposables) d.Dispose(); });");
         sb.AppendLine("    }");
     }
 
@@ -315,17 +320,19 @@ internal sealed class CodeEmitter
         var toMember = ExtractTopMemberName(to);
         var sb = new StringBuilder();
         sb.AppendLine("            if (fromObject is System.ComponentModel.INotifyPropertyChanged fromNpc)");
-        sb.AppendLine("            {");
+        sb.AppendLine("            if (fromObject is System.ComponentModel.INotifyPropertyChanged fromNpc)");
         sb.AppendLine($"                System.ComponentModel.PropertyChangedEventHandler h = (s,e) => {{ if (e.PropertyName == \"{fromMember}\") Update(); }};");
-        sb.AppendLine("                fromNpc.PropertyChanged += h;");
+        sb.AppendLine($"                System.ComponentModel.PropertyChangedEventHandler h = (s,e) => {{ if (e.PropertyName == \\\"{fromMember}\\\") Update(); }};");
         sb.AppendLine("            }");
+        sb.AppendLine("                disposables.Add(Disposable.Create(() => fromNpc.PropertyChanged -= h));");
         if (!oneWay)
         {
             sb.AppendLine("            if (targetObject is System.ComponentModel.INotifyPropertyChanged toNpc)");
             sb.AppendLine("            {");
             sb.AppendLine($"                System.ComponentModel.PropertyChangedEventHandler h2 = (s,e) => {{ if (e.PropertyName == \"{toMember}\") UpdateHost(); }};");
-            sb.AppendLine("                toNpc.PropertyChanged += h2;");
+            sb.AppendLine($"                System.ComponentModel.PropertyChangedEventHandler h2 = (s,e) => {{ if (e.PropertyName == \\\"{toMember}\\\") UpdateHost(); }};");
             sb.AppendLine("            }");
+            sb.AppendLine("                disposables.Add(Disposable.Create(() => toNpc.PropertyChanged -= h2));");
         }
         return sb.ToString();
     }
@@ -347,7 +354,7 @@ internal sealed class CodeEmitter
         sb.AppendLine("        else");
         sb.AppendLine("        {");
         sb.AppendLine("            // Fallback polling for non-INPC roots using EveryValueChanged if present");
-        sb.AppendLine("            return Observable.EveryValueChanged(root, _ => " + getter + ")");
+        sb.AppendLine("            return Observable.EveryValueChanged(root, _ => " + getter + ")")
         sb.AppendLine("                .Select(v => (TReturn)v)");
         sb.AppendLine("                .DistinctUntilChanged();");
         sb.AppendLine("        }");
