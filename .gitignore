@@ -404,3 +404,11 @@ ASALocalRun/
 # Local History for Visual Studio
 .localhistory/
 MembersHQ.Mobile.Android/Resources/Resource.designer.cs
+
+R3Ext.SampleApp/bin/
+
+R3Ext.SampleApp/obj/
+
+R3Ext/bin/
+
+R3Ext/obj/
