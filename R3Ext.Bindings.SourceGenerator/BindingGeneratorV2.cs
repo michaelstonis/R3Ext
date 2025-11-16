@@ -354,7 +354,7 @@ internal sealed class CodeEmitter
         sb.AppendLine("        else");
         sb.AppendLine("        {");
         sb.AppendLine("            // Fallback polling for non-INPC roots using EveryValueChanged if present");
-        sb.AppendLine("            return Observable.EveryValueChanged(root, _ => " + getter + ")")
+        sb.AppendLine("            return Observable.EveryValueChanged(root, _ => " + getter + ")");
         sb.AppendLine("                .Select(v => (TReturn)v)");
         sb.AppendLine("                .DistinctUntilChanged();");
         sb.AppendLine("        }");
