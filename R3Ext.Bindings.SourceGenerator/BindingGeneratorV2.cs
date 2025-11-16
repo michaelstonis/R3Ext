@@ -320,19 +320,19 @@ internal sealed class CodeEmitter
         var toMember = ExtractTopMemberName(to);
         var sb = new StringBuilder();
         sb.AppendLine("            if (fromObject is System.ComponentModel.INotifyPropertyChanged fromNpc)");
-        sb.AppendLine("            if (fromObject is System.ComponentModel.INotifyPropertyChanged fromNpc)");
-        sb.AppendLine($"                System.ComponentModel.PropertyChangedEventHandler h = (s,e) => {{ if (e.PropertyName == \"{fromMember}\") Update(); }};");
+        sb.AppendLine("            {");
         sb.AppendLine($"                System.ComponentModel.PropertyChangedEventHandler h = (s,e) => {{ if (e.PropertyName == \\\"{fromMember}\\\") Update(); }};");
-        sb.AppendLine("            }");
+        sb.AppendLine("                fromNpc.PropertyChanged += h;");
         sb.AppendLine("                disposables.Add(Disposable.Create(() => fromNpc.PropertyChanged -= h));");
+        sb.AppendLine("            }");
         if (!oneWay)
         {
             sb.AppendLine("            if (targetObject is System.ComponentModel.INotifyPropertyChanged toNpc)");
             sb.AppendLine("            {");
-            sb.AppendLine($"                System.ComponentModel.PropertyChangedEventHandler h2 = (s,e) => {{ if (e.PropertyName == \"{toMember}\") UpdateHost(); }};");
             sb.AppendLine($"                System.ComponentModel.PropertyChangedEventHandler h2 = (s,e) => {{ if (e.PropertyName == \\\"{toMember}\\\") UpdateHost(); }};");
-            sb.AppendLine("            }");
+            sb.AppendLine("                toNpc.PropertyChanged += h2;");
             sb.AppendLine("                disposables.Add(Disposable.Create(() => toNpc.PropertyChanged -= h2));");
+            sb.AppendLine("            }");
         }
         return sb.ToString();
     }
