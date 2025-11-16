@@ -26,8 +26,6 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         context.RegisterSourceOutput(collected, static (spc, models) =>
         {
             var all = models!.OfType<InvocationModel>().ToImmutableArray();
-            if (all.IsDefaultOrEmpty) return;
-
             var emitter = new CodeEmitter();
             var source = emitter.Emit(all);
             spc.AddSource("R3Ext_BindingGeneratorV2.g.cs", SourceText.From(source, Encoding.UTF8));
@@ -116,7 +114,7 @@ internal sealed class CodeEmitter
         sb.AppendLine("using System.Runtime.CompilerServices;");
         sb.AppendLine("using R3;");
         sb.AppendLine("namespace R3Ext;");
-        sb.AppendLine("public static partial class BindingExtensions");
+        sb.AppendLine("public static partial class R3BindingExtensions");
         sb.AppendLine("{");
 
         // Group invocations by kind and generate dispatch switches
@@ -145,31 +143,27 @@ internal sealed class CodeEmitter
 
     private void EmitBindOneWay(ImmutableArray<InvocationModel> models, StringBuilder sb)
     {
-        if (models.IsDefaultOrEmpty)
-        {
-            // Emit the partial signature to satisfy references even if unused in this compilation
-            sb.AppendLine("    public static partial IDisposable BindOneWay<TFrom,TFromProperty,TTarget,TTargetProperty>(this TFrom fromObject, TTarget targetObject, Expression<Func<TFrom,TFromProperty>> fromProperty, Expression<Func<TTarget,TTargetProperty>> toProperty, Func<TFromProperty,TTargetProperty>? conversionFunc = null, [CallerArgumentExpression(\"fromProperty\")] string? fromPropertyPath = null, [CallerArgumentExpression(\"toProperty\")] string? toPropertyPath = null);");
-            return;
-        }
-
         sb.AppendLine("    public static partial IDisposable BindOneWay<TFrom,TFromProperty,TTarget,TTargetProperty>(this TFrom fromObject, TTarget targetObject, Expression<Func<TFrom,TFromProperty>> fromProperty, Expression<Func<TTarget,TTargetProperty>> toProperty, Func<TFromProperty,TTargetProperty>? conversionFunc = null, [CallerArgumentExpression(\"fromProperty\")] string? fromPropertyPath = null, [CallerArgumentExpression(\"toProperty\")] string? toPropertyPath = null)");
         sb.AppendLine("    {");
-        sb.AppendLine("        switch (fromPropertyPath)");
-        sb.AppendLine("        {");
-        foreach (var m in models)
+        if (!models.IsDefaultOrEmpty)
         {
-            if (m.FromPath is null || m.ToPath is null) continue;
-            var key1 = m.FromPath;
-            var key2 = m.ToPath;
-            var id = Hash(key1 + "|" + key2);
-            sb.AppendLine($"            case \"{Escape(key1)}\":");
-            sb.AppendLine("                switch (toPropertyPath)");
-            sb.AppendLine("                {");
-            sb.AppendLine($"                    case \"{Escape(key2)}\": return __BindOneWay_{id}(fromObject, targetObject, conversionFunc);");
-            sb.AppendLine("                }");
-            sb.AppendLine("                break;");
+            sb.AppendLine("        switch (fromPropertyPath)");
+            sb.AppendLine("        {");
+            foreach (var m in models)
+            {
+                if (m.FromPath is null || m.ToPath is null) continue;
+                var key1 = m.FromPath;
+                var key2 = m.ToPath;
+                var id = Hash(key1 + "|" + key2);
+                sb.AppendLine($"            case \"{Escape(key1)}\":");
+                sb.AppendLine("                switch (toPropertyPath)");
+                sb.AppendLine("                {");
+                sb.AppendLine($"                    case \"{Escape(key2)}\": return __BindOneWay_{id}(fromObject, targetObject, conversionFunc);");
+                sb.AppendLine("                }");
+                sb.AppendLine("                break;");
+            }
+            sb.AppendLine("        }");
         }
-        sb.AppendLine("        }");
         sb.AppendLine("        throw new NotSupportedException(\"No generated binding for provided property paths.\");");
         sb.AppendLine("    }");
 
@@ -184,30 +178,27 @@ internal sealed class CodeEmitter
 
     private void EmitBindTwoWay(ImmutableArray<InvocationModel> models, StringBuilder sb)
     {
-        if (models.IsDefaultOrEmpty)
-        {
-            sb.AppendLine("    public static partial IDisposable BindTwoWay<TFrom,TFromProperty,TTarget,TTargetProperty>(this TFrom fromObject, TTarget targetObject, Expression<Func<TFrom,TFromProperty>> fromProperty, Expression<Func<TTarget,TTargetProperty>> toProperty, Func<TFromProperty,TTargetProperty>? hostToTargetConv = null, Func<TTargetProperty,TFromProperty>? targetToHostConv = null, [CallerArgumentExpression(\"fromProperty\")] string? fromPropertyPath = null, [CallerArgumentExpression(\"toProperty\")] string? toPropertyPath = null);");
-            return;
-        }
-
         sb.AppendLine("    public static partial IDisposable BindTwoWay<TFrom,TFromProperty,TTarget,TTargetProperty>(this TFrom fromObject, TTarget targetObject, Expression<Func<TFrom,TFromProperty>> fromProperty, Expression<Func<TTarget,TTargetProperty>> toProperty, Func<TFromProperty,TTargetProperty>? hostToTargetConv = null, Func<TTargetProperty,TFromProperty>? targetToHostConv = null, [CallerArgumentExpression(\"fromProperty\")] string? fromPropertyPath = null, [CallerArgumentExpression(\"toProperty\")] string? toPropertyPath = null)");
         sb.AppendLine("    {");
-        sb.AppendLine("        switch (fromPropertyPath)");
-        sb.AppendLine("        {");
-        foreach (var m in models)
+        if (!models.IsDefaultOrEmpty)
         {
-            if (m.FromPath is null || m.ToPath is null) continue;
-            var key1 = m.FromPath;
-            var key2 = m.ToPath;
-            var id = Hash(key1 + "|" + key2);
-            sb.AppendLine($"            case \"{Escape(key1)}\":");
-            sb.AppendLine("                switch (toPropertyPath)");
-            sb.AppendLine("                {");
-            sb.AppendLine($"                    case \"{Escape(key2)}\": return __BindTwoWay_{id}(fromObject, targetObject, hostToTargetConv, targetToHostConv);");
-            sb.AppendLine("                }");
-            sb.AppendLine("                break;");
+            sb.AppendLine("        switch (fromPropertyPath)");
+            sb.AppendLine("        {");
+            foreach (var m in models)
+            {
+                if (m.FromPath is null || m.ToPath is null) continue;
+                var key1 = m.FromPath;
+                var key2 = m.ToPath;
+                var id = Hash(key1 + "|" + key2);
+                sb.AppendLine($"            case \"{Escape(key1)}\":");
+                sb.AppendLine("                switch (toPropertyPath)");
+                sb.AppendLine("                {");
+                sb.AppendLine($"                    case \"{Escape(key2)}\": return __BindTwoWay_{id}(fromObject, targetObject, hostToTargetConv, targetToHostConv);");
+                sb.AppendLine("                }");
+                sb.AppendLine("                break;");
+            }
+            sb.AppendLine("        }");
         }
-        sb.AppendLine("        }");
         sb.AppendLine("        throw new NotSupportedException(\"No generated two-way binding for provided property paths.\");");
         sb.AppendLine("    }");
 
@@ -221,23 +212,20 @@ internal sealed class CodeEmitter
 
     private void EmitWhenChanged(ImmutableArray<InvocationModel> models, StringBuilder sb)
     {
-        if (models.IsDefaultOrEmpty)
-        {
-            sb.AppendLine("    public static partial Observable<TReturn> WhenChanged<TObj,TReturn>(this TObj objectToMonitor, Expression<Func<TObj,TReturn>> propertyExpression, [CallerArgumentExpression(\"propertyExpression\")] string? propertyExpressionPath = null);");
-            return;
-        }
-
         sb.AppendLine("    public static partial Observable<TReturn> WhenChanged<TObj,TReturn>(this TObj objectToMonitor, Expression<Func<TObj,TReturn>> propertyExpression, [CallerArgumentExpression(\"propertyExpression\")] string? propertyExpressionPath = null)");
         sb.AppendLine("    {");
-        sb.AppendLine("        switch (propertyExpressionPath)");
-        sb.AppendLine("        {");
-        foreach (var m in models)
+        if (!models.IsDefaultOrEmpty)
         {
-            if (m.WhenPath is null) continue;
-            var id = Hash(m.WhenPath);
-            sb.AppendLine($"            case \"{Escape(m.WhenPath)}\": return __WhenChanged_{id}(objectToMonitor);");
+            sb.AppendLine("        switch (propertyExpressionPath)");
+            sb.AppendLine("        {");
+            foreach (var m in models)
+            {
+                if (m.WhenPath is null) continue;
+                var id = Hash(m.WhenPath);
+                sb.AppendLine($"            case \"{Escape(m.WhenPath)}\": return __WhenChanged_{id}(objectToMonitor);");
+            }
+            sb.AppendLine("        }");
         }
-        sb.AppendLine("        }");
         sb.AppendLine("        throw new NotSupportedException(\"No generated WhenChanged for provided property expression.\");");
         sb.AppendLine("    }");
 
