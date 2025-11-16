@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
+    <ProjectReference Include="..\R3Ext.PropertyChanged.SourceGenerator\R3Ext.PropertyChanged.SourceGenerator.csproj" />
+  </ItemGroup>
+</Project>

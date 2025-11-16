@@ -46,6 +46,11 @@
                     Clicked="OnStopTicker"
                     Grid.Column="1" />
             </Grid>
+
+            <Label x:Name="NameLabel" Text="Name: (unset)" />
+            <Entry x:Name="NameEntry" Placeholder="Edit name" />
+            <Label x:Name="UpperNameLabel" Text="Upper: (unset)" />
+            <Label x:Name="StatusLabel" Text="Status: -" />
         </VerticalStackLayout>
     </ScrollView>
 

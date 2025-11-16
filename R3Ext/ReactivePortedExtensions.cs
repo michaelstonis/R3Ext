@@ -161,7 +161,8 @@ public static class ReactivePortedExtensions
     /// Expand sequences emitted by the source into individual items.
     /// Optimized for arrays and IList to avoid iterator allocations.
     /// </summary>
-    public static Observable<T> ForEach<T>(this Observable<System.Collections.Generic.IEnumerable<T>> source)
+    public static Observable<T> ForEach<T, TEnumerable>(this Observable<TEnumerable> source)
+        where TEnumerable : System.Collections.Generic.IEnumerable<T>
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
         return Observable.Create<T>(observer =>
@@ -185,6 +186,60 @@ public static class ReactivePortedExtensions
                 {
                     observer.OnNext(item);
                 }
+            },
+            observer.OnErrorResume,
+            observer.OnCompleted);
+        });
+    }
+
+    /// <summary>
+    /// Expand array items emitted by the source into individual items.
+    /// </summary>
+    public static Observable<T> ForEach<T>(this Observable<T[]> source)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return Observable.Create<T>(observer =>
+        {
+            return source.Subscribe(arr =>
+            {
+                if (arr is null) return;
+                for (int i = 0; i < arr.Length; i++) observer.OnNext(arr[i]);
+            },
+            observer.OnErrorResume,
+            observer.OnCompleted);
+        });
+    }
+
+    /// <summary>
+    /// Expand IList items emitted by the source into individual items.
+    /// </summary>
+    public static Observable<T> ForEach<T>(this Observable<System.Collections.Generic.IList<T>> source)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return Observable.Create<T>(observer =>
+        {
+            return source.Subscribe(list =>
+            {
+                if (list is null) return;
+                for (int i = 0; i < list.Count; i++) observer.OnNext(list[i]);
+            },
+            observer.OnErrorResume,
+            observer.OnCompleted);
+        });
+    }
+
+    /// <summary>
+    /// Expand List items emitted by the source into individual items.
+    /// </summary>
+    public static Observable<T> ForEach<T>(this Observable<System.Collections.Generic.List<T>> source)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return Observable.Create<T>(observer =>
+        {
+            return source.Subscribe(list =>
+            {
+                if (list is null) return;
+                for (int i = 0; i < list.Count; i++) observer.OnNext(list[i]);
             },
             observer.OnErrorResume,
             observer.OnCompleted);
