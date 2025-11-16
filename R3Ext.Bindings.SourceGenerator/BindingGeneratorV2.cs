@@ -80,15 +80,29 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
     private static LambdaExpressionSyntax? TryExtractLambdaFromNameof(ExpressionSyntax expr) => expr as LambdaExpressionSyntax;
 }
 
-internal sealed record InvocationModel(
-    string Kind,
-    LambdaExpressionSyntax? FromLambda,
-    LambdaExpressionSyntax? ToLambda,
-    LambdaExpressionSyntax? WhenLambda,
-    string? FromPath,
-    string? ToPath,
-    string? WhenPath,
-    Location Location);
+internal sealed class InvocationModel
+{
+    public string Kind { get; }
+    public LambdaExpressionSyntax? FromLambda { get; }
+    public LambdaExpressionSyntax? ToLambda { get; }
+    public LambdaExpressionSyntax? WhenLambda { get; }
+    public string? FromPath { get; }
+    public string? ToPath { get; }
+    public string? WhenPath { get; }
+    public Location Location { get; }
+
+    public InvocationModel(string kind, LambdaExpressionSyntax? fromLambda, LambdaExpressionSyntax? toLambda, LambdaExpressionSyntax? whenLambda, string? fromPath, string? toPath, string? whenPath, Location location)
+    {
+        Kind = kind;
+        FromLambda = fromLambda;
+        ToLambda = toLambda;
+        WhenLambda = whenLambda;
+        FromPath = fromPath;
+        ToPath = toPath;
+        WhenPath = whenPath;
+        Location = location;
+    }
+}
 
 internal sealed class CodeEmitter
 {
