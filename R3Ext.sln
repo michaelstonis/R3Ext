@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "R3Ext.PropertyChanged.Sourc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "R3Ext.Benchmarks", "R3Ext.Benchmarks\R3Ext.Benchmarks.csproj", "{A4A39F1F-495B-4A19-9E4C-9B3F6D4E6F77}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "R3Ext.Bindings.SourceGenerator", "R3Ext.Bindings.SourceGenerator\R3Ext.Bindings.SourceGenerator.csproj", "{3C5BE863-BF6F-4146-855B-EC47FA62339F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -83,6 +85,18 @@ Global
 		{A4A39F1F-495B-4A19-9E4C-9B3F6D4E6F77}.Release|x64.Build.0 = Release|Any CPU
 		{A4A39F1F-495B-4A19-9E4C-9B3F6D4E6F77}.Release|x86.ActiveCfg = Release|Any CPU
 		{A4A39F1F-495B-4A19-9E4C-9B3F6D4E6F77}.Release|x86.Build.0 = Release|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Debug|x64.Build.0 = Debug|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Debug|x86.Build.0 = Debug|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Release|x64.ActiveCfg = Release|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Release|x64.Build.0 = Release|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Release|x86.ActiveCfg = Release|Any CPU
+		{3C5BE863-BF6F-4146-855B-EC47FA62339F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
