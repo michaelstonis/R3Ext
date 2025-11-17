@@ -17,7 +17,7 @@ public class BaseTypeMatchingTests
         public string Text { get; set; } = string.Empty;
     }
 
-    private sealed class DerivedTarget : BaseTarget {}
+    private sealed class DerivedTarget : BaseTarget { }
 
     private sealed class DummyDisposable : IDisposable
     {
@@ -56,7 +56,7 @@ public class BaseTypeMatchingTests
         public int Value { get; set; }
     }
 
-    private sealed class DerivedWhen : BaseWhen {}
+    private sealed class DerivedWhen : BaseWhen { }
 
     [Fact]
     public void WhenChanged_RegistrationOnBase_MatchesDerivedAtRuntime()

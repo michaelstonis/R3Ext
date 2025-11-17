@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using R3;
 
 namespace R3Ext;
 
 // Internal registry used by generated extension methods to allow cross-assembly registration.
 // Currently only stubbed; referencing assemblies will later register factories via module initializers.
+[EditorBrowsable(EditorBrowsableState.Never)]
 public static class BindingRegistry
 {
     // For bindings, index by "fromPath|toPath"; each key can have multiple
@@ -41,10 +43,10 @@ public static class BindingRegistry
     private static readonly Dictionary<string, List<WhenEntry>> _whenChanged = new();
 
     // Registration API (called from generated module initializers in referencing assemblies)
-    public static void RegisterOneWay<TFrom,TFromProp,TTarget,TTargetProp>(string fromPath, string toPath, Func<TFrom, TTarget, Func<TFromProp,TTargetProp>?, IDisposable> factory)
+    public static void RegisterOneWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath, Func<TFrom, TTarget, Func<TFromProp, TTargetProp>?, IDisposable> factory)
     {
         var key = fromPath + "|" + toPath;
-        Console.WriteLine($"[BindingRegistry] RegisterOneWay {key} as {typeof(TFrom).Name}->{typeof(TTarget).Name}");
+        Log($"[BindingRegistry] RegisterOneWay {key} as {typeof(TFrom).Name}->{typeof(TTarget).Name}");
         if (!_oneWay.TryGetValue(key, out var list))
         {
             list = new List<OneWayEntry>();
@@ -54,13 +56,13 @@ public static class BindingRegistry
         {
             FromType = typeof(TFrom),
             TargetType = typeof(TTarget),
-            Factory = (f,t,conv) => factory((TFrom)f, (TTarget)t, (Func<TFromProp,TTargetProp>?)conv)
+            Factory = (f, t, conv) => factory((TFrom)f, (TTarget)t, (Func<TFromProp, TTargetProp>?)conv)
         });
     }
-    public static void RegisterTwoWay<TFrom,TFromProp,TTarget,TTargetProp>(string fromPath, string toPath, Func<TFrom, TTarget, Func<TFromProp,TTargetProp>?, Func<TTargetProp,TFromProp>?, IDisposable> factory)
+    public static void RegisterTwoWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath, Func<TFrom, TTarget, Func<TFromProp, TTargetProp>?, Func<TTargetProp, TFromProp>?, IDisposable> factory)
     {
         var key = fromPath + "|" + toPath;
-        Console.WriteLine($"[BindingRegistry] RegisterTwoWay {key} as {typeof(TFrom).Name}<->{typeof(TTarget).Name}");
+        Log($"[BindingRegistry] RegisterTwoWay {key} as {typeof(TFrom).Name}<->{typeof(TTarget).Name}");
         if (!_twoWay.TryGetValue(key, out var list))
         {
             list = new List<TwoWayEntry>();
@@ -70,14 +72,14 @@ public static class BindingRegistry
         {
             FromType = typeof(TFrom),
             TargetType = typeof(TTarget),
-            Factory = (f,t,ht,th) => factory((TFrom)f, (TTarget)t, (Func<TFromProp,TTargetProp>?)ht, (Func<TTargetProp,TFromProp>?)th)
+            Factory = (f, t, ht, th) => factory((TFrom)f, (TTarget)t, (Func<TFromProp, TTargetProp>?)ht, (Func<TTargetProp, TFromProp>?)th)
         });
     }
-    public static void RegisterWhenChanged<TObj,TReturn>(string whenPath, Func<TObj, Observable<TReturn>> factory)
+    public static void RegisterWhenChanged<TObj, TReturn>(string whenPath, Func<TObj, Observable<TReturn>> factory)
     {
         // whenPath is usually "TypeSimpleName|lambdaText" per generator. Index by path after the first '|'.
         var (typePart, pathPart) = SplitTypePath(whenPath);
-        Console.WriteLine($"[BindingRegistry] RegisterWhenChanged {typePart}|{pathPart} as {typeof(TObj).Name}");
+        Log($"[BindingRegistry] RegisterWhenChanged {typePart}|{pathPart} as {typeof(TObj).Name}");
         if (!_whenChanged.TryGetValue(pathPart, out var list))
         {
             list = new List<WhenEntry>();
@@ -91,12 +93,12 @@ public static class BindingRegistry
     }
 
     // TryCreate APIs used by generated extension methods before falling back to specialized implementations
-    public static bool TryCreateOneWay<TFrom,TFromProp,TTarget,TTargetProp>(string fromPath, string toPath, TFrom fromObj, TTarget targetObj, Func<TFromProp,TTargetProp>? conv, out IDisposable disposable)
+    public static bool TryCreateOneWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath, TFrom fromObj, TTarget targetObj, Func<TFromProp, TTargetProp>? conv, out IDisposable disposable)
     {
         var key = fromPath + "|" + toPath;
         var fromRuntime = fromObj?.GetType() ?? typeof(TFrom);
         var targetRuntime = targetObj?.GetType() ?? typeof(TTarget);
-        Console.WriteLine($"[BindingRegistry] TryCreateOneWay lookup {key} for {fromRuntime.Name}->{targetRuntime.Name}");
+        Log($"[BindingRegistry] TryCreateOneWay lookup {key} for {fromRuntime.Name}->{targetRuntime.Name}");
         if (_oneWay.TryGetValue(key, out var list))
         {
             var entry = PickBest(list, fromRuntime, targetRuntime);
@@ -110,12 +112,12 @@ public static class BindingRegistry
         return false;
     }
 
-    public static bool TryCreateTwoWay<TFrom,TFromProp,TTarget,TTargetProp>(string fromPath, string toPath, TFrom fromObj, TTarget targetObj, Func<TFromProp,TTargetProp>? hostToTarget, Func<TTargetProp,TFromProp>? targetToHost, out IDisposable disposable)
+    public static bool TryCreateTwoWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath, TFrom fromObj, TTarget targetObj, Func<TFromProp, TTargetProp>? hostToTarget, Func<TTargetProp, TFromProp>? targetToHost, out IDisposable disposable)
     {
         var key = fromPath + "|" + toPath;
         var fromRuntime = fromObj?.GetType() ?? typeof(TFrom);
         var targetRuntime = targetObj?.GetType() ?? typeof(TTarget);
-        Console.WriteLine($"[BindingRegistry] TryCreateTwoWay lookup {key} for {fromRuntime.Name}<->{targetRuntime.Name}");
+        Log($"[BindingRegistry] TryCreateTwoWay lookup {key} for {fromRuntime.Name}<->{targetRuntime.Name}");
         if (_twoWay.TryGetValue(key, out var list))
         {
             var entry = PickBest(list, fromRuntime, targetRuntime);
@@ -129,11 +131,11 @@ public static class BindingRegistry
         return false;
     }
 
-    public static bool TryCreateWhenChanged<TObj,TReturn>(string whenPath, TObj obj, out Observable<TReturn> observable)
+    public static bool TryCreateWhenChanged<TObj, TReturn>(string whenPath, TObj obj, out Observable<TReturn> observable)
     {
         var (typePart, pathPart) = SplitTypePath(whenPath);
         var objRuntime = obj?.GetType() ?? typeof(TObj);
-        Console.WriteLine($"[BindingRegistry] TryCreateWhenChanged lookup {typePart}|{pathPart} for {objRuntime.Name}");
+        Log($"[BindingRegistry] TryCreateWhenChanged lookup {typePart}|{pathPart} for {objRuntime.Name}");
         if (_whenChanged.TryGetValue(pathPart, out var list))
         {
             var entry = PickBest(list, objRuntime);
@@ -219,5 +221,12 @@ public static class BindingRegistry
         var idx = whenPath.IndexOf('|');
         if (idx <= 0 || idx >= whenPath.Length - 1) return ("", whenPath);
         return (whenPath.Substring(0, idx), whenPath.Substring(idx + 1));
+    }
+
+    private static void Log(string message)
+    {
+        #if DEBUG
+        Console.WriteLine(message);
+        #endif
     }
 }

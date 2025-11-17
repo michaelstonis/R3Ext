@@ -445,7 +445,7 @@ internal sealed class CodeEmitter
                 if (inv.Kind == "BindOneWay" || inv.Kind == "BindTwoWay")
                 {
                     var ok = inv.FromPath is not null && inv.ToPath is not null && inv.RootFromTypeName is not null && inv.FromLeafTypeName is not null && inv.RootTargetTypeName is not null && inv.TargetLeafTypeName is not null;
-                    sb.AppendLine($"    // {inv.Kind}: from={Escape(inv.FromPath ?? "-")} to={Escape(inv.ToPath ?? "-")} ok={ok} rf={inv.RootFromTypeName??"-"} fl={inv.FromLeafTypeName??"-"} rt={inv.RootTargetTypeName??"-"} tl={inv.TargetLeafTypeName??"-"} ta={inv.TargetArgTypeName??"-"}");
+                    sb.AppendLine($"    // {inv.Kind}: from={Escape(inv.FromPath ?? "-")} to={Escape(inv.ToPath ?? "-")} ok={ok} rf={inv.RootFromTypeName ?? "-"} fl={inv.FromLeafTypeName ?? "-"} rt={inv.RootTargetTypeName ?? "-"} tl={inv.TargetLeafTypeName ?? "-"} ta={inv.TargetArgTypeName ?? "-"}");
                 }
             }
             sb.AppendLine("    [ModuleInitializer] internal static void Init(){");
@@ -476,17 +476,17 @@ internal sealed class CodeEmitter
                 if (inv.Kind == "BindOneWay" && inv.FromPath is not null && inv.ToPath is not null && inv.RootFromTypeName is not null && inv.FromLeafTypeName is not null && inv.RootTargetTypeName is not null && inv.TargetLeafTypeName is not null)
                 {
                     var id = Hash(inv.FromPath + "|" + inv.ToPath);
-                    if (emitted.Add("ow"+id)) EmitOneWayRegistrationBody(id, inv, sb);
+                    if (emitted.Add("ow" + id)) EmitOneWayRegistrationBody(id, inv, sb);
                 }
                 else if (inv.Kind == "BindTwoWay" && inv.FromPath is not null && inv.ToPath is not null && inv.RootFromTypeName is not null && inv.FromLeafTypeName is not null && inv.RootTargetTypeName is not null && inv.TargetLeafTypeName is not null)
                 {
                     var id = Hash(inv.FromPath + "|" + inv.ToPath);
-                    if (emitted.Add("tw"+id)) EmitTwoWayRegistrationBody(id, inv, sb);
+                    if (emitted.Add("tw" + id)) EmitTwoWayRegistrationBody(id, inv, sb);
                 }
                 else if (inv.Kind == "WhenChanged" && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
                 {
                     var id = Hash(inv.WhenRootTypeName + "|" + inv.WhenPath);
-                    if (emitted.Add("wc"+id)) EmitWhenRegistrationBody(id, inv, sb);
+                    if (emitted.Add("wc" + id)) EmitWhenRegistrationBody(id, inv, sb);
                 }
             }
             sb.AppendLine("}");
@@ -627,7 +627,7 @@ internal sealed class CodeEmitter
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             var seg = m.FromSegments[i];
-            var access = BuildChainAccess("fromObject", m.FromSegments.Take(i+1).ToList());
+            var access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
             sb.AppendLine($"        {seg.TypeName} __host_{i} = default!;");
         }
         sb.AppendLine("        // compute and wire target chain lazily inside Push");
@@ -651,7 +651,7 @@ internal sealed class CodeEmitter
         // recompute chain
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
-            var access = BuildChainAccess("fromObject", m.FromSegments.Take(i+1).ToList());
+            var access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
             sb.AppendLine($"            try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}");
         }
         // reattach
@@ -675,7 +675,7 @@ internal sealed class CodeEmitter
             var seg = m.FromSegments[i];
             if (!seg.IsNotify) continue;
             string nextProp = i + 1 < m.FromSegments.Count ? m.FromSegments[i + 1].Name : m.FromSegments.Last().Name;
-            sb.AppendLine($"        __h_host_{i} = (s,e) => {{ if (e.PropertyName == \"{nextProp}\") {{ RewireHost(); Push(); }} if (e.PropertyName == \"{m.FromSegments.Last().Name}\") Push(); }};" );
+            sb.AppendLine($"        __h_host_{i} = (s,e) => {{ if (e.PropertyName == \"{nextProp}\") {{ RewireHost(); Push(); }} if (e.PropertyName == \"{m.FromSegments.Last().Name}\") Push(); }};");
         }
         // initial wire
         sb.AppendLine("        RewireHost();");
@@ -746,7 +746,7 @@ internal sealed class CodeEmitter
         }
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
-            var access = BuildChainAccess("fromObject", m.FromSegments.Take(i+1).ToList());
+            var access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
             sb.AppendLine($"            try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}");
         }
         for (int i = 0; i < m.FromSegments.Count; i++)
@@ -766,7 +766,7 @@ internal sealed class CodeEmitter
         }
         for (int i = 0; i < m.ToSegments.Count; i++)
         {
-            var access = BuildChainAccess("targetObject", m.ToSegments.Take(i+1).ToList());
+            var access = BuildChainAccess("targetObject", m.ToSegments.Take(i + 1).ToList());
             sb.AppendLine($"            try {{ __target_{i} = {access}; }} catch {{ __target_{i} = default!; }}");
         }
         for (int i = 0; i < m.ToSegments.Count; i++)
@@ -858,7 +858,7 @@ internal sealed class CodeEmitter
         // recompute chain
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
-            var access = BuildChainAccess("root", m.FromSegments.Take(i+1).ToList());
+            var access = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
             sb.AppendLine($"                try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}");
         }
         // reattach
@@ -901,7 +901,7 @@ internal sealed class CodeEmitter
         sb.AppendLine("        var __disposables = new System.Collections.Generic.List<IDisposable>();");
         sb.AppendLine("        void RewireHost(){");
         for (int i = 0; i < m.FromSegments.Count; i++) { var seg = m.FromSegments[i]; if (!seg.IsNotify) continue; sb.AppendLine($"            if(__host_{i} is INotifyPropertyChanged npc_{i}) npc_{i}.PropertyChanged -= __h_host_{i};"); }
-        for (int i = 0; i < m.FromSegments.Count; i++) { var access = BuildChainAccess("fromObject", m.FromSegments.Take(i+1).ToList()); sb.AppendLine($"            try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}"); }
+        for (int i = 0; i < m.FromSegments.Count; i++) { var access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList()); sb.AppendLine($"            try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}"); }
         for (int i = 0; i < m.FromSegments.Count; i++) { var seg = m.FromSegments[i]; if (!seg.IsNotify) continue; sb.AppendLine($"            if(__host_{i} is INotifyPropertyChanged npc2_{i}) npc2_{i}.PropertyChanged += __h_host_{i};"); }
         sb.AppendLine("        }");
         sb.AppendLine("        void Push(){");
@@ -910,7 +910,8 @@ internal sealed class CodeEmitter
         sb.AppendLine("            try { var v = (" + m.FromLeafTypeName + ")(object?)" + hostLeafAccess + "!; " + targetLeafAssign + " } catch { } ");
         sb.AppendLine("        }");
         // Assign handlers
-        for (int i = 0; i < m.FromSegments.Count; i++) {
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
             var seg = m.FromSegments[i];
             if (!seg.IsNotify) continue;
             bool isLeafOwner = i == m.FromSegments.Count - 1;
@@ -957,7 +958,8 @@ internal sealed class CodeEmitter
         sb.AppendLine("        bool __updating = false; var __disposables = new System.Collections.Generic.List<IDisposable>();");
         for (int i = 0; i < m.FromSegments.Count; i++) sb.AppendLine($"        {m.FromSegments[i].TypeName} __host_{i} = default!;");
         for (int i = 0; i < m.ToSegments.Count; i++) sb.AppendLine($"        {m.ToSegments[i].TypeName} __target_{i} = default!;");
-        for (int i = 0; i < m.FromSegments.Count; i++) {
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
             var seg = m.FromSegments[i];
             if (!seg.IsNotify) continue;
             bool isLeafOwner = i == m.FromSegments.Count - 1;
@@ -971,7 +973,8 @@ internal sealed class CodeEmitter
                 sb.AppendLine($"        PropertyChangedEventHandler __h_host_{i} = (s,e)=>{{ if(e.PropertyName==\"{nextProp}\"){{ RewireHost(); UpdateTarget(); }} }};");
             }
         }
-        for (int i = 0; i < m.ToSegments.Count; i++) {
+        for (int i = 0; i < m.ToSegments.Count; i++)
+        {
             var seg = m.ToSegments[i];
             if (!seg.IsNotify) continue;
             bool isLeafOwner = i == m.ToSegments.Count - 1;
@@ -987,13 +990,13 @@ internal sealed class CodeEmitter
         }
         sb.AppendLine("        void RewireHost(){");
         for (int i = 0; i < m.FromSegments.Count; i++) { var seg = m.FromSegments[i]; if (!seg.IsNotify) continue; sb.AppendLine($"            if(__host_{i} is INotifyPropertyChanged npc_{i}) npc_{i}.PropertyChanged -= __h_host_{i};"); }
-        for (int i = 0; i < m.FromSegments.Count; i++) { var access = BuildChainAccess("fromObject", m.FromSegments.Take(i+1).ToList()); sb.AppendLine($"            try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}"); }
+        for (int i = 0; i < m.FromSegments.Count; i++) { var access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList()); sb.AppendLine($"            try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}"); }
         for (int i = 0; i < m.FromSegments.Count; i++) { var seg = m.FromSegments[i]; if (!seg.IsNotify) continue; sb.AppendLine($"            if(__host_{i} is INotifyPropertyChanged npc2_{i}) npc2_{i}.PropertyChanged += __h_host_{i};"); }
         sb.AppendLine("            R3ExtGeneratedInstrumentation.NotifyWires++;");
         sb.AppendLine("        }");
         sb.AppendLine("        void RewireTarget(){");
         for (int i = 0; i < m.ToSegments.Count; i++) { var seg = m.ToSegments[i]; if (!seg.IsNotify) continue; sb.AppendLine($"            if(__target_{i} is INotifyPropertyChanged npcT_{i}) npcT_{i}.PropertyChanged -= __h_target_{i};"); }
-        for (int i = 0; i < m.ToSegments.Count; i++) { var access = BuildChainAccess("targetObject", m.ToSegments.Take(i+1).ToList()); sb.AppendLine($"            try {{ __target_{i} = {access}; }} catch {{ __target_{i} = default!; }}"); }
+        for (int i = 0; i < m.ToSegments.Count; i++) { var access = BuildChainAccess("targetObject", m.ToSegments.Take(i + 1).ToList()); sb.AppendLine($"            try {{ __target_{i} = {access}; }} catch {{ __target_{i} = default!; }}"); }
         for (int i = 0; i < m.ToSegments.Count; i++) { var seg = m.ToSegments[i]; if (!seg.IsNotify) continue; sb.AppendLine($"            if(__target_{i} is INotifyPropertyChanged npcT2_{i}) npcT2_{i}.PropertyChanged += __h_target_{i};"); }
         sb.AppendLine("            R3ExtGeneratedInstrumentation.NotifyWires++;");
         sb.AppendLine("        }");
@@ -1041,14 +1044,15 @@ internal sealed class CodeEmitter
         sb.AppendLine("            void Emit(){ try { observer.OnNext((" + m.WhenLeafTypeName + ")(object?)" + leafAccess + "!); } catch { observer.OnNext(default!); } }");
         sb.AppendLine("            void Rewire(){");
         for (int i = 0; i < m.FromSegments.Count; i++) if (m.FromSegments[i].IsNotify) sb.AppendLine($"                if(__host_{i} is INotifyPropertyChanged npc_det_{i}) npc_det_{i}.PropertyChanged -= __h_host_{i};");
-        for (int i = 0; i < m.FromSegments.Count; i++) { var access = BuildChainAccess("root", m.FromSegments.Take(i+1).ToList()); sb.AppendLine($"                try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}"); }
+        for (int i = 0; i < m.FromSegments.Count; i++) { var access = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList()); sb.AppendLine($"                try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}"); }
         for (int i = 0; i < m.FromSegments.Count; i++) if (m.FromSegments[i].IsNotify) sb.AppendLine($"                if(__host_{i} is INotifyPropertyChanged npc_att_{i}) npc_att_{i}.PropertyChanged += __h_host_{i};");
         sb.AppendLine("            }");
         // Root handler to detect replacement of first segment object
         var firstProp = m.FromSegments.Count > 0 ? m.FromSegments[0].Name : null;
         sb.AppendLine("            PropertyChangedEventHandler __h_root = (s,e) => { if(e.PropertyName == \"" + firstProp + "\") { Rewire(); Emit(); } }; ");
-        for (int i = 0; i < m.FromSegments.Count; i++) {
-            if(!m.FromSegments[i].IsNotify) continue;
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
+            if (!m.FromSegments[i].IsNotify) continue;
             bool isLeafOwner = i == m.FromSegments.Count - 1;
             if (isLeafOwner)
             {
