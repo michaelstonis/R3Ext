@@ -4,26 +4,26 @@ using System.ComponentModel;
 using System.Linq;
 using Xunit;
 using R3;
-using R3Ext.PropertyChanged;
+using R3Ext;
 
 namespace R3Ext.Tests;
 
 public class BindingGeneratorTests
 {
-    // Nested chain classes
-    private sealed class Leaf : INotifyPropertyChanged
+    // Nested chain classes (made internal for source generator accessibility)
+    internal sealed class Leaf : INotifyPropertyChanged
     {
         private string _name = string.Empty;
         public string Name { get => _name; set { if (_name == value) return; _name = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Name))); } }
         public event PropertyChangedEventHandler? PropertyChanged;
     }
-    private sealed class Mid : INotifyPropertyChanged
+    internal sealed class Mid : INotifyPropertyChanged
     {
         private Leaf _leaf = new();
         public Leaf Leaf { get => _leaf; set { if (_leaf == value) return; _leaf = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Leaf))); } }
         public event PropertyChangedEventHandler? PropertyChanged;
     }
-    private sealed class Root : INotifyPropertyChanged
+    internal sealed class Root : INotifyPropertyChanged
     {
         private Mid _mid = new();
         public Mid Mid { get => _mid; set { if (_mid == value) return; _mid = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Mid))); } }
@@ -44,13 +44,13 @@ public class BindingGeneratorTests
         root.Mid.Leaf.Name = "E"; Assert.Equal("E", values.Last());
     }
 
-    private sealed class TwoWayVm : INotifyPropertyChanged
+    internal sealed class TwoWayVm : INotifyPropertyChanged
     {
         private string _text = string.Empty;
         public string Text { get => _text; set { if (_text == value) return; _text = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Text))); } }
         public event PropertyChangedEventHandler? PropertyChanged;
     }
-    private sealed class TwoWayTarget : INotifyPropertyChanged
+    internal sealed class TwoWayTarget : INotifyPropertyChanged
     {
         private string _text = string.Empty;
         public string Text { get => _text; set { if (_text == value) return; _text = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Text))); } }

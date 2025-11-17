@@ -1,6 +1,5 @@
 ﻿using R3;
-using R3Ext;
-using R3Ext.PropertyChanged; // source generator extensions
+using R3Ext; // binding extensions
 using R3Ext.SampleApp.ViewModels;
 // Removed System.Reactive alias; use R3 DisposableBag for subscription management.
 
