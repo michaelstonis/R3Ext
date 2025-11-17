@@ -400,7 +400,7 @@ public static class ReactivePortedExtensions
 
         return Observable.Create<HeartbeatEvent<T>>(observer =>
         {
-            object gate = new();
+            Lock gate = new();
             bool disposed = false;
             IDisposable? upstream = null;
             System.Threading.ITimer? timer = null; // using ITimer from TimeProvider
@@ -416,7 +416,7 @@ public static class ReactivePortedExtensions
                 DisposeTimer();
                 timer = tp.CreateTimer(_ =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         observer.OnNext(new HeartbeatEvent<T>(true, default));
@@ -427,7 +427,7 @@ public static class ReactivePortedExtensions
             upstream = source.Subscribe(
                 x =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         observer.OnNext(new HeartbeatEvent<T>(false, x));
@@ -436,7 +436,7 @@ public static class ReactivePortedExtensions
                 },
                 ex =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         observer.OnErrorResume(ex);
@@ -444,7 +444,7 @@ public static class ReactivePortedExtensions
                 },
                 r =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         DisposeTimer();
@@ -454,7 +454,7 @@ public static class ReactivePortedExtensions
 
             return Disposable.Create(() =>
             {
-                lock (gate)
+                using (gate.EnterScope())
                 {
                     if (disposed) return;
                     disposed = true;
@@ -492,7 +492,7 @@ public static class ReactivePortedExtensions
 
         return Observable.Create<StaleEvent<T>>(observer =>
         {
-            object gate = new();
+            Lock gate = new();
             bool disposed = false;
             bool staleEmitted = false;
             IDisposable? upstream = null;
@@ -504,7 +504,7 @@ public static class ReactivePortedExtensions
                 {
                     timer = tp.CreateTimer(_ =>
                     {
-                        lock (gate)
+                        using (gate.EnterScope())
                         {
                             if (disposed) return;
                             if (!staleEmitted)
@@ -532,7 +532,7 @@ public static class ReactivePortedExtensions
             upstream = source.Subscribe(
                 x =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         observer.OnNext(new StaleEvent<T>(false, x));
@@ -541,7 +541,7 @@ public static class ReactivePortedExtensions
                 },
                 ex =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         timer?.Change(System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
@@ -550,7 +550,7 @@ public static class ReactivePortedExtensions
                 },
                 r =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         timer?.Dispose();
@@ -560,7 +560,7 @@ public static class ReactivePortedExtensions
 
             return Disposable.Create(() =>
             {
-                lock (gate)
+                using (gate.EnterScope())
                 {
                     if (disposed) return;
                     disposed = true;
@@ -583,7 +583,7 @@ public static class ReactivePortedExtensions
 
         return Observable.Create<T[]>(observer =>
         {
-            object gate = new();
+            Lock gate = new();
             bool disposed = false;
             var buffer = new System.Collections.Generic.List<T>();
             IDisposable? upstream = null;
@@ -596,7 +596,7 @@ public static class ReactivePortedExtensions
                     timer = tp.CreateTimer(_ =>
                     {
                         T[]? toEmit = null;
-                        lock (gate)
+                        using (gate.EnterScope())
                         {
                             if (disposed) return;
                             if (buffer.Count > 0)
@@ -624,7 +624,7 @@ public static class ReactivePortedExtensions
             upstream = source.Subscribe(
                 x =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         buffer.Add(x);
@@ -633,7 +633,7 @@ public static class ReactivePortedExtensions
                 },
                 ex =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         // Flush any pending on error then propagate
@@ -647,7 +647,7 @@ public static class ReactivePortedExtensions
                 },
                 r =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         timer?.Dispose();
@@ -662,7 +662,7 @@ public static class ReactivePortedExtensions
 
             return Disposable.Create(() =>
             {
-                lock (gate)
+                using (gate.EnterScope())
                 {
                     if (disposed) return;
                     disposed = true;
@@ -687,7 +687,7 @@ public static class ReactivePortedExtensions
 
         return Observable.Create<T>(observer =>
         {
-            object gate = new();
+            Lock gate = new();
             bool disposed = false;
             bool gating = false;
             bool hasPending = false;
@@ -703,7 +703,7 @@ public static class ReactivePortedExtensions
                     {
                         T? toEmit = default;
                         bool emit = false;
-                        lock (gate)
+                        using (gate.EnterScope())
                         {
                             if (disposed) return;
                             if (hasPending)
@@ -732,7 +732,7 @@ public static class ReactivePortedExtensions
             upstream = source.Subscribe(
                 x =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         if (!gating)
@@ -755,7 +755,7 @@ public static class ReactivePortedExtensions
                 },
                 ex =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         timer?.Change(System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
@@ -764,7 +764,7 @@ public static class ReactivePortedExtensions
                 },
                 r =>
                 {
-                    lock (gate)
+                    using (gate.EnterScope())
                     {
                         if (disposed) return;
                         timer?.Dispose();
@@ -774,7 +774,7 @@ public static class ReactivePortedExtensions
 
             return Disposable.Create(() =>
             {
-                lock (gate)
+                using (gate.EnterScope())
                 {
                     if (disposed) return;
                     disposed = true;
@@ -977,7 +977,7 @@ public static class ReactivePortedExtensions
         var tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
         return Observable.Create<T>(observer =>
         {
-            object gate = new();
+            Lock gate = new();
             bool disposed = false;
             int attempts = 0;
             IDisposable? upstream = null;
@@ -994,7 +994,7 @@ public static class ReactivePortedExtensions
                 upstream = source.OnErrorResumeAsFailure().Subscribe(
                     x =>
                     {
-                        lock (gate)
+                        using (gate.EnterScope())
                         {
                             if (disposed) return;
                             observer.OnNext(x);
@@ -1003,7 +1003,7 @@ public static class ReactivePortedExtensions
                     observer.OnErrorResume,
                     r =>
                     {
-                        lock (gate)
+                        using (gate.EnterScope())
                         {
                             if (disposed) return;
                             if (r.IsFailure)
@@ -1015,7 +1015,7 @@ public static class ReactivePortedExtensions
                                         DisposeTimer();
                                         timer = tp.CreateTimer(_ =>
                                         {
-                                            lock (gate)
+                                            using (gate.EnterScope())
                                             {
                                                 if (disposed) return;
                                                 SubscribeOnce();
@@ -1044,7 +1044,7 @@ public static class ReactivePortedExtensions
 
             return Disposable.Create(() =>
             {
-                lock (gate)
+                using (gate.EnterScope())
                 {
                     if (disposed) return;
                     disposed = true;
@@ -1064,7 +1064,7 @@ public static class ReactivePortedExtensions
         var tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
         return Observable.Create<T>(observer =>
         {
-            object gate = new();
+            Lock gate = new();
             bool disposed = false;
             int attempts = 0;
             IDisposable? upstream = null;
@@ -1081,7 +1081,7 @@ public static class ReactivePortedExtensions
                 upstream = source.OnErrorResumeAsFailure().Subscribe(
                     x =>
                     {
-                        lock (gate)
+                        using (gate.EnterScope())
                         {
                             if (disposed) return;
                             observer.OnNext(x);
@@ -1090,7 +1090,7 @@ public static class ReactivePortedExtensions
                     observer.OnErrorResume,
                     r =>
                     {
-                        lock (gate)
+                        using (gate.EnterScope())
                         {
                             if (disposed) return;
                             if (r.IsFailure)
@@ -1106,7 +1106,7 @@ public static class ReactivePortedExtensions
                                             DisposeTimer();
                                             timer = tp.CreateTimer(_ =>
                                             {
-                                                lock (gate)
+                                                using (gate.EnterScope())
                                                 {
                                                     if (disposed) return;
                                                     SubscribeOnce();
@@ -1140,7 +1140,7 @@ public static class ReactivePortedExtensions
 
             return Disposable.Create(() =>
             {
-                lock (gate)
+                using (gate.EnterScope())
                 {
                     if (disposed) return;
                     disposed = true;
@@ -1164,7 +1164,7 @@ public static class ReactivePortedExtensions
 
         return Observable.Create<T>(observer =>
         {
-            object gate = new();
+            Lock gate = new();
             bool disposed = false;
             int attempts = 0;
             IDisposable? upstream = null;
@@ -1195,7 +1195,7 @@ public static class ReactivePortedExtensions
                 upstream = source.OnErrorResumeAsFailure().Subscribe(
                     x =>
                     {
-                        lock (gate)
+                        using (gate.EnterScope())
                         {
                             if (disposed) return;
                             observer.OnNext(x);
@@ -1204,7 +1204,7 @@ public static class ReactivePortedExtensions
                     observer.OnErrorResume,
                     r =>
                     {
-                        lock (gate)
+                        using (gate.EnterScope())
                         {
                             if (disposed) return;
                             if (r.IsFailure)
@@ -1217,7 +1217,7 @@ public static class ReactivePortedExtensions
                                     DisposeTimer();
                                     timer = tp.CreateTimer(_ =>
                                     {
-                                        lock (gate)
+                                        using (gate.EnterScope())
                                         {
                                             if (disposed) return;
                                             SubscribeOnce();
@@ -1241,7 +1241,7 @@ public static class ReactivePortedExtensions
 
             return Disposable.Create(() =>
             {
-                lock (gate)
+                using (gate.EnterScope())
                 {
                     if (disposed) return;
                     disposed = true;
