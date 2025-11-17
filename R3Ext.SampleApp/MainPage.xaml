@@ -1,18 +1,25 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="R3Ext.SampleApp.MainPage"
              Title="R3Ext Demos">
     <ScrollView>
-        <VerticalStackLayout Padding="24" Spacing="16">
-            <Label Text="Explore R3Ext Samples" Style="{StaticResource Headline}" />
-            <Label Text="Choose a demo to see bindings and helpers in action." Style="{StaticResource SubHeadline}" />
-
-            <Button Text="Basics" Clicked="OnGoBasics" />
-            <Button Text="Deep Binding" Clicked="OnGoDeep" />
-            <Button Text="Controls" Clicked="OnGoControls" />
-            <Button Text="Performance" Clicked="OnGoPerformance" />
-            <Button Text="Form" Clicked="OnGoForm" />
+        <VerticalStackLayout Padding="24"
+                             Spacing="16">
+            <Label Text="Explore R3Ext Samples"
+                   Style="{StaticResource Headline}" />
+            <Label Text="Choose a demo to see bindings and helpers in action."
+                   Style="{StaticResource SubHeadline}" />
+            <Button Text="Basics"
+                    Clicked="OnGoBasics" />
+            <Button Text="Deep Binding"
+                    Clicked="OnGoDeep" />
+            <Button Text="Controls"
+                    Clicked="OnGoControls" />
+            <Button Text="Performance"
+                    Clicked="OnGoPerformance" />
+            <Button Text="Form"
+                    Clicked="OnGoForm" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

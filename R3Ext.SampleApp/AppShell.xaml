@@ -1,21 +1,26 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<Shell
-    x:Class="R3Ext.SampleApp.AppShell"
-    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:R3Ext.SampleApp"
-    Title="R3Ext.SampleApp">
-
-    <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
-
+<?xml version="1.0" encoding="UTF-8"?>
+<Shell x:Class="R3Ext.SampleApp.AppShell"
+       xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:local="clr-namespace:R3Ext.SampleApp"
+       Title="R3Ext.SampleApp">
+    <ShellContent Title="Home"
+                  ContentTemplate="{DataTemplate local:MainPage}"
+                  Route="MainPage" />
     <!-- Demo pages -->
-    <ShellContent Title="Basics" ContentTemplate="{DataTemplate local:BasicsPage}" Route="BasicsPage" />
-    <ShellContent Title="Deep Binding" ContentTemplate="{DataTemplate local:DeepBindingPage}" Route="DeepBindingPage" />
-    <ShellContent Title="Controls" ContentTemplate="{DataTemplate local:ControlsPage}" Route="ControlsPage" />
-    <ShellContent Title="Performance" ContentTemplate="{DataTemplate local:PerformancePage}" Route="PerformancePage" />
-    <ShellContent Title="Form Demo" ContentTemplate="{DataTemplate local:FormPage}" Route="FormPage" />
-
+    <ShellContent Title="Basics"
+                  ContentTemplate="{DataTemplate local:BasicsPage}"
+                  Route="BasicsPage" />
+    <ShellContent Title="Deep Binding"
+                  ContentTemplate="{DataTemplate local:DeepBindingPage}"
+                  Route="DeepBindingPage" />
+    <ShellContent Title="Controls"
+                  ContentTemplate="{DataTemplate local:ControlsPage}"
+                  Route="ControlsPage" />
+    <ShellContent Title="Performance"
+                  ContentTemplate="{DataTemplate local:PerformancePage}"
+                  Route="PerformancePage" />
+    <ShellContent Title="Form Demo"
+                  ContentTemplate="{DataTemplate local:FormPage}"
+                  Route="FormPage" />
 </Shell>

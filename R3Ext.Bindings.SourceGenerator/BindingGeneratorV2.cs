@@ -14,6 +14,15 @@ namespace R3Ext.Bindings.SourceGenerator;
 [Generator(LanguageNames.CSharp)]
 public sealed class BindingGeneratorV2 : IIncrementalGenerator
 {
+    private static readonly DiagnosticDescriptor IncompleteBindingDescriptor = new(
+        id: "R3BG001",
+        title: "Binding generation incomplete",
+        messageFormat: "Binding '{0}' was not generated: {1}",
+        category: "R3.BindingGenerator",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var invocations = context.SyntaxProvider
@@ -31,8 +40,50 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             var models = tuple.Left;
             var asmName = tuple.Right;
             var all = models!.OfType<InvocationModel>().ToImmutableArray();
+
+            // Emit diagnostics for incomplete bindings prior to dedupe
+            foreach (var m in all)
+            {
+                if (m.Kind is "BindOneWay" or "BindTwoWay")
+                {
+                    if (m.FromLambda is null || m.ToLambda is null)
+                    {
+                        spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "missing lambda expression(s)"));
+                        continue;
+                    }
+                    if (m.FromSegments.Count == 0)
+                    {
+                        spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve 'from' property chain"));
+                    }
+                    if (m.ToSegments.Count == 0)
+                    {
+                        spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve 'to' property chain"));
+                    }
+                }
+                else if (m.Kind == "WhenChanged" && m.FromSegments.Count == 0)
+                {
+                    spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve monitored property chain"));
+                }
+            }
+
+            // De-duplicate by key (kind + paths)
+            static string Key(InvocationModel m) => m.Kind switch
+            {
+                "BindOneWay" => $"{m.Kind}|{m.FromPath}|{m.ToPath}",
+                "BindTwoWay" => $"{m.Kind}|{m.FromPath}|{m.ToPath}",
+                "WhenChanged" => $"{m.Kind}|{m.WhenPath}",
+                _ => m.Kind
+            };
+            var seen = new HashSet<string>();
+            var distinct = new List<InvocationModel>();
+            foreach (var m in all)
+            {
+                var k = Key(m);
+                if (seen.Add(k)) distinct.Add(m); // silently suppress duplicates
+            }
+
             var emitter = new CodeEmitter();
-            var source = emitter.Emit(all, asmName);
+            var source = emitter.Emit(distinct.ToImmutableArray(), asmName);
             spc.AddSource("R3Ext_BindingGeneratorV2.g.cs", SourceText.From(source, Encoding.UTF8));
         });
     }
@@ -103,82 +154,10 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     }
                 }
                 targetRootType ??= ctx.SemanticModel.GetTypeInfo(args[0].Expression).Type;
-                if (targetRootType is null && args[0].Expression is IdentifierNameSyntax idName)
-                {
-                    var idText = idName.Identifier.ValueText;
-                    var comp = ctx.SemanticModel.Compilation;
-                    static ITypeSymbol? GetType(Compilation c, string full) => c.GetTypeByMetadataName(full);
-                    if (idText.EndsWith("Entry", StringComparison.Ordinal)) targetRootType = GetType(comp, "Microsoft.Maui.Controls.Entry") ?? GetType(comp, "Microsoft.Maui.Controls.InputView");
-                    else if (idText.EndsWith("Label", StringComparison.Ordinal)) targetRootType = GetType(comp, "Microsoft.Maui.Controls.Label");
-                    else if (idText.EndsWith("Editor", StringComparison.Ordinal)) targetRootType = GetType(comp, "Microsoft.Maui.Controls.Editor") ?? GetType(comp, "Microsoft.Maui.Controls.InputView");
-                    else if (idText.EndsWith("Switch", StringComparison.Ordinal)) targetRootType = GetType(comp, "Microsoft.Maui.Controls.Switch");
-                    else if (idText.EndsWith("Slider", StringComparison.Ordinal)) targetRootType = GetType(comp, "Microsoft.Maui.Controls.Slider");
-                    else if (idText.EndsWith("Stepper", StringComparison.Ordinal)) targetRootType = GetType(comp, "Microsoft.Maui.Controls.Stepper");
-                    else if (idText.EndsWith("DatePicker", StringComparison.Ordinal)) targetRootType = GetType(comp, "Microsoft.Maui.Controls.DatePicker");
-                    else if (idText.EndsWith("TimePicker", StringComparison.Ordinal)) targetRootType = GetType(comp, "Microsoft.Maui.Controls.TimePicker");
-                }
+                // Removed platform-specific suffix heuristics for target control type inference to keep generator agnostic.
                 ExtractSegments(ctx.SemanticModel, toLambda, toSegments, targetRootType);
 
-                // Fallback: if still unresolved, synthesize segment using MAUI name + property heuristics
-                if (toSegments.Count == 0 && args[0].Expression is IdentifierNameSyntax id2)
-                {
-                    var varName = id2.Identifier.ValueText;
-                    // extract last member name from lambda (e.g., Text)
-                    static string? LastMemberName(ExpressionSyntax? ex)
-                    {
-                        while (ex is PostfixUnaryExpressionSyntax px && px.OperatorToken.IsKind(SyntaxKind.ExclamationToken)) ex = px.Operand;
-                        if (ex is MemberAccessExpressionSyntax m)
-                        {
-                            return m.Name.Identifier.ValueText;
-                        }
-                        return null;
-                    }
-                    var leaf = LastMemberName(toLambda.Body as ExpressionSyntax);
-                    string? rootTypeName = null;
-                    string? leafTypeName = null;
-                    if (leaf is not null)
-                    {
-                        if (varName.EndsWith("Entry", StringComparison.Ordinal) || varName.EndsWith("Editor", StringComparison.Ordinal))
-                        {
-                            if (leaf == "Text") { rootTypeName = "global::Microsoft.Maui.Controls.InputView"; leafTypeName = "global::System.String"; }
-                        }
-                        else if (varName.EndsWith("Label", StringComparison.Ordinal))
-                        {
-                            if (leaf == "Text") { rootTypeName = "global::Microsoft.Maui.Controls.Label"; leafTypeName = "global::System.String"; }
-                        }
-                        else if (varName.EndsWith("Switch", StringComparison.Ordinal))
-                        {
-                            if (leaf == "IsToggled") { rootTypeName = "global::Microsoft.Maui.Controls.Switch"; leafTypeName = "global::System.Boolean"; }
-                        }
-                        else if (varName.EndsWith("Slider", StringComparison.Ordinal) || varName.EndsWith("Stepper", StringComparison.Ordinal))
-                        {
-                            if (leaf == "Value") { rootTypeName = varName.EndsWith("Slider", StringComparison.Ordinal) ? "global::Microsoft.Maui.Controls.Slider" : "global::Microsoft.Maui.Controls.Stepper"; leafTypeName = "global::System.Double"; }
-                        }
-                        else if (varName.EndsWith("DatePicker", StringComparison.Ordinal))
-                        {
-                            if (leaf == "Date") { rootTypeName = "global::Microsoft.Maui.Controls.DatePicker"; leafTypeName = "global::System.DateTime"; }
-                        }
-                        else if (varName.EndsWith("TimePicker", StringComparison.Ordinal))
-                        {
-                            if (leaf == "Time") { rootTypeName = "global::Microsoft.Maui.Controls.TimePicker"; leafTypeName = "global::System.TimeSpan"; }
-                        }
-                    }
-                    if (rootTypeName is not null && leafTypeName is not null && leaf is not null)
-                    {
-                        inferredTargetRootTypeNameFromHeuristic = rootTypeName;
-                        toSegments.Add(new PropertySegment
-                        {
-                            Name = leaf,
-                            TypeName = leafTypeName,
-                            DeclaringTypeName = rootTypeName,
-                            IsReferenceType = leafTypeName is "global::System.String",
-                            IsNotify = false,
-                            HasSetter = true,
-                            SetterIsNonPublic = false,
-                            IsNonPublic = false
-                        });
-                    }
-                }
+                // No synthetic segment insertion; unresolved chains will produce warning R3BG001.
             }
         }
 
