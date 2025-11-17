@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="R3Ext.SampleApp.BasicsPage"
+             Title="Basics">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="Two-way: EditableName ↔ Entry.Text" Style="{StaticResource SubHeadline}" />
+            <Entry x:Name="NameEntry" Placeholder="Type a name" />
+            <Label x:Name="NameLabel" Text="Name: (unset)" />
+            <Label x:Name="UpperNameLabel" Text="Upper: (unset)" />
+            <Label Text="Status changes with Counter" />
+            <Label x:Name="StatusLabel" Text="Status: -" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Button Text="Increment" Clicked="OnIncrement" />
+                <Label Grid.Column="1" x:Name="CounterLabel" Text="Counter: 0" VerticalTextAlignment="Center" />
+            </Grid>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Label Text="Is Even?" />
+                <Switch x:Name="EvenSwitch" Grid.Column="1" />
+            </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

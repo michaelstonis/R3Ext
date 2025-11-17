@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="R3Ext.SampleApp.DeepBindingPage"
+             Title="Deep Binding">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="Deep and Mixed Chains" Style="{StaticResource SubHeadline}" />
+            <Label x:Name="DeepNameLabel" Text="Deep: (unset)" />
+            <Label x:Name="MixedNameLabel" Text="Mixed: (unset)" />
+            <Button Text="Mutate" Clicked="OnMutate" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

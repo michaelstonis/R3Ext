@@ -11,4 +11,11 @@
         ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage" />
 
+    <!-- Demo pages -->
+    <ShellContent Title="Basics" ContentTemplate="{DataTemplate local:BasicsPage}" Route="BasicsPage" />
+    <ShellContent Title="Deep Binding" ContentTemplate="{DataTemplate local:DeepBindingPage}" Route="DeepBindingPage" />
+    <ShellContent Title="Controls" ContentTemplate="{DataTemplate local:ControlsPage}" Route="ControlsPage" />
+    <ShellContent Title="Performance" ContentTemplate="{DataTemplate local:PerformancePage}" Route="PerformancePage" />
+    <ShellContent Title="Form Demo" ContentTemplate="{DataTemplate local:FormPage}" Route="FormPage" />
+
 </Shell>

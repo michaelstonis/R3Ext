@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="R3Ext.SampleApp.PerformancePage"
+             Title="Performance">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="Performance Demo" Style="{StaticResource SubHeadline}" />
+
+            <!-- DebounceImmediate on text input -->
+            <Label Text="DebounceImmediate: type quickly to see behavior" />
+            <Entry x:Name="InputEntry" Placeholder="Type here..." />
+            <Label x:Name="ImmediateLabel" />
+            <Label x:Name="DebouncedLabel" />
+
+            <!-- Conflate demo for click bursts -->
+            <Label Text="Conflate: collapse bursty updates" />
+            <HorizontalStackLayout Spacing="12">
+                <Button Text="Spam +1" Clicked="OnSpam" />
+                <Button Text="Spam x10" Clicked="OnSpam10" />
+            </HorizontalStackLayout>
+            <Label x:Name="DirectClicksLabel" />
+            <Label x:Name="ConflatedClicksLabel" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>
