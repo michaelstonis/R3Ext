@@ -2,8 +2,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using Xunit;
-using R3Ext.PropertyChanged;
-using R3Ext; // internal types + instrumentation
+using R3Ext;
+// internal types + instrumentation
 using R3; // Observable extension subscription overloads
 
 namespace R3Ext.Tests;
@@ -60,13 +60,13 @@ public class BindingGeneratorExtendedTests
     }
 
     // Support classes for two-way cycle test
-    private sealed class CycleHost : INotifyPropertyChanged
+    internal sealed class CycleHost : INotifyPropertyChanged
     {
         private int _value;
         public int Value { get => _value; set { if (_value == value) return; _value = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value))); } }
         public event PropertyChangedEventHandler? PropertyChanged;
     }
-    private sealed class CycleTarget : INotifyPropertyChanged
+    internal sealed class CycleTarget : INotifyPropertyChanged
     {
         private int _value;
         public int Value { get => _value; set { if (_value == value) return; _value = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value))); } }

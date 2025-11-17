@@ -1,28 +1,31 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-    <DefineConstants>$(DefineConstants);R3EXT_TRACE</DefineConstants>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="6.0.2" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.0.0" />
-    <PackageReference Include="xunit" Version="2.9.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Using Include="Xunit" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
-    <ProjectReference Include="..\R3Ext.PropertyChanged.SourceGenerator\R3Ext.PropertyChanged.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-  </ItemGroup>
-
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <DefineConstants>$(DefineConstants);R3EXT_TRACE</DefineConstants>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>obj/Generated</CompilerGeneratedFilesOutputPath>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector"
+                          Version="6.0.2" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk"
+                          Version="17.12.0" />
+        <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing"
+                          Version="9.0.0" />
+        <PackageReference Include="xunit"
+                          Version="2.9.2" />
+        <PackageReference Include="xunit.runner.visualstudio"
+                          Version="2.8.2" />
+    </ItemGroup>
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
+        <ProjectReference Include="..\R3Ext.Bindings.SourceGenerator\R3Ext.Bindings.SourceGenerator.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+    </ItemGroup>
 </Project>

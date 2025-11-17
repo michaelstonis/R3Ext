@@ -2,7 +2,6 @@ using System;
 using Microsoft.Extensions.Time.Testing;
 using System.Threading.Tasks;
 using R3;
-using R3Ext;
 using Xunit;
 
 namespace R3Ext.Tests;

@@ -8,6 +8,7 @@
     <IsRoslynAnalyzer>true</IsRoslynAnalyzer>
     <AssemblyName>R3Ext.Bindings.SourceGenerator</AssemblyName>
     <RootNamespace>R3Ext.Bindings.SourceGenerator</RootNamespace>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
   </PropertyGroup>
 
   <ItemGroup>

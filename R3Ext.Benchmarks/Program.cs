@@ -2,7 +2,8 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using System.ComponentModel;
 using R3Ext; // binding extensions
-using R3Ext.PropertyChanged; // other extensions
+
+// other extensions
 
 BenchmarkRunner.Run<BindingBenchmarks>();
 
