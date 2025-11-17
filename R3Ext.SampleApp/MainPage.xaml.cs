@@ -36,6 +36,14 @@ public partial class MainPage : ContentPage
 		_vm.BindOneWay(NameEntry, p => p.Person.Name, e => e.Text)
 			.AddTo(ref _bindings);
 
+		// Deep long-chain binding (all segments notify)
+		this.BindOneWay(DeepNameLabel, v => v._vm.Deep.A.B.C.D.Leaf.Name, l => l.Text)
+			.AddTo(ref _bindings);
+
+		// Mixed chain with a non-notifying parent; generator should fall back to EveryValueChanged
+		_vm.BindOneWay(MixedNameLabel, v => v.Mixed.NonNotify.Child!.Name, l => l.Text)
+			.AddTo(ref _bindings);
+
 		// Reactive update of labels on EditableName changes.
 		_vm.WhenChanged(x => x.EditableName)
 			.Subscribe(n =>

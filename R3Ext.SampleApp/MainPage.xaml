@@ -51,6 +51,8 @@
             <Entry x:Name="NameEntry" Placeholder="Edit name" />
             <Label x:Name="UpperNameLabel" Text="Upper: (unset)" />
             <Label x:Name="StatusLabel" Text="Status: -" />
+            <Label x:Name="DeepNameLabel" Text="Deep: (unset)" />
+            <Label x:Name="MixedNameLabel" Text="Mixed: (unset)" />
         </VerticalStackLayout>
     </ScrollView>
 
