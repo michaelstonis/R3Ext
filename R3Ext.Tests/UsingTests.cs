@@ -17,7 +17,7 @@ public class UsingTests
     public async Task DisposesResourceOnCompletion()
     {
         var res = new TestResource();
-        var obs = ReactivePortedExtensions.Using(() => res, r => Observable.Return(42));
+        var obs = CreationExtensions.Using(() => res, r => Observable.Return(42));
         var arr = await obs.ToArrayAsync();
         Assert.Equal(new[] { 42 }, arr);
         Assert.True(res.Disposed);
@@ -26,7 +26,7 @@ public class UsingTests
     [Fact]
     public void Using_NullFactories_Throw()
     {
-        Assert.Throws<ArgumentNullException>(() => ReactivePortedExtensions.Using<TestResource, int>(null!, _ => Observable.Return(1)));
-        Assert.Throws<ArgumentNullException>(() => ReactivePortedExtensions.Using<TestResource, int>(() => new TestResource(), null!));
+        Assert.Throws<ArgumentNullException>(() => CreationExtensions.Using<TestResource, int>(null!, _ => Observable.Return(1)));
+        Assert.Throws<ArgumentNullException>(() => CreationExtensions.Using<TestResource, int>(() => new TestResource(), null!));
     }
 }

@@ -10,7 +10,7 @@ public class StartHelpersTests
     public async Task Start_Action_EmitsUnit()
     {
         bool called = false;
-        var arr = await ReactivePortedExtensions.Start(() => { called = true; }).ToArrayAsync();
+        var arr = await CreationExtensions.Start(() => { called = true; }).ToArrayAsync();
         Assert.True(called);
         Assert.Equal(new[] { Unit.Default }, arr);
     }
@@ -18,7 +18,7 @@ public class StartHelpersTests
     [Fact]
     public async Task Start_Func_EmitsResult()
     {
-        var arr = await ReactivePortedExtensions.Start(() => 123).ToArrayAsync();
+        var arr = await CreationExtensions.Start(() => 123).ToArrayAsync();
         Assert.Equal(new[] { 123 }, arr);
     }
 }

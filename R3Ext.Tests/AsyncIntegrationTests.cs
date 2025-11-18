@@ -60,7 +60,7 @@ public class AsyncIntegrationTests
     [Fact]
     public async Task SubscribeAsync_TaskOverload_Works()
     {
-        var src = ReactivePortedExtensions.FromArray(1, 2, 3);
+        var src = CreationExtensions.FromArray(1, 2, 3);
         int sum = 0;
         using var d = src.SubscribeAsync(x => { sum += x; return Task.CompletedTask; });
         await Task.Delay(1);

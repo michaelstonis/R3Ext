@@ -21,7 +21,7 @@ public class WhileTests
     [Fact]
     public void While_NullArgs_Throw()
     {
-        Assert.Throws<ArgumentNullException>(() => ReactivePortedExtensions.While<int>(null!, () => true));
+        Assert.Throws<ArgumentNullException>(() => FilteringExtensions.While<int>(null!, () => true));
         var src = Observable.Return(1);
         Assert.Throws<ArgumentNullException>(() => src.While(null!));
     }

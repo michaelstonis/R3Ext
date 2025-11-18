@@ -23,7 +23,7 @@ public class CombiningPartitionSideEffectsTests
     [Fact]
     public async Task Partition_SplitsByPredicate()
     {
-        var src = ReactivePortedExtensions.FromArray(1, 2, 3, 4, 5);
+        var src = CreationExtensions.FromArray(1, 2, 3, 4, 5);
         var (even, odd) = src.Partition(x => x % 2 == 0);
         var evenArr = await even.ToArrayAsync();
         var oddArr = await odd.ToArrayAsync();
@@ -36,7 +36,7 @@ public class CombiningPartitionSideEffectsTests
     {
         bool subscribed = false;
         bool disposed = false;
-        var obs = ReactivePortedExtensions.FromArray(1, 2, 3)
+        var obs = CreationExtensions.FromArray(1, 2, 3)
             .DoOnSubscribe(() => subscribed = true)
             .DoOnDispose(() => disposed = true);
         var arr = await obs.ToArrayAsync();
@@ -48,7 +48,7 @@ public class CombiningPartitionSideEffectsTests
     [Fact]
     public async Task WaitUntil_TakesFirstMatching()
     {
-        var arr = await ReactivePortedExtensions.FromArray(1, 2, 3, 4)
+        var arr = await CreationExtensions.FromArray(1, 2, 3, 4)
             .WaitUntil(x => x > 2)
             .ToArrayAsync();
         Assert.Equal(new[] { 3 }, arr);
@@ -57,7 +57,7 @@ public class CombiningPartitionSideEffectsTests
     [Fact]
     public async Task TakeUntil_Predicate_Inclusive()
     {
-        var arr = await ReactivePortedExtensions.FromArray(1, 2, 3, 4)
+        var arr = await CreationExtensions.FromArray(1, 2, 3, 4)
             .TakeUntil(x => x >= 3)
             .ToArrayAsync();
         Assert.Equal(new[] { 1, 2, 3 }, arr);

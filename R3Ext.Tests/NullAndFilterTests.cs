@@ -28,14 +28,14 @@ public class NullAndFilterTests
     [Fact]
     public void Filter_NullPattern_Throws()
     {
-        var src = ReactivePortedExtensions.FromArray("a", "bb");
+        var src = CreationExtensions.FromArray("a", "bb");
         Assert.Throws<ArgumentNullException>(() => src.Filter(null!));
     }
 
     [Fact]
     public async Task Filter_Regex_Matches()
     {
-        var src = ReactivePortedExtensions.FromArray("a", "bb", "ccc");
+        var src = CreationExtensions.FromArray("a", "bb", "ccc");
         var arr = await src.Filter("^b+").ToArrayAsync();
         Assert.Equal(new[] { "bb" }, arr);
     }

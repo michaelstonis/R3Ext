@@ -1,108 +1,17 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Threading;
-using System.Threading.Tasks;
-using R3;
-
-namespace R3Ext;
-
-/// <summary>
-/// Extensions ported/adapted from ReactiveUI/Extensions for R3.
-/// Each method is committed individually per migration requirement.
-/// </summary>
-public static class ReactivePortedExtensions
+// Deprecated: original monolithic extension container replaced by split logical files.
+// Intentionally left blank.
 {
-    /// <summary>
-    /// Converts any upstream values to a Unit signal.
-    /// Equivalent to Rx's AsSignal; maps to R3's AsUnitObservable.
-    /// </summary>
-    public static Observable<Unit> AsSignal<T>(this Observable<T> source)
-    {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        return source.AsUnitObservable();
-    }
-
-    /// <summary>
-    /// Project values to tasks, cancelling the previous task when a new value arrives (latest only).
-    /// Cancellation is propagated via CancellationToken; uses AwaitOperation.Switch.
-    /// </summary>
-    public static Observable<TResult> SelectLatestAsync<TSource, TResult>(this Observable<TSource> source,
-        Func<TSource, CancellationToken, ValueTask<TResult>> selector,
-        bool configureAwait = true,
-        bool cancelOnCompleted = true)
-    {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (selector is null) throw new ArgumentNullException(nameof(selector));
-        return source.SelectAwait(selector, AwaitOperation.Switch, configureAwait, cancelOnCompleted);
-    }
-
-    /// <summary>
-    /// SelectLatestAsync overload for Task-returning projector.
-    /// </summary>
-    public static Observable<TResult> SelectLatestAsync<TSource, TResult>(this Observable<TSource> source,
-        Func<TSource, Task<TResult>> selector,
-        bool configureAwait = true,
-        bool cancelOnCompleted = true)
-    {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (selector is null) throw new ArgumentNullException(nameof(selector));
-        return source.SelectAwait<TSource, TResult>(
-            (x, ct) => new ValueTask<TResult>(selector(x)),
-            AwaitOperation.Switch,
-            configureAwait,
-            cancelOnCompleted);
-    }
-
-    /// <summary>
-    /// Project values to tasks sequentially (queue new values until the current task completes).
-    /// Uses AwaitOperation.Sequential.
-    /// </summary>
-    public static Observable<TResult> SelectAsyncSequential<TSource, TResult>(this Observable<TSource> source,
-        Func<TSource, CancellationToken, ValueTask<TResult>> selector,
-        bool configureAwait = true,
-        bool cancelOnCompleted = true)
-    {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (selector is null) throw new ArgumentNullException(nameof(selector));
-        return source.SelectAwait(selector, AwaitOperation.Sequential, configureAwait, cancelOnCompleted);
-    }
-
-    /// <summary>
-    /// SelectAsyncSequential overload for Task-returning projector.
-    /// </summary>
-    public static Observable<TResult> SelectAsyncSequential<TSource, TResult>(this Observable<TSource> source,
-        Func<TSource, Task<TResult>> selector,
-        bool configureAwait = true,
-        bool cancelOnCompleted = true)
-    {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (selector is null) throw new ArgumentNullException(nameof(selector));
-        return source.SelectAwait<TSource, TResult>((x, ct) => new ValueTask<TResult>(selector(x)), AwaitOperation.Sequential, configureAwait, cancelOnCompleted);
-    }
-
-    /// <summary>
-    /// Project values concurrently up to maxConcurrency. Uses AwaitOperation.Parallel.
-    /// </summary>
-    public static Observable<TResult> SelectAsyncConcurrent<TSource, TResult>(this Observable<TSource> source,
-        Func<TSource, CancellationToken, ValueTask<TResult>> selector,
-        int maxConcurrency,
-        bool configureAwait = true,
-        bool cancelOnCompleted = true)
-    {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (selector is null) throw new ArgumentNullException(nameof(selector));
-        if (maxConcurrency == 0) throw new ArgumentOutOfRangeException(nameof(maxConcurrency));
-        return source.SelectAwait(selector, AwaitOperation.Parallel, configureAwait, cancelOnCompleted, maxConcurrency);
-    }
-
-    /// <summary>
-    /// SelectAsyncConcurrent overload for Task-returning projector.
-    /// </summary>
-    public static Observable<TResult> SelectAsyncConcurrent<TSource, TResult>(this Observable<TSource> source,
-        Func<TSource, Task<TResult>> selector,
-        int maxConcurrency,
-        bool configureAwait = true,
-        bool cancelOnCompleted = true)
+    public static Observable<T> FromArray<T>(params T[] items) => CreationExtensions.FromArray(items);
+    public static Observable<Unit> Start(Action action, bool configureAwait = true) => CreationExtensions.Start(action, configureAwait);
+    public static Observable<TResult> Start<TResult>(Func<TResult> func, bool configureAwait = true) => CreationExtensions.Start(func, configureAwait);
+    public static Observable<TResult> Using<TResource, TResult>(Func<TResource> resourceFactory, Func<TResource, Observable<TResult>> observableFactory) where TResource : IDisposable => CreationExtensions.Using(resourceFactory, observableFactory);
+    public static Observable<Unit> AsSignal<T>(Observable<T> source) => SignalExtensions.AsSignal(source);
+    public static Observable<bool> Not(Observable<bool> source) => FilteringExtensions.Not(source);
+    public static Observable<bool> WhereTrue(Observable<bool> source) => FilteringExtensions.WhereTrue(source);
+    public static Observable<bool> WhereFalse(Observable<bool> source) => FilteringExtensions.WhereFalse(source);
+    public static Observable<T> While<T>(Observable<T> source, Func<bool> condition) => FilteringExtensions.While(source, condition);
+}
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (selector is null) throw new ArgumentNullException(nameof(selector));
@@ -1273,5 +1182,434 @@ public static class ReactivePortedExtensions
     {
         if (array is null) throw new ArgumentNullException(nameof(array));
         ((System.Collections.Generic.IList<T>)array).Shuffle(rng);
+    }
+}
+
+/// <summary>
+/// ReactiveUI-compatible command implementation for R3.
+/// Drop-in replacement for ReactiveUI.ReactiveCommand with full API compatibility.
+/// </summary>
+/// <typeparam name="TInput">The type of parameter the command accepts</typeparam>
+/// <typeparam name="TOutput">The type of value the command produces</typeparam>
+public class ReactiveUICompatibleCommand<TInput, TOutput> : ICommand, IObservable<TOutput>, IDisposable
+{
+    private readonly Subject<TOutput> _executionResults = new();
+    private readonly Subject<Exception> _thrownExceptions = new();
+    private readonly ReactiveProperty<bool> _isExecuting = new(false);
+    private readonly Func<TInput, CancellationToken, ValueTask<TOutput>> _executeAsync;
+    private readonly Observable<bool> _canExecute;
+    private readonly TimeProvider? _outputScheduler;
+    private readonly DisposableBag _disposables = new();
+    private bool _isDisposed;
+
+    protected ReactiveUICompatibleCommand(
+        Func<TInput, CancellationToken, ValueTask<TOutput>> executeAsync,
+        Observable<bool>? canExecute = null,
+        TimeProvider? outputScheduler = null)
+    {
+        _executeAsync = executeAsync ?? throw new ArgumentNullException(nameof(executeAsync));
+        _canExecute = canExecute ?? Observable.Return(true);
+        _outputScheduler = outputScheduler;
+
+        // Subscribe to CanExecute changes and trigger CanExecuteChanged
+        _canExecute
+            .DistinctUntilChanged()
+            .Subscribe(_ => CanExecuteChanged?.Invoke(this, EventArgs.Empty))
+            .AddTo(ref _disposables);
+    }
+
+    /// <summary>
+    /// Observable stream of command execution results
+    /// </summary>
+    public Observable<TOutput> AsObservable() => _executionResults.AsObservable();
+
+    /// <summary>
+    /// Observable indicating whether the command is currently executing
+    /// </summary>
+    public Observable<bool> IsExecuting => _isExecuting;
+
+    /// <summary>
+    /// Observable indicating whether the command can currently execute
+    /// </summary>
+    public Observable<bool> CanExecute => _canExecute;
+
+    /// <summary>
+    /// Observable stream of exceptions thrown during command execution
+    /// </summary>
+    public Observable<Exception> ThrownExceptions => _thrownExceptions;
+
+    /// <summary>
+    /// Event fired when CanExecute status changes
+    /// </summary>
+    public event EventHandler? CanExecuteChanged;
+
+    /// <summary>
+    /// Execute the command with the given parameter, returning an observable of the result
+    /// </summary>
+    public Observable<TOutput> Execute(TInput parameter)
+    {
+        return Observable.Create<TOutput>(async (observer, ct) =>
+        {
+            if (_isDisposed)
+            {
+                observer.OnCompleted();
+                return;
+            }
+
+            try
+            {
+                _isExecuting.Value = true;
+                var result = await _executeAsync(parameter, ct);
+                
+                // Marshal to output scheduler if specified
+                if (_outputScheduler != null)
+                {
+                    await Task.Delay(TimeSpan.Zero, _outputScheduler, ct); // Context switch to scheduler
+                }
+
+                _executionResults.OnNext(result);
+                observer.OnNext(result);
+                observer.OnCompleted();
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                _thrownExceptions.OnNext(ex);
+                observer.OnErrorResume(ex);
+                observer.OnCompleted(Result.Failure(ex));
+            }
+            finally
+            {
+                _isExecuting.Value = false;
+            }
+        });
+    }
+
+    /// <summary>
+    /// Execute the command (parameterless variant)
+    /// </summary>
+    public Observable<TOutput> Execute()
+    {
+        return Execute(default!);
+    }
+
+    #region ICommand Implementation
+
+    bool ICommand.CanExecute(object? parameter)
+    {
+        if (_isDisposed) return false;
+        
+        // For ReactiveProperty, we can get CurrentValue directly
+        if (_canExecute is ReactiveProperty<bool> rp)
+        {
+            return rp.CurrentValue && !_isExecuting.CurrentValue;
+        }
+        
+        // For other observables (including subjects), subscribe briefly to get latest value
+        var canExecuteValue = true;
+        var gotValue = false;
+        using (var subscription = _canExecute.Subscribe(val =>
+        {
+            canExecuteValue = val;
+            gotValue = true;
+        }))
+        {
+            // Subscription completes immediately for subjects/behavior subjects
+        }
+        
+        // If we didn't get a value (cold observable), default to true
+        if (!gotValue)
+            canExecuteValue = true;
+        
+        return canExecuteValue && !_isExecuting.CurrentValue;
+    }
+
+    void ICommand.Execute(object? parameter)
+    {
+        if (_isDisposed) return;
+        
+        TInput? typedParameter = parameter is TInput input ? input : default;
+        Execute(typedParameter!).Subscribe(_ => { });
+    }
+
+    #endregion
+
+    #region IObservable Implementation
+
+    IDisposable IObservable<TOutput>.Subscribe(IObserver<TOutput> observer)
+    {
+        if (_isDisposed)
+        {
+            observer.OnCompleted();
+            return Disposable.Create(() => { });
+        }
+
+        // Bridge R3.Subject to System.IObserver
+        return _executionResults.Subscribe(
+            onNext: value => observer.OnNext(value),
+            onErrorResume: ex => observer.OnError(ex),
+            onCompleted: result =>
+            {
+                if (result.IsSuccess)
+                    observer.OnCompleted();
+                else if (result.Exception != null)
+                    observer.OnError(result.Exception);
+            });
+    }
+
+    #endregion
+
+    #region Factory Methods
+
+    /// <summary>
+    /// Creates a ReactiveCommand from a synchronous execution function
+    /// </summary>
+    public static ReactiveUICompatibleCommand<TInput, TOutput> Create(
+        Func<TInput, TOutput> execute,
+        Observable<bool>? canExecute = null,
+        TimeProvider? outputScheduler = null)
+    {
+        if (execute == null) throw new ArgumentNullException(nameof(execute));
+        
+        return new ReactiveUICompatibleCommand<TInput, TOutput>(
+            (param, ct) => new ValueTask<TOutput>(execute(param)),
+            canExecute,
+            outputScheduler);
+    }
+
+    /// <summary>
+    /// Creates a ReactiveCommand from an asynchronous Task-based execution function
+    /// </summary>
+    public static ReactiveUICompatibleCommand<TInput, TOutput> CreateFromTask(
+        Func<TInput, CancellationToken, Task<TOutput>> execute,
+        Observable<bool>? canExecute = null,
+        TimeProvider? outputScheduler = null)
+    {
+        if (execute == null) throw new ArgumentNullException(nameof(execute));
+        
+        return new ReactiveUICompatibleCommand<TInput, TOutput>(
+            async (param, ct) => await execute(param, ct),
+            canExecute,
+            outputScheduler);
+    }
+
+    /// <summary>
+    /// Creates a ReactiveCommand from an asynchronous Task-based execution function (no cancellation token)
+    /// </summary>
+    public static ReactiveUICompatibleCommand<TInput, TOutput> CreateFromTask(
+        Func<TInput, Task<TOutput>> execute,
+        Observable<bool>? canExecute = null,
+        TimeProvider? outputScheduler = null)
+    {
+        if (execute == null) throw new ArgumentNullException(nameof(execute));
+        
+        return new ReactiveUICompatibleCommand<TInput, TOutput>(
+            async (param, ct) => await execute(param),
+            canExecute,
+            outputScheduler);
+    }
+
+    /// <summary>
+    /// Creates a ReactiveCommand from an observable-based execution function
+    /// </summary>
+    public static ReactiveUICompatibleCommand<TInput, TOutput> CreateFromObservable(
+        Func<TInput, IObservable<TOutput>> execute,
+        Observable<bool>? canExecute = null,
+        TimeProvider? outputScheduler = null)
+    {
+        if (execute == null) throw new ArgumentNullException(nameof(execute));
+        
+        return new ReactiveUICompatibleCommand<TInput, TOutput>(
+            async (param, ct) =>
+            {
+                var sysObservable = execute(param);
+                var r3Observable = sysObservable.ToObservable();
+                return await r3Observable.FirstAsync(ct);
+            },
+            canExecute,
+            outputScheduler);
+    }
+
+    /// <summary>
+    /// Creates a ReactiveCommand from an R3 Observable-based execution function
+    /// </summary>
+    public static ReactiveUICompatibleCommand<TInput, TOutput> CreateFromR3Observable(
+        Func<TInput, Observable<TOutput>> execute,
+        Observable<bool>? canExecute = null,
+        TimeProvider? outputScheduler = null)
+    {
+        if (execute == null) throw new ArgumentNullException(nameof(execute));
+        
+        return new ReactiveUICompatibleCommand<TInput, TOutput>(
+            async (param, ct) =>
+            {
+                var observable = execute(param);
+                return await observable.FirstAsync(ct);
+            },
+            canExecute,
+            outputScheduler);
+    }
+
+    /// <summary>
+    /// Creates a combined command that executes multiple child commands concurrently.
+    /// The combined command can only execute when all child commands can execute.
+    /// </summary>
+    public static ReactiveUICompatibleCommand<TInput, TOutput[]> CreateCombined(
+        params ReactiveUICompatibleCommand<TInput, TOutput>[] childCommands)
+    {
+        if (childCommands == null || childCommands.Length == 0)
+            throw new ArgumentException("At least one child command is required", nameof(childCommands));
+
+        // Combine CanExecute from all child commands - can only execute when ALL can execute
+        var combinedCanExecute = childCommands
+            .Select(cmd => cmd.CanExecute)
+            .CombineLatestValuesAreAllTrue();
+
+        return new ReactiveUICompatibleCommand<TInput, TOutput[]>(
+            async (param, ct) =>
+            {
+                // Execute all child commands concurrently
+                var tasks = childCommands
+                    .Select(cmd => cmd.Execute(param).FirstAsync(ct))
+                    .ToArray();
+
+                return await Task.WhenAll(tasks);
+            },
+            combinedCanExecute,
+            null);
+    }
+
+    /// <summary>
+    /// Creates a command that runs on a background thread (ThreadPool)
+    /// </summary>
+    public static ReactiveUICompatibleCommand<TInput, TOutput> CreateRunInBackground(
+        Func<TInput, TOutput> execute,
+        Observable<bool>? canExecute = null)
+    {
+        if (execute == null) throw new ArgumentNullException(nameof(execute));
+        
+        return new ReactiveUICompatibleCommand<TInput, TOutput>(
+            async (param, ct) => await Task.Run(() => execute(param), ct),
+            canExecute,
+            TimeProvider.System);
+    }
+
+    #endregion
+
+    public void Dispose()
+    {
+        if (_isDisposed) return;
+        
+        _isDisposed = true;
+        _disposables.Dispose();
+        _executionResults.Dispose();
+        _thrownExceptions.Dispose();
+        _isExecuting.Dispose();
+    }
+}
+
+/// <summary>
+/// Factory methods for creating non-generic ReactiveCommands (Unit-based commands)
+/// </summary>
+public static class ReactiveUICompatibleCommand
+{
+    /// <summary>
+    /// Creates a ReactiveCommand from a synchronous action
+    /// </summary>
+    public static ReactiveUICompatibleCommand<Unit, Unit> Create(
+        Action execute,
+        Observable<bool>? canExecute = null,
+        TimeProvider? outputScheduler = null)
+    {
+        if (execute == null) throw new ArgumentNullException(nameof(execute));
+        
+        return ReactiveUICompatibleCommand<Unit, Unit>.Create(
+            _ =>
+            {
+                execute();
+                return Unit.Default;
+            },
+            canExecute,
+            outputScheduler);
+    }
+
+    /// <summary>
+    /// Creates a ReactiveCommand from an asynchronous Task-based action
+    /// </summary>
+    public static ReactiveUICompatibleCommand<Unit, Unit> CreateFromTask(
+        Func<CancellationToken, Task> execute,
+        Observable<bool>? canExecute = null,
+        TimeProvider? outputScheduler = null)
+    {
+        if (execute == null) throw new ArgumentNullException(nameof(execute));
+        
+        return ReactiveUICompatibleCommand<Unit, Unit>.CreateFromTask(
+            async (_, ct) =>
+            {
+                await execute(ct);
+                return Unit.Default;
+            },
+            canExecute,
+            outputScheduler);
+    }
+
+    /// <summary>
+    /// Creates a ReactiveCommand from an asynchronous Task-based action (no cancellation token)
+    /// </summary>
+    public static ReactiveUICompatibleCommand<Unit, Unit> CreateFromTask(
+        Func<Task> execute,
+        Observable<bool>? canExecute = null,
+        TimeProvider? outputScheduler = null)
+    {
+        if (execute == null) throw new ArgumentNullException(nameof(execute));
+        
+        return ReactiveUICompatibleCommand<Unit, Unit>.CreateFromTask(
+            async (_, ct) =>
+            {
+                await execute();
+                return Unit.Default;
+            },
+            canExecute,
+            outputScheduler);
+    }
+}
+
+/// <summary>
+/// Extension methods for invoking ReactiveCommands from observables
+/// </summary>
+public static class ReactiveCommandExtensions
+{
+    /// <summary>
+    /// Executes the command whenever the source observable emits a value,
+    /// passing that value as the command parameter
+    /// </summary>
+    public static IDisposable InvokeCommand<TInput, TOutput>(
+        this IObservable<TInput> source,
+        ReactiveUICompatibleCommand<TInput, TOutput> command)
+    {
+        if (source == null) throw new ArgumentNullException(nameof(source));
+        if (command == null) throw new ArgumentNullException(nameof(command));
+
+        return source
+            .ToObservable()
+            .WithLatestFrom(command.CanExecute, (value, canExecute) => (value, canExecute))
+            .Where(x => x.canExecute)
+            .Subscribe(x => command.Execute(x.value).Subscribe(_ => { }));
+    }
+
+    /// <summary>
+    /// Executes the parameterless (Unit-based) command whenever the source observable emits a value
+    /// </summary>
+    public static IDisposable InvokeCommand<T>(
+        this IObservable<T> source,
+        ReactiveUICompatibleCommand<Unit, Unit> command)
+    {
+        if (source == null) throw new ArgumentNullException(nameof(source));
+        if (command == null) throw new ArgumentNullException(nameof(command));
+
+        return source
+            .ToObservable()
+            .WithLatestFrom(command.CanExecute, (value, canExecute) => (value, canExecute))
+            .Where(x => x.canExecute)
+            .Subscribe(_ => command.Execute().Subscribe(_ => { }));
     }
 }

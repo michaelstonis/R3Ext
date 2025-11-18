@@ -10,7 +10,7 @@ public class AsSignalAndBoolTests
     [Fact]
     public async Task AsSignal_EmitsUnitForEachValue()
     {
-        var obs = ReactivePortedExtensions.FromArray(10, 20, 30).AsSignal();
+        var obs = CreationExtensions.FromArray(10, 20, 30).AsSignal();
         var arr = await obs.ToArrayAsync();
         Assert.Equal(new[] { Unit.Default, Unit.Default, Unit.Default }, arr);
     }
@@ -19,7 +19,7 @@ public class AsSignalAndBoolTests
     public void Not_NullSource_Throws()
     {
         Observable<bool>? source = null;
-        Assert.Throws<ArgumentNullException>(() => ReactivePortedExtensions.Not(source!));
+        Assert.Throws<ArgumentNullException>(() => FilteringExtensions.Not(source!));
     }
 
     [Theory]
@@ -35,7 +35,7 @@ public class AsSignalAndBoolTests
     [Fact]
     public async Task WhereTrue_Filters()
     {
-        var obs = ReactivePortedExtensions.FromArray(true, false, true).WhereTrue();
+        var obs = CreationExtensions.FromArray(true, false, true).WhereTrue();
         var arr = await obs.ToArrayAsync();
         Assert.Equal(new[] { true, true }, arr);
     }
@@ -43,7 +43,7 @@ public class AsSignalAndBoolTests
     [Fact]
     public async Task WhereFalse_Filters()
     {
-        var obs = ReactivePortedExtensions.FromArray(true, false, false).WhereFalse();
+        var obs = CreationExtensions.FromArray(true, false, false).WhereFalse();
         var arr = await obs.ToArrayAsync();
         Assert.Equal(new[] { false, false }, arr);
     }

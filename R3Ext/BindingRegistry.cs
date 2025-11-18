@@ -146,8 +146,139 @@ public static class BindingRegistry
                 return true;
             }
         }
-        observable = default!;
-        return false;
+        // Fallback: construct reflective chain watcher when no generated entry exists.
+        // Parse lambda text: expected format "param => param.Prop1.Prop2.Leaf".
+        try
+        {
+            var arrowIdx = pathPart.IndexOf("=>", StringComparison.Ordinal);
+            string chainExpr = arrowIdx >= 0 ? pathPart.Substring(arrowIdx + 2).Trim() : pathPart.Trim();
+            // Remove leading parameter name (before first '.')
+            var firstDot = chainExpr.IndexOf('.') ;
+            if (firstDot >= 0) chainExpr = chainExpr.Substring(firstDot + 1); // drop root param identifier
+            var segments = chainExpr.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (segments.Length == 0 || obj is null || obj is not INotifyPropertyChanged npcRoot)
+            {
+                observable = Observable.Empty<TReturn>();
+                return true;
+            }
+            observable = Observable.Create<TReturn>(observer =>
+            {
+                // Holds current chain objects implementing INotifyPropertyChanged
+                var notifyNodes = new INotifyPropertyChanged[segments.Length];
+                PropertyChangedEventHandler[] handlers = new PropertyChangedEventHandler[segments.Length];
+                void Detach(int depth)
+                {
+                    if (notifyNodes[depth] != null)
+                        notifyNodes[depth]!.PropertyChanged -= handlers[depth];
+                    notifyNodes[depth] = null!;
+                }
+                for (int i = 0; i < handlers.Length; i++)
+                {
+                    int local = i;
+                    handlers[i] = (s, e) =>
+                    {
+                        // If intermediate segment replaced, rewire from that depth
+                        if (e.PropertyName == segments[local])
+                        {
+                            RewireFrom(local);
+                            Emit();
+                        }
+                        else if (e.PropertyName == segments[^1])
+                        {
+                            // Leaf changed (could be same event as intermediate replacement)
+                            Emit();
+                        }
+                    };
+                }
+                void RewireFrom(int startDepth)
+                {
+                    // Detach downstream handlers
+                    for (int d = startDepth; d < segments.Length; d++)
+                    {
+                        if (notifyNodes[d] != null) Detach(d);
+                    }
+                    object? current = obj;
+                    for (int depth = 0; depth < segments.Length; depth++)
+                    {
+                        if (current == null) break;
+                        // Owner object for property segments[depth] is current before accessing the property value.
+                        if (depth >= startDepth && current is INotifyPropertyChanged owner)
+                        {
+                            notifyNodes[depth] = owner;
+                            owner.PropertyChanged += handlers[depth];
+                        }
+                        var propName = segments[depth];
+                        var prop = current.GetType().GetProperty(propName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                        if (prop == null) break;
+                        current = prop.GetValue(current);
+                    }
+                }
+                void WireAll()
+                {
+                    RewireFrom(0);
+                }
+                void Emit()
+                {
+                    try
+                    {
+                        object? current = obj;
+                        for (int depth = 0; depth < segments.Length; depth++)
+                        {
+                            if (current == null) break;
+                            var prop = current.GetType().GetProperty(segments[depth], System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                            if (prop == null) { current = null; break; }
+                            current = prop.GetValue(current);
+                        }
+                        if (current is TReturn typed)
+                        {
+                            observer.OnNext(typed);
+                        }
+                        else
+                        {
+                            observer.OnNext(default!);
+                        }
+                    }
+                    catch
+                    {
+                        observer.OnNext(default!);
+                    }
+                }
+                // Root handler for first segment (Mid in example) to catch root-level replacement
+                PropertyChangedEventHandler? rootHandler = null;
+                if (npcRoot != null && segments.Length > 0)
+                {
+                    rootHandler = (s, e) =>
+                    {
+                        if (e.PropertyName == segments[0])
+                        {
+                            RewireFrom(0);
+                            Emit();
+                        }
+                        else if (e.PropertyName == segments[^1])
+                        {
+                            Emit();
+                        }
+                    };
+                    npcRoot.PropertyChanged += rootHandler;
+                }
+                WireAll();
+                Emit();
+                return Disposable.Create(() =>
+                {
+                    if (rootHandler != null) npcRoot.PropertyChanged -= rootHandler;
+                    for (int i = 0; i < notifyNodes.Length; i++)
+                    {
+                        if (notifyNodes[i] != null) Detach(i);
+                    }
+                });
+            });
+            return true;
+        }
+        catch
+        {
+            observable = Observable.Empty<TReturn>();
+            return true; // Provide empty fallback rather than failure.
+        }
     }
 
     private static OneWayEntry? PickBest(List<OneWayEntry> list, Type fromRuntime, Type targetRuntime)
