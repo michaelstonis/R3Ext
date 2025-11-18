@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="R3Ext.SampleApp.ConversionFormPage"
+             Title="Conversion Form">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="18">
+            <Label Text="Checkout Calculator"
+                   Style="{StaticResource SubHeadline}" />
+            <Label Text="Two-way conversions keep numeric models and text inputs synchronized." />
+
+            <Frame Padding="16" HasShadow="False" BorderColor="#DDDDDD" CornerRadius="12">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+                    <Label Text="Unit price" Grid.Row="0" Grid.Column="0" VerticalTextAlignment="Center" />
+                    <Entry x:Name="UnitPriceEntry"
+                           Grid.Row="0"
+                           Grid.Column="1"
+                           Keyboard="Numeric"
+                           Placeholder="29.99" />
+
+                    <Label Text="Quantity" Grid.Row="1" VerticalTextAlignment="Center" />
+                    <Entry x:Name="QuantityEntry"
+                           Grid.Row="1"
+                           Grid.Column="1"
+                           Keyboard="Numeric"
+                           Placeholder="2" />
+
+                    <Label Text="Tax rate" Grid.Row="2" VerticalTextAlignment="Center" />
+                    <Entry x:Name="TaxRateEntry"
+                           Grid.Row="2"
+                           Grid.Column="1"
+                           Keyboard="Numeric"
+                           Placeholder="8.25" />
+
+                    <Label Text="Discount" Grid.Row="3" VerticalTextAlignment="Center" />
+                    <StackLayout Grid.Row="3" Grid.Column="1" Spacing="6">
+                        <Slider x:Name="DiscountSlider" Minimum="0" Maximum="50" />
+                        <Label x:Name="DiscountLabel" Text="Discount: 0%" />
+                    </StackLayout>
+                </Grid>
+            </Frame>
+
+            <Frame Padding="16" HasShadow="False" BorderColor="#DDDDDD" CornerRadius="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label x:Name="SubtotalLabel" Text="Subtotal: $0.00" />
+                    <Label x:Name="DiscountAmountLabel" Text="Discount: -$0.00" />
+                    <Label x:Name="TaxAmountLabel" Text="Tax: $0.00" />
+                    <BoxView HeightRequest="1" Color="#CCCCCC" />
+                    <Label x:Name="TotalLabel" Text="Total: $0.00" Style="{StaticResource Headline}" />
+                    <Label x:Name="EffectiveUnitPriceLabel" Text="Effective per unit: $0.00" />
+                </VerticalStackLayout>
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

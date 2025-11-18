@@ -11,6 +11,8 @@ public partial class MainPage : ContentPage
 
 	async void OnGoBasics(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//BasicsPage");
 	async void OnGoDeep(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//DeepBindingPage");
+	async void OnGoConverters(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//ConverterPlaygroundPage");
+	async void OnGoConversionForm(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//ConversionFormPage");
 	async void OnGoControls(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//ControlsPage");
 	async void OnGoPerformance(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//PerformancePage");
 	async void OnGoForm(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//FormPage");

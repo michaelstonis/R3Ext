@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="R3Ext.SampleApp.ConverterPlaygroundPage"
+             Title="Converter Playground">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="18">
+            <Label Text="Converter Playground"
+                   Style="{StaticResource SubHeadline}" />
+            <Label Text="Experiment with binding conversions that flow through view models into UI." />
+
+            <Frame Padding="16" HasShadow="False" BorderColor="#DDDDDD" CornerRadius="12">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Temperature" Style="{StaticResource Headline}" />
+                    <Slider x:Name="TemperatureSlider" Minimum="-20" Maximum="50" />
+                    <Label x:Name="CelsiusLabel" Text="0 °C" />
+                    <Label x:Name="FahrenheitLabel" Text="32 °F" />
+                    <BoxView x:Name="TemperatureSwatch" HeightRequest="28" CornerRadius="8" />
+                    <Label x:Name="ComfortLabel" Text="Comfort index" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame Padding="16" HasShadow="False" BorderColor="#DDDDDD" CornerRadius="12">
+                <VerticalStackLayout Spacing="12">
+                    <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                        <Label Text="Is it raining?" />
+                        <Switch x:Name="RainSwitch" />
+                    </HorizontalStackLayout>
+                    <Label x:Name="ConditionLabel" Text="Dry Skies" />
+                    <Label x:Name="ConditionAdviceLabel" Text="Great weather for a walk." />
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame Padding="16" HasShadow="False" BorderColor="#DDDDDD" CornerRadius="12">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Humidity" Style="{StaticResource Headline}" />
+                    <Slider x:Name="HumiditySlider" Minimum="0" Maximum="100" />
+                    <ProgressBar x:Name="HumidityProgress" />
+                    <Label x:Name="HumidityLabel" Text="Humidity: 0%" />
+                </VerticalStackLayout>
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

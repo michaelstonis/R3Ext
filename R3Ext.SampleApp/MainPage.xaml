@@ -14,6 +14,10 @@
                     Clicked="OnGoBasics" />
             <Button Text="Deep Binding"
                     Clicked="OnGoDeep" />
+            <Button Text="Converter Playground"
+                    Clicked="OnGoConverters" />
+            <Button Text="Conversion Form"
+                    Clicked="OnGoConversionForm" />
             <Button Text="Controls"
                     Clicked="OnGoControls" />
             <Button Text="Performance"
