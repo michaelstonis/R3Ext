@@ -84,10 +84,10 @@ public partial class DeepBindingPage : ContentPage
             })
             .AddTo(ref _bindings);
 
-        this.BindTwoWay(MixedChildEntry, v => v._vm.Mixed.NonNotify.Child.Name, e => e.Text)
+        this.BindTwoWay(MixedChildEntry, v => v._vm.Mixed.NonNotify.Child!.Name, e => e.Text)
             .AddTo(ref _bindings);
 
-        this.BindOneWay(MixedChildMirrorLabel, v => v._vm.Mixed.NonNotify.Child.Name, l => l.Text, name => $"Mixed Child Mirror: {name ?? "(empty)"}")
+        this.BindOneWay(MixedChildMirrorLabel, v => v._vm.Mixed.NonNotify.Child!.Name, l => l.Text, name => $"Mixed Child Mirror: {name ?? "(empty)"}")
             .AddTo(ref _bindings);
     }
 

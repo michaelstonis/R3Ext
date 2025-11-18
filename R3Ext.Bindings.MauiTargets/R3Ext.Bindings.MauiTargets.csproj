@@ -19,10 +19,13 @@
                           Version="9.0.0"
                           PrivateAssets="all" />
     </ItemGroup>
-    
     <!-- Include props and targets files so they auto-import when project is referenced -->
     <ItemGroup>
-        <None Include="build\R3Ext.Bindings.MauiTargets.props" Pack="true" PackagePath="build" />
-        <None Include="GenerateUiBindingTargets.targets" Pack="true" PackagePath="build" />
+        <None Include="build\R3Ext.Bindings.MauiTargets.props"
+              Pack="true"
+              PackagePath="build" />
+        <None Include="GenerateUiBindingTargets.targets"
+              Pack="true"
+              PackagePath="build" />
     </ItemGroup>
 </Project>

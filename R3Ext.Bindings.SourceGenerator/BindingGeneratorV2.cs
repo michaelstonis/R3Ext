@@ -1513,23 +1513,39 @@ internal sealed class CodeEmitter
 
     private static string BuildChainAccess(string root, List<PropertySegment> segments)
     {
+        // Graceful null propagation: if a prior segment in the chain is nullable, subsequent member access
+        // uses the null-conditional operator '?.' (when the segment is a reference type). This avoids CS8602
+        // warnings and prevents NullReferenceExceptions for partially null chains while still allowing
+        // PropertyChanged handler wiring for non-null portions.
         var expr = new StringBuilder(root);
+        PropertySegment? prev = null;
         foreach (var seg in segments)
         {
             if (seg.IsField && seg.IsNonPublic)
             {
+                // Non-public field access via generated unsafe accessor; cannot combine directly with '?.'.
+                // If previous segment may be null we wrap the call in a conditional expression to yield default.
                 var key = UAKey(seg);
-                expr.Clear();
-                expr.Append($"__UA_GETFIELD_{key}(").Append(root);
-                // For deeper chains, we need to apply successively. Build progressively
-                // Recompute root as the current expression for subsequent segments
-                root = expr.Append(")").ToString();
+                var currentRoot = expr.ToString();
+                if (prev is not null && prev.IsReferenceType && prev.IsNullable)
+                {
+                    expr.Clear();
+                    expr.Append("(").Append(currentRoot).Append(" == null ? default! : __UA_GETFIELD_").Append(key).Append("(").Append(currentRoot).Append("))");
+                }
+                else
+                {
+                    expr.Clear();
+                    expr.Append($"__UA_GETFIELD_{key}(").Append(currentRoot).Append(")");
+                }
+                root = expr.ToString();
             }
             else
             {
-                expr.Append('.').Append(seg.Name);
+                bool useConditional = prev is not null && prev.IsReferenceType && prev.IsNullable;
+                expr.Append(useConditional ? "?." : ".").Append(seg.Name);
                 root = expr.ToString();
             }
+            prev = seg;
         }
         return expr.ToString();
     }

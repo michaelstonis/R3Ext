@@ -32,18 +32,7 @@
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
         <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
-        <!-- Enable Roslyn generator outputs on disk for debugging registrations -->
-        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-        <CompilerGeneratedFilesOutputPath>obj/gen</CompilerGeneratedFilesOutputPath>
     </PropertyGroup>
-    <!-- Enable R3Ext UI binding metadata generation and import the MAUI targets -->
-    <PropertyGroup>
-        <GenerateR3ExtUiBindingTargets>true</GenerateR3ExtUiBindingTargets>
-    </PropertyGroup>
-    <Import Project="..\R3Ext.Bindings.MauiTargets\GenerateUiBindingTargets.targets" />
-    <ItemGroup>
-        <ProjectReference Include="..\R3Ext.Bindings.MauiTargets\R3Ext.Bindings.MauiTargets.csproj" />
-    </ItemGroup>
     <ItemGroup>
         <!-- App Icon -->
         <MauiIcon Include="Resources\AppIcon\appicon.svg"
@@ -79,5 +68,8 @@
         <ProjectReference Include="..\R3Ext.Bindings.SourceGenerator\R3Ext.Bindings.SourceGenerator.csproj"
                           ReferenceOutputAssembly="false"
                           OutputItemType="Analyzer" />
+        <ProjectReference Include="..\R3Ext.Bindings.MauiTargets\R3Ext.Bindings.MauiTargets.csproj" />
     </ItemGroup>
+    <!-- Import MAUI binding targets to enable metadata generation -->
+    <Import Project="..\R3Ext.Bindings.MauiTargets\build\R3Ext.Bindings.MauiTargets.props" />
 </Project>

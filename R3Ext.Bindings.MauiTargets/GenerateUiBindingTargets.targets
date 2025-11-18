@@ -1,31 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <!-- Importing project must be able to locate this assembly; when used via project reference, we build a relative path -->
-  <PropertyGroup>
-    <R3ExtMauiTargetsAssembly>$(MSBuildThisFileDirectory)bin/$(Configuration)/netstandard2.0/R3Ext.Bindings.MauiTargets.dll</R3ExtMauiTargetsAssembly>
-  </PropertyGroup>
-
-  <UsingTask TaskName="R3Ext.Bindings.MauiTargets.GenerateUiBindingTargetsTask"
-             AssemblyFile="$(R3ExtMauiTargetsAssembly)" />
-
+    <!-- Importing project must be able to locate this assembly; when used via project reference, we build a relative path -->
+    <PropertyGroup>
+        <R3ExtMauiTargetsAssembly>$(MSBuildThisFileDirectory)bin/$(Configuration)/netstandard2.0/R3Ext.Bindings.MauiTargets.dll</R3ExtMauiTargetsAssembly>
+    </PropertyGroup>
+    <UsingTask TaskName="R3Ext.Bindings.MauiTargets.GenerateUiBindingTargetsTask"
+               AssemblyFile="$(R3ExtMauiTargetsAssembly)" />
     <Target Name="GenerateUiBindingTargets"
-      BeforeTargets="CoreCompile"
-          Condition=" '$(GenerateR3ExtUiBindingTargets)' == 'true' ">
-    <ItemGroup>
-      <!-- Include both classic .g.cs and MAUI source generator .sg.cs outputs; also capture top-level obj/gen tree -->
-      <GeneratedCodeFiles Include="$(IntermediateOutputPath)**/*.g.cs" />
-      <GeneratedCodeFiles Include="$(IntermediateOutputPath)**/*.sg.cs" />
-      <GeneratedCodeFiles Include="$(MSBuildProjectDirectory)/obj/gen/**/*.g.cs" />
-      <GeneratedCodeFiles Include="$(MSBuildProjectDirectory)/obj/gen/**/*.sg.cs" />
-      <XamlFiles Include="**/*.xaml" />
-    </ItemGroup>
-    <GenerateUiBindingTargetsTask
-        ProjectAssemblyName="$(AssemblyName)"
-        IntermediateOutputPath="$(IntermediateOutputPath)"
-        GeneratedCodeFiles="@(GeneratedCodeFiles)"
-        XamlFiles="@(XamlFiles)" />
-    <!-- Expose the emitted JSON to analyzers in this project -->
-    <ItemGroup>
-      <AdditionalFiles Include="$(IntermediateOutputPath)**/R3Ext.BindingTargets.json" />
-    </ItemGroup>
-  </Target>
+            BeforeTargets="CoreCompile"
+            Condition=" '$(GenerateR3ExtUiBindingTargets)' == 'true' ">
+        <ItemGroup>
+            <!-- Include both classic .g.cs and MAUI source generator .sg.cs outputs; also capture top-level obj/gen tree -->
+            <GeneratedCodeFiles Include="$(IntermediateOutputPath)**/*.g.cs" />
+            <GeneratedCodeFiles Include="$(IntermediateOutputPath)**/*.sg.cs" />
+            <GeneratedCodeFiles Include="$(MSBuildProjectDirectory)/obj/gen/**/*.g.cs" />
+            <GeneratedCodeFiles Include="$(MSBuildProjectDirectory)/obj/gen/**/*.sg.cs" />
+            <XamlFiles Include="**/*.xaml" />
+        </ItemGroup>
+        <GenerateUiBindingTargetsTask ProjectAssemblyName="$(AssemblyName)"
+                                      IntermediateOutputPath="$(IntermediateOutputPath)"
+                                      GeneratedCodeFiles="@(GeneratedCodeFiles)"
+                                      XamlFiles="@(XamlFiles)" />
+        <!-- Expose the emitted JSON to analyzers in this project -->
+        <ItemGroup>
+            <AdditionalFiles Include="$(IntermediateOutputPath)**/R3Ext.BindingTargets.json" />
+        </ItemGroup>
+    </Target>
 </Project>
