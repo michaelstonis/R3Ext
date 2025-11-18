@@ -22,6 +22,14 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    private static readonly SymbolDisplayFormat FullyQualifiedFormatWithNullability = new SymbolDisplayFormat(
+        globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
+        typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers |
+                              SymbolDisplayMiscellaneousOptions.UseSpecialTypes |
+                              SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
+
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -201,7 +209,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     }
                     if (containingType is not null)
                     {
-                        var containingTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                        var containingTypeName = containingType.ToDisplayString(FullyQualifiedFormatWithNullability);
                         capturedTargetIdentifier = idName2.Identifier.ValueText;
                         capturedContainingTypeName = containingTypeName;
                         // store for post-processing in source output when ui lookup + compilation are available
@@ -252,7 +260,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 }
             }
             ta ??= ctx.SemanticModel.GetTypeInfo(args[0].Expression).Type;
-            model.TargetArgTypeName = ta?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? inferredTargetRootTypeNameFromHeuristic;
+            model.TargetArgTypeName = ta?.ToDisplayString(FullyQualifiedFormatWithNullability) ?? inferredTargetRootTypeNameFromHeuristic;
         }
         return model;
     }
@@ -293,14 +301,15 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 var seg = new PropertySegment
                 {
                     Name = ps.Name,
-                    TypeName = ps.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                    DeclaringTypeName = ps.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    TypeName = ps.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = ps.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = ps.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(ps.Type),
                     HasSetter = ps.SetMethod is not null,
                     SetterIsNonPublic = ps.SetMethod is not null && ps.SetMethod.DeclaredAccessibility != Accessibility.Public,
                     IsNonPublic = ps.DeclaredAccessibility != Accessibility.Public,
-                    IsField = false
+                    IsField = false,
+                    IsNullable = ps.Type.NullableAnnotation == NullableAnnotation.Annotated
                 };
                 segs.Add(seg);
                 current = ps.Type;
@@ -310,14 +319,15 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 var seg = new PropertySegment
                 {
                     Name = fs.Name,
-                    TypeName = fs.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                    DeclaringTypeName = fs.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    TypeName = fs.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = fs.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = fs.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(fs.Type),
                     HasSetter = false,
                     SetterIsNonPublic = false,
                     IsNonPublic = fs.DeclaredAccessibility != Accessibility.Public,
-                    IsField = true
+                    IsField = true,
+                    IsNullable = fs.Type.NullableAnnotation == NullableAnnotation.Annotated
                 };
                 segs.Add(seg);
                 current = fs.Type;
@@ -360,14 +370,15 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 var seg = new PropertySegment
                 {
                     Name = ps.Name,
-                    TypeName = ps.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                    DeclaringTypeName = ps.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    TypeName = ps.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = ps.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = ps.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(ps.Type),
                     HasSetter = ps.SetMethod is not null,
                     SetterIsNonPublic = ps.SetMethod is not null && ps.SetMethod.DeclaredAccessibility != Accessibility.Public,
                     IsNonPublic = ps.DeclaredAccessibility != Accessibility.Public,
-                    IsField = false
+                    IsField = false,
+                    IsNullable = ps.Type.NullableAnnotation == NullableAnnotation.Annotated
                 };
                 into.Add(seg);
             }
@@ -376,14 +387,15 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 var seg = new PropertySegment
                 {
                     Name = fs.Name,
-                    TypeName = fs.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                    DeclaringTypeName = fs.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    TypeName = fs.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = fs.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = fs.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(fs.Type),
                     HasSetter = false,
                     SetterIsNonPublic = false,
                     IsNonPublic = fs.DeclaredAccessibility != Accessibility.Public,
-                    IsField = true
+                    IsField = true,
+                    IsNullable = fs.Type.NullableAnnotation == NullableAnnotation.Annotated
                 };
                 into.Add(seg);
             }
@@ -437,14 +449,15 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 var seg = new PropertySegment
                 {
                     Name = prop.Name,
-                    TypeName = prop.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                    DeclaringTypeName = prop.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    TypeName = prop.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = prop.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = prop.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(prop.Type),
                     HasSetter = prop.SetMethod is not null,
                     SetterIsNonPublic = prop.SetMethod is not null && prop.SetMethod.DeclaredAccessibility != Accessibility.Public,
                     IsNonPublic = prop.DeclaredAccessibility != Accessibility.Public,
-                    IsField = false
+                    IsField = false,
+                    IsNullable = prop.Type.NullableAnnotation == NullableAnnotation.Annotated
                 };
                 into.Add(seg);
                 current = prop.Type;
@@ -454,14 +467,15 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 var seg = new PropertySegment
                 {
                     Name = field.Name,
-                    TypeName = field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                    DeclaringTypeName = field.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    TypeName = field.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = field.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = field.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(field.Type),
                     HasSetter = false,
                     SetterIsNonPublic = false,
                     IsNonPublic = field.DeclaredAccessibility != Accessibility.Public,
-                    IsField = true
+                    IsField = true,
+                    IsNullable = field.Type.NullableAnnotation == NullableAnnotation.Annotated
                 };
                 into.Add(seg);
                 current = field.Type;
@@ -519,6 +533,7 @@ internal sealed class PropertySegment
     public bool SetterIsNonPublic { get; set; }
     public bool IsNonPublic { get; set; }
     public bool IsField { get; set; }
+    public bool IsNullable { get; set; }
 }
 
 internal sealed class CodeEmitter
