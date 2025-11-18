@@ -22,6 +22,22 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor SymbolResolutionFailureDescriptor = new(
+        id: "R3BG002",
+        title: "Symbol resolution failed",
+        messageFormat: "Failed to resolve symbol for '{0}' in expression '{1}': {2}",
+        category: "R3.BindingGenerator",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor InvocationFilteredDescriptor = new(
+        id: "R3BG003",
+        title: "Invocation filtered during Transform",
+        messageFormat: "Binding invocation at {0} was filtered: {1}",
+        category: "R3.BindingGenerator",
+        DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
     private static readonly SymbolDisplayFormat FullyQualifiedFormatWithNullability = new SymbolDisplayFormat(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
@@ -44,7 +60,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         var invocations = context.SyntaxProvider
             .CreateSyntaxProvider(
                 static (node, _) => node is InvocationExpressionSyntax ies && LooksLikeBindingInvocation(ies),
-                static (ctx, _) => Transform(ctx))
+                static (ctx, _) => TransformOrCapture(ctx))
             .Where(m => m is not null)!;
 
         var collected = invocations.Collect();
@@ -58,7 +74,44 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             var asmName = compilation.AssemblyName ?? string.Empty;
             var uiMap = tuple.Right;
             UiBindingLookupProvider.Current = uiMap;
+            
+            // Report filtered invocations
+            var filteredCount = 0;
+            foreach (var item in models)
+            {
+                if (item is FilteredInvocation filtered)
+                {
+                    filteredCount++;
+                    spc.ReportDiagnostic(Diagnostic.Create(InvocationFilteredDescriptor, filtered.Location, 
+                        filtered.Location.GetLineSpan().StartLinePosition.ToString(), filtered.Reason));
+                }
+            }
+            
             var all = models!.OfType<InvocationModel>().ToImmutableArray();
+            
+            // Debug logging - write to generated file as comments
+            // Debug logging - commented out after confirming deduplication fix
+            // var debugInfo = new StringBuilder();
+            // debugInfo.AppendLine($"// DEBUG: Assembly={asmName}, InvocationModels={all.Length}, Filtered={filteredCount}");
+            // debugInfo.AppendLine($"// DEBUG: WhenChanged invocations BEFORE deduplication: {all.Count(m => m.Kind == "WhenChanged")}");
+            // foreach (var inv in all.Where(m => m.Kind == "WhenChanged"))
+            // {
+            //     var hasSegments = inv.FromSegments.Count > 0;
+            //     var key = inv.Kind + "|" + inv.WhenPath;
+            //     debugInfo.AppendLine($"//   - Root={inv.WhenRootTypeName ?? "NULL"}, Path={inv.WhenPath}, Segments={inv.FromSegments.Count}, Key={key}, Loc={inv.Location.GetLineSpan()}");
+            //     if (inv.SymbolResolutionFailures.Count > 0)
+            //     {
+            //         foreach (var (member, expr, reason) in inv.SymbolResolutionFailures)
+            //         {
+            //             debugInfo.AppendLine($"//     FAILURE: {member} - {reason}");
+            //         }
+            //     }
+            // }
+            // debugInfo.AppendLine($"// DEBUG: Filtered invocations: {filteredCount}");
+            // foreach (var item in models.OfType<FilteredInvocation>())
+            // {
+            //     debugInfo.AppendLine($"//   - Filtered at {item.Location.GetLineSpan()}: {item.Reason}");
+            // }
 
             // Post-process unresolved target chains using UI metadata (now that we have compilation + lookup)
             foreach (var m in all)
@@ -93,6 +146,11 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     if (m.FromSegments.Count == 0)
                     {
                         spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve 'from' property chain"));
+                        // Report detailed symbol resolution failures
+                        foreach (var (memberName, expr, reason) in m.SymbolResolutionFailures)
+                        {
+                            spc.ReportDiagnostic(Diagnostic.Create(SymbolResolutionFailureDescriptor, m.Location, memberName, expr, reason));
+                        }
                     }
                     if (m.ToSegments.Count == 0)
                     {
@@ -102,15 +160,46 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 else if (m.Kind == "WhenChanged" && m.FromSegments.Count == 0)
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve monitored property chain"));
+                    // Report detailed symbol resolution failures
+                    foreach (var (memberName, expr, reason) in m.SymbolResolutionFailures)
+                    {
+                        spc.ReportDiagnostic(Diagnostic.Create(SymbolResolutionFailureDescriptor, m.Location, memberName, expr, reason));
+                    }
                 }
             }
 
-            // De-duplicate by key (kind + paths)
+            // Populate type name metadata BEFORE deduplication so we can use root type in the key
+            foreach (var m in all)
+            {
+                if (m.Kind == "WhenChanged")
+                {
+                    if (m.FromSegments.Count > 0)
+                    {
+                        m.WhenRootTypeName = m.FromSegments[0].DeclaringTypeName;
+                        m.WhenLeafTypeName = m.FromSegments.Last().TypeName;
+                    }
+                }
+                else
+                {
+                    if (m.FromSegments.Count > 0)
+                    {
+                        m.RootFromTypeName = m.FromSegments[0].DeclaringTypeName;
+                        m.FromLeafTypeName = m.FromSegments.Last().TypeName;
+                    }
+                    if (m.ToSegments.Count > 0)
+                    {
+                        m.RootTargetTypeName = m.ToSegments[0].DeclaringTypeName;
+                        m.TargetLeafTypeName = m.ToSegments.Last().TypeName;
+                    }
+                }
+            }
+
+            // De-duplicate by key (kind + root type + paths)
             static string Key(InvocationModel m) => m.Kind switch
             {
-                "BindOneWay" => $"{m.Kind}|{m.FromPath}|{m.ToPath}",
-                "BindTwoWay" => $"{m.Kind}|{m.FromPath}|{m.ToPath}",
-                "WhenChanged" => $"{m.Kind}|{m.WhenPath}",
+                "BindOneWay" => $"{m.Kind}|{m.RootFromTypeName}|{m.FromPath}|{m.RootTargetTypeName}|{m.ToPath}",
+                "BindTwoWay" => $"{m.Kind}|{m.RootFromTypeName}|{m.FromPath}|{m.RootTargetTypeName}|{m.ToPath}",
+                "WhenChanged" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
                 _ => m.Kind
             };
             var seen = new HashSet<string>();
@@ -123,6 +212,15 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
 
             var emitter = new CodeEmitter();
             var source = emitter.Emit(distinct.ToImmutableArray(), asmName);
+            
+            // Prepend debug info
+            // debugInfo.AppendLine($"// DEBUG: After deduplication: {distinct.Count} distinct invocations");
+            // foreach (var inv in distinct.Where(m => m.Kind == "WhenChanged"))
+            // {
+            //     debugInfo.AppendLine($"//   - KEPT: Path={inv.WhenPath}, Loc={inv.Location.GetLineSpan()}");
+            // }
+            
+            // var finalSource = debugInfo.ToString() + source;
             spc.AddSource("R3Ext_BindingGeneratorV2.g.cs", SourceText.From(source, Encoding.UTF8));
         });
     }
@@ -137,18 +235,40 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         return false;
     }
 
-    private static InvocationModel? Transform(GeneratorSyntaxContext ctx)
+    private static object? TransformOrCapture(GeneratorSyntaxContext ctx)
     {
         var ies = (InvocationExpressionSyntax)ctx.Node;
-        if (ies.Expression is not MemberAccessExpressionSyntax maes) return null;
+        var location = ies.GetLocation();
+        
+        if (ies.Expression is not MemberAccessExpressionSyntax maes) 
+            return new FilteredInvocation(location, "expression is not a member access", ies.ToString());
+        
         var name = maes.Name.Identifier.ValueText;
 
         // Use invocation expression for symbol resolution to properly catch extension methods in other assemblies.
         var si = ctx.SemanticModel.GetSymbolInfo(ies);
         var symbol = si.Symbol as IMethodSymbol ?? si.CandidateSymbols.OfType<IMethodSymbol>().FirstOrDefault();
-        if (symbol is null) return null;
-        if (symbol.Name is not ("BindTwoWay" or "BindOneWay" or "WhenChanged")) return null;
+        
+        if (symbol is null)
+        {
+            var reason = si.CandidateReason switch
+            {
+                CandidateReason.None => "method symbol not found",
+                CandidateReason.OverloadResolutionFailure => $"overload resolution failure (candidates: {si.CandidateSymbols.Length})",
+                CandidateReason.Inaccessible => "method is inaccessible",
+                _ => $"unknown symbol resolution issue: {si.CandidateReason}"
+            };
+            return new FilteredInvocation(location, reason, ies.ToString());
+        }
+        
+        if (symbol.Name is not ("BindTwoWay" or "BindOneWay" or "WhenChanged"))
+            return new FilteredInvocation(location, $"method name '{symbol.Name}' is not a recognized binding method", ies.ToString());
+        
+        return Transform(ctx, ies, maes, symbol, location);
+    }
 
+    private static InvocationModel? Transform(GeneratorSyntaxContext ctx, InvocationExpressionSyntax ies, MemberAccessExpressionSyntax maes, IMethodSymbol symbol, Location location)
+    {
         var args = ies.ArgumentList.Arguments;
         string? fromPath = null, toPath = null, whenPath = null;
         SimpleLambdaExpressionSyntax? fromLambda = null, toLambda = null, whenLambda = null;
@@ -158,12 +278,15 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         string? capturedContainingTypeName = null;
 
         string? inferredTargetRootTypeNameFromHeuristic = null;
+        var failures = new List<(string, string, string)>();
+        
         if (symbol.Name == "WhenChanged")
         {
             if (args.Count < 1) return null;
             whenLambda = args[0].Expression as SimpleLambdaExpressionSyntax ?? TryExtractLambdaFromNameof(args[0].Expression) as SimpleLambdaExpressionSyntax;
             whenPath = whenLambda?.ToString();
-            if (whenLambda is not null) ExtractSegments(ctx.SemanticModel, whenLambda, fromSegments); // reuse fromSegments for WhenChanged chain
+            if (whenLambda is not null) 
+                ExtractSegments(ctx.SemanticModel, whenLambda, fromSegments, (member, expr, reason) => failures.Add((member, expr, reason))); // reuse fromSegments for WhenChanged chain
         }
         else
         {
@@ -173,7 +296,8 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             toLambda = args[2].Expression as SimpleLambdaExpressionSyntax ?? TryExtractLambdaFromNameof(args[2].Expression) as SimpleLambdaExpressionSyntax;
             fromPath = fromLambda?.ToString();
             toPath = toLambda?.ToString();
-            if (fromLambda is not null) ExtractSegments(ctx.SemanticModel, fromLambda, fromSegments);
+            if (fromLambda is not null) 
+                ExtractSegments(ctx.SemanticModel, fromLambda, fromSegments, (member, expr, reason) => failures.Add((member, expr, reason)));
             if (toLambda is not null)
             {
                 ITypeSymbol? targetRootType = null;
@@ -234,7 +358,8 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             FromSegments = fromSegments,
             ToSegments = toSegments,
             TargetIdentifierName = capturedTargetIdentifier,
-            ContainingTypeName = capturedContainingTypeName
+            ContainingTypeName = capturedContainingTypeName,
+            SymbolResolutionFailures = failures
         };
         if (symbol.Name != "WhenChanged")
         {
@@ -338,7 +463,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
 
     private static LambdaExpressionSyntax? TryExtractLambdaFromNameof(ExpressionSyntax expr) => expr as LambdaExpressionSyntax;
 
-    private static void ExtractSegments(SemanticModel model, SimpleLambdaExpressionSyntax lambda, List<PropertySegment> into)
+    private static void ExtractSegments(SemanticModel model, SimpleLambdaExpressionSyntax lambda, List<PropertySegment> into, Action<string, string, string>? reportFailure = null)
     {
         into.Clear();
         ExpressionSyntax? body = lambda.Body as ExpressionSyntax;
@@ -347,7 +472,11 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         {
             body = px.Operand;
         }
-        if (body is not MemberAccessExpressionSyntax) return;
+        if (body is not MemberAccessExpressionSyntax)
+        {
+            reportFailure?.Invoke("lambda body", lambda.ToString(), "not a member access expression");
+            return;
+        }
         // Gather chain root->leaf
         var stack = new Stack<MemberAccessExpressionSyntax>();
         ExpressionSyntax? cur = body;
@@ -360,12 +489,39 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 cur = px2.Operand;
             }
         }
-        if (cur is not IdentifierNameSyntax) return;
+        if (cur is not IdentifierNameSyntax)
+        {
+            reportFailure?.Invoke("lambda parameter", lambda.ToString(), "root expression is not an identifier");
+            return;
+        }
         while (stack.Count > 0)
         {
             var mae = stack.Pop();
-            var si = model.GetSymbolInfo(mae).Symbol;
-            if (si is IPropertySymbol ps)
+            var memberName = mae.Name.Identifier.ValueText;
+            var si = model.GetSymbolInfo(mae);
+            var symbol = si.Symbol;
+            
+            if (symbol is null)
+            {
+                var reason = si.CandidateReason switch
+                {
+                    CandidateReason.None => "symbol not found",
+                    CandidateReason.NotAValue => "not a value",
+                    CandidateReason.NotAVariable => "not a variable",
+                    CandidateReason.NotInvocable => "not invocable",
+                    CandidateReason.Inaccessible => "inaccessible",
+                    CandidateReason.OverloadResolutionFailure => "overload resolution failure",
+                    CandidateReason.LateBound => "late bound",
+                    CandidateReason.Ambiguous => $"ambiguous ({si.CandidateSymbols.Length} candidates: {string.Join(", ", si.CandidateSymbols.Take(3).Select(s => s.ToDisplayString()))})",
+                    CandidateReason.MemberGroup => "member group",
+                    _ => $"unknown reason ({si.CandidateReason})"
+                };
+                reportFailure?.Invoke(memberName, lambda.ToString(), reason);
+                into.Clear();
+                return;
+            }
+            
+            if (symbol is IPropertySymbol ps)
             {
                 var seg = new PropertySegment
                 {
@@ -382,7 +538,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 };
                 into.Add(seg);
             }
-            else if (si is IFieldSymbol fs)
+            else if (symbol is IFieldSymbol fs)
             {
                 var seg = new PropertySegment
                 {
@@ -401,6 +557,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             }
             else
             {
+                reportFailure?.Invoke(memberName, lambda.ToString(), $"unexpected symbol type: {symbol.GetType().Name}");
                 into.Clear();
                 return;
             }
@@ -486,6 +643,19 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
     private static bool ImplementsNotify(ITypeSymbol t) => t.AllInterfaces.Any(i => i.ToDisplayString() == "System.ComponentModel.INotifyPropertyChanged");
 }
 
+internal sealed class FilteredInvocation
+{
+    public Location Location { get; }
+    public string Reason { get; }
+    public string? Code { get; }
+    public FilteredInvocation(Location location, string reason, string? code = null)
+    {
+        Location = location;
+        Reason = reason;
+        Code = code;
+    }
+}
+
 internal sealed class InvocationModel
 {
     public string Kind { get; }
@@ -508,6 +678,7 @@ internal sealed class InvocationModel
     public string? WhenLeafTypeName { get; set; }
     public string? TargetIdentifierName { get; set; }
     public string? ContainingTypeName { get; set; }
+    public List<(string MemberName, string Expression, string Reason)> SymbolResolutionFailures { get; set; } = new();
     public InvocationModel(string kind, SimpleLambdaExpressionSyntax? fromLambda, SimpleLambdaExpressionSyntax? toLambda, SimpleLambdaExpressionSyntax? whenLambda, string? fromPath, string? toPath, string? whenPath, Location location, string assemblyName)
     {
         Kind = kind;
@@ -571,31 +742,7 @@ internal sealed class CodeEmitter
             return sb.ToString();
         }
         // 'asm' already defined above for empty/non-empty cases
-        // Populate type name metadata per invocation
-        foreach (var inv in invocations)
-        {
-            if (inv.Kind == "WhenChanged")
-            {
-                if (inv.FromSegments.Count > 0)
-                {
-                    inv.WhenRootTypeName = inv.FromSegments[0].DeclaringTypeName;
-                    inv.WhenLeafTypeName = inv.FromSegments.Last().TypeName;
-                }
-            }
-            else
-            {
-                if (inv.FromSegments.Count > 0)
-                {
-                    inv.RootFromTypeName = inv.FromSegments[0].DeclaringTypeName;
-                    inv.FromLeafTypeName = inv.FromSegments.Last().TypeName;
-                }
-                if (inv.ToSegments.Count > 0)
-                {
-                    inv.RootTargetTypeName = inv.ToSegments[0].DeclaringTypeName;
-                    inv.TargetLeafTypeName = inv.ToSegments.Last().TypeName;
-                }
-            }
-        }
+        // Type name metadata is now populated before deduplication in RegisterSourceOutput
         if (asm == "R3Ext")
         {
             sb.AppendLine("public static partial class R3BindingExtensions");
