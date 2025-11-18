@@ -25,6 +25,14 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        var uiMetadata = context.AdditionalTextsProvider
+            .Where(a => a.Path.EndsWith("R3Ext.BindingTargets.json", StringComparison.OrdinalIgnoreCase))
+            .Select((text, _) => UiBindingMetadata.TryLoad(text))
+            .Where(m => m is not null)!
+            .Select((m, _) => m!);
+
+        var uiLookup = uiMetadata.Collect().Select((items, _) => UiBindingLookup.Build(items));
+
         var invocations = context.SyntaxProvider
             .CreateSyntaxProvider(
                 static (node, _) => node is InvocationExpressionSyntax ies && LooksLikeBindingInvocation(ies),
@@ -32,14 +40,37 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             .Where(m => m is not null)!;
 
         var collected = invocations.Collect();
-        var assemblyName = context.CompilationProvider.Select((c, _) => c.AssemblyName ?? string.Empty);
-        var combined = collected.Combine(assemblyName);
+        var compilationProvider = context.CompilationProvider;
+        var combined = collected.Combine(compilationProvider).Combine(uiLookup);
 
         context.RegisterSourceOutput(combined, static (spc, tuple) =>
         {
-            var models = tuple.Left;
-            var asmName = tuple.Right;
+            var models = tuple.Left.Left;
+            var compilation = tuple.Left.Right;
+            var asmName = compilation.AssemblyName ?? string.Empty;
+            var uiMap = tuple.Right;
+            UiBindingLookupProvider.Current = uiMap;
             var all = models!.OfType<InvocationModel>().ToImmutableArray();
+
+            // Post-process unresolved target chains using UI metadata (now that we have compilation + lookup)
+            foreach (var m in all)
+            {
+                if (m.Kind is "BindOneWay" or "BindTwoWay")
+                {
+                    if ((m.ToSegments == null || m.ToSegments.Count == 0) && m.ToLambda is not null && m.TargetIdentifierName is not null && m.ContainingTypeName is not null)
+                    {
+                        if (uiMap.TryGetTargetType(compilation, asmName, m.ContainingTypeName, m.TargetIdentifierName, out var resolvedType) && resolvedType is not null)
+                        {
+                            var names = GetMemberNames(m.ToLambda);
+                            var segs = TryBuildSegmentsFromNames(resolvedType, names);
+                            if (segs.Count > 0)
+                            {
+                                m.ToSegments = segs;
+                            }
+                        }
+                    }
+                }
+            }
 
             // Emit diagnostics for incomplete bindings prior to dedupe
             foreach (var m in all)
@@ -115,6 +146,8 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         SimpleLambdaExpressionSyntax? fromLambda = null, toLambda = null, whenLambda = null;
         var fromSegments = new List<PropertySegment>();
         var toSegments = new List<PropertySegment>();
+        string? capturedTargetIdentifier = null;
+        string? capturedContainingTypeName = null;
 
         string? inferredTargetRootTypeNameFromHeuristic = null;
         if (symbol.Name == "WhenChanged")
@@ -154,6 +187,33 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     }
                 }
                 targetRootType ??= ctx.SemanticModel.GetTypeInfo(args[0].Expression).Type;
+                // Capture identifiers for potential post-resolution via UI metadata
+                if (args[0].Expression is IdentifierNameSyntax idName2)
+                {
+                    INamedTypeSymbol? containingType = ctx.SemanticModel.GetEnclosingSymbol(ies.SpanStart) as INamedTypeSymbol;
+                    if (containingType is null)
+                    {
+                        var classDecl = ies.FirstAncestorOrSelf<ClassDeclarationSyntax>();
+                        if (classDecl is not null)
+                        {
+                            containingType = ctx.SemanticModel.GetDeclaredSymbol(classDecl) as INamedTypeSymbol;
+                        }
+                    }
+                    if (containingType is not null)
+                    {
+                        var containingTypeName = containingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                        capturedTargetIdentifier = idName2.Identifier.ValueText;
+                        capturedContainingTypeName = containingTypeName;
+                        // store for post-processing in source output when ui lookup + compilation are available
+                        // actual resolution here may fail due to generator timing; defer to post phase
+                        // but if type info is available now, use it
+                        if (targetRootType is null)
+                        {
+                            // Will attempt later using lookup
+                        }
+                        inferredTargetRootTypeNameFromHeuristic = null;
+                    }
+                }
                 // Removed platform-specific suffix heuristics for target control type inference to keep generator agnostic.
                 ExtractSegments(ctx.SemanticModel, toLambda, toSegments, targetRootType);
 
@@ -164,7 +224,9 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         var model = new InvocationModel(symbol.Name, fromLambda, toLambda, whenLambda, fromPath, toPath, whenPath, ies.GetLocation(), ctx.SemanticModel.Compilation.AssemblyName ?? string.Empty)
         {
             FromSegments = fromSegments,
-            ToSegments = toSegments
+            ToSegments = toSegments,
+            TargetIdentifierName = capturedTargetIdentifier,
+            ContainingTypeName = capturedContainingTypeName
         };
         if (symbol.Name != "WhenChanged")
         {
@@ -193,6 +255,75 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             model.TargetArgTypeName = ta?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) ?? inferredTargetRootTypeNameFromHeuristic;
         }
         return model;
+    }
+
+    private static List<string> GetMemberNames(SimpleLambdaExpressionSyntax lambda)
+    {
+        var names = new List<string>();
+        if (lambda.Body is MemberAccessExpressionSyntax maes)
+        {
+            var stack = new Stack<string>();
+            ExpressionSyntax? cur = maes;
+            while (cur is MemberAccessExpressionSyntax mae)
+            {
+                stack.Push(mae.Name.Identifier.ValueText);
+                cur = mae.Expression;
+            }
+            while (stack.Count > 0) names.Add(stack.Pop());
+        }
+        return names;
+    }
+
+    private static List<PropertySegment> TryBuildSegmentsFromNames(ITypeSymbol rootType, List<string> names)
+    {
+        var segs = new List<PropertySegment>();
+        var current = rootType;
+        foreach (var name in names)
+        {
+            ISymbol? member = null;
+            ITypeSymbol? search = current;
+            while (search is not null && member is null)
+            {
+                member = search.GetMembers(name).FirstOrDefault(m => m is IPropertySymbol || m is IFieldSymbol);
+                if (member is null) search = search.BaseType;
+            }
+            if (member is null) { segs.Clear(); return segs; }
+            if (member is IPropertySymbol ps)
+            {
+                var seg = new PropertySegment
+                {
+                    Name = ps.Name,
+                    TypeName = ps.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    DeclaringTypeName = ps.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    IsReferenceType = ps.Type.IsReferenceType,
+                    IsNotify = ImplementsNotify(ps.Type),
+                    HasSetter = ps.SetMethod is not null,
+                    SetterIsNonPublic = ps.SetMethod is not null && ps.SetMethod.DeclaredAccessibility != Accessibility.Public,
+                    IsNonPublic = ps.DeclaredAccessibility != Accessibility.Public,
+                    IsField = false
+                };
+                segs.Add(seg);
+                current = ps.Type;
+            }
+            else if (member is IFieldSymbol fs)
+            {
+                var seg = new PropertySegment
+                {
+                    Name = fs.Name,
+                    TypeName = fs.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    DeclaringTypeName = fs.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                    IsReferenceType = fs.Type.IsReferenceType,
+                    IsNotify = ImplementsNotify(fs.Type),
+                    HasSetter = false,
+                    SetterIsNonPublic = false,
+                    IsNonPublic = fs.DeclaredAccessibility != Accessibility.Public,
+                    IsField = true
+                };
+                segs.Add(seg);
+                current = fs.Type;
+            }
+        }
+        return segs;
     }
 
     private static LambdaExpressionSyntax? TryExtractLambdaFromNameof(ExpressionSyntax expr) => expr as LambdaExpressionSyntax;
@@ -361,6 +492,8 @@ internal sealed class InvocationModel
     public string? TargetArgTypeName { get; set; }
     public string? WhenRootTypeName { get; set; }
     public string? WhenLeafTypeName { get; set; }
+    public string? TargetIdentifierName { get; set; }
+    public string? ContainingTypeName { get; set; }
     public InvocationModel(string kind, SimpleLambdaExpressionSyntax? fromLambda, SimpleLambdaExpressionSyntax? toLambda, SimpleLambdaExpressionSyntax? whenLambda, string? fromPath, string? toPath, string? whenPath, Location location, string assemblyName)
     {
         Kind = kind;

@@ -36,6 +36,14 @@
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <CompilerGeneratedFilesOutputPath>obj/gen</CompilerGeneratedFilesOutputPath>
     </PropertyGroup>
+    <!-- Enable R3Ext UI binding metadata generation and import the MAUI targets -->
+    <PropertyGroup>
+        <GenerateR3ExtUiBindingTargets>true</GenerateR3ExtUiBindingTargets>
+    </PropertyGroup>
+    <Import Project="..\R3Ext.Bindings.MauiTargets\GenerateUiBindingTargets.targets" />
+    <ItemGroup>
+        <ProjectReference Include="..\R3Ext.Bindings.MauiTargets\R3Ext.Bindings.MauiTargets.csproj" />
+    </ItemGroup>
     <ItemGroup>
         <!-- App Icon -->
         <MauiIcon Include="Resources\AppIcon\appicon.svg"

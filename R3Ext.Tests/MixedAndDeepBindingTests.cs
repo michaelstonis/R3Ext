@@ -12,7 +12,7 @@ public class MixedAndDeepBindingTests
 {
     private readonly FrameProviderFixture _fp;
     public MixedAndDeepBindingTests(FrameProviderFixture fp) => _fp = fp;
-    
+
 
     // Deep chain types (all notify)
     internal sealed class DLeaf : INotifyPropertyChanged
