@@ -1,16 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <AssemblyName>R3Ext.Bindings.MauiTargets</AssemblyName>
-    <RootNamespace>R3Ext.Bindings.MauiTargets</RootNamespace>
-  </PropertyGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Framework" Version="18.0.2" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.0.2" PrivateAssets="all" />
-    <PackageReference Include="System.Text.Json" Version="9.0.0" PrivateAssets="all" />
-  </ItemGroup>
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <AssemblyName>R3Ext.Bindings.MauiTargets</AssemblyName>
+        <RootNamespace>R3Ext.Bindings.MauiTargets</RootNamespace>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Build.Framework"
+                          Version="18.0.2"
+                          PrivateAssets="all" />
+        <PackageReference Include="Microsoft.Build.Utilities.Core"
+                          Version="18.0.2"
+                          PrivateAssets="all" />
+        <PackageReference Include="System.Text.Json"
+                          Version="9.0.0"
+                          PrivateAssets="all" />
+    </ItemGroup>
+    
+    <!-- Include props and targets files so they auto-import when project is referenced -->
+    <ItemGroup>
+        <None Include="build\R3Ext.Bindings.MauiTargets.props" Pack="true" PackagePath="build" />
+        <None Include="GenerateUiBindingTargets.targets" Pack="true" PackagePath="build" />
+    </ItemGroup>
 </Project>

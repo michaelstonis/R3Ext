@@ -1,7 +1,7 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Importing project must be able to locate this assembly; when used via project reference, we build a relative path -->
   <PropertyGroup>
-    <R3ExtMauiTargetsAssembly>$(SolutionDir)R3Ext.Bindings.MauiTargets/bin/$(Configuration)/netstandard2.0/R3Ext.Bindings.MauiTargets.dll</R3ExtMauiTargetsAssembly>
+    <R3ExtMauiTargetsAssembly>$(MSBuildThisFileDirectory)bin/$(Configuration)/netstandard2.0/R3Ext.Bindings.MauiTargets.dll</R3ExtMauiTargetsAssembly>
   </PropertyGroup>
 
   <UsingTask TaskName="R3Ext.Bindings.MauiTargets.GenerateUiBindingTargetsTask"
