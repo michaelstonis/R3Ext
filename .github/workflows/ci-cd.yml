@@ -1,0 +1,106 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Required for GitVersion
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v1.1.1
+      with:
+        versionSpec: '5.x'
+    
+    - name: Determine Version
+      id: gitversion
+      uses: gittools/actions/gitversion/execute@v1.1.1
+      with:
+        useConfigFile: true
+        configFilePath: GitVersion.yml
+    
+    - name: Display Version
+      run: |
+        echo "SemVer: ${{ steps.gitversion.outputs.semVer }}"
+        echo "NuGetVersion: ${{ steps.gitversion.outputs.nuGetVersionV2 }}"
+        echo "CommitsSinceVersionSource: ${{ steps.gitversion.outputs.commitsSinceVersionSource }}"
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: |
+        dotnet build R3Ext.sln --configuration Release --no-restore \
+          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
+          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
+          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
+          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }} \
+          /p:BuildProjectReferences=false
+    
+    - name: Build Library Projects Only
+      run: |
+        dotnet build R3Ext/R3Ext.csproj --configuration Release --no-restore
+        dotnet build R3Ext.Bindings.SourceGenerator/R3Ext.Bindings.SourceGenerator.csproj --configuration Release --no-restore
+        dotnet build R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj --configuration Release --no-restore
+        dotnet build R3Ext.PropertyChanged.SourceGenerator/R3Ext.PropertyChanged.SourceGenerator.csproj --configuration Release --no-restore
+    
+    - name: Test
+      run: dotnet test R3Ext.Tests/R3Ext.Tests.csproj --configuration Release --no-build --verbosity normal
+    
+    - name: Pack NuGet packages
+      run: |
+        dotnet pack R3Ext/R3Ext.csproj --configuration Release --no-build --output ./artifacts \
+          /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+        
+        dotnet pack R3Ext.Bindings.SourceGenerator/R3Ext.Bindings.SourceGenerator.csproj --configuration Release --no-build --output ./artifacts \
+          /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+        
+        dotnet pack R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj --configuration Release --no-build --output ./artifacts \
+          /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+        
+        dotnet pack R3Ext.PropertyChanged.SourceGenerator/R3Ext.PropertyChanged.SourceGenerator.csproj --configuration Release --no-build --output ./artifacts \
+          /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-packages
+        path: ./artifacts/*.nupkg
+    
+    - name: Push to NuGet.org
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        dotnet nuget push ./artifacts/*.nupkg \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --source https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+    
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./artifacts/*.nupkg
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
