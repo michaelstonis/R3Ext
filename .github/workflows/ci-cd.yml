@@ -29,6 +29,7 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
     - name: Restore .NET workloads (MAUI)
+      if: runner.os == 'macOS'
       run: dotnet workload restore
     
     - name: Install GitVersion
@@ -49,8 +50,14 @@ jobs:
         echo "NuGetVersion: ${{ steps.gitversion.outputs.nuGetVersionV2 }}"
         echo "CommitsSinceVersionSource: ${{ steps.gitversion.outputs.commitsSinceVersionSource }}"
     
-    - name: Restore dependencies
-      run: dotnet restore
+    - name: Restore dependencies (libraries and tests only)
+      run: |
+        # Avoid restoring the MAUI SampleApp on Linux runners (iOS/macCatalyst workloads not available)
+        dotnet restore R3Ext/R3Ext.csproj
+        dotnet restore R3Ext.Bindings.SourceGenerator/R3Ext.Bindings.SourceGenerator.csproj
+        dotnet restore R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj
+        dotnet restore R3Ext.PropertyChanged.SourceGenerator/R3Ext.PropertyChanged.SourceGenerator.csproj
+        dotnet restore R3Ext.Tests/R3Ext.Tests.csproj
     
     - name: Build
       run: |
