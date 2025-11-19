@@ -1609,9 +1609,8 @@ internal sealed class CodeEmitter
         sb.AppendLine($"    private static Observable<TReturn> __WhenChanged_{id}<TObj,TReturn>(TObj root)");
         sb.AppendLine("    {");
 
-        // If we don't have segment metadata (empty or any non-notify), fallback to EveryValueChanged
-        bool allNotify = m.FromSegments.Count > 0 && m.FromSegments.Take(m.FromSegments.Count - 1).All(s => s.IsNotify);
-        if (!allNotify || m.FromSegments.Count == 0)
+        // If no segments, fallback to polling the entire expression
+        if (m.FromSegments.Count == 0)
         {
             string getterFallback = ExtractMemberAccess(m.WhenLambda!, "root");
             sb.AppendLine("        try { return Observable.EveryValueChanged(root, _ => { try { return " + getterFallback +
@@ -1620,68 +1619,64 @@ internal sealed class CodeEmitter
             return;
         }
 
-        // Chain-aware observable using INPC handlers (reflection-free)
+        // Hybrid approach: use INPC handlers where available, EveryValueChanged for non-INPC parents
         sb.AppendLine("        if (root is null) return Observable.Empty<TReturn>();");
 
-        // segment vars
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            sb.AppendLine($"        {m.FromSegments[i].TypeName} __host_{i} = default!;");
-        }
-
-        // handler declarations only for notify-capable segment objects (exclude leaf value segment if non-INPC)
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            if (!m.FromSegments[i].IsNotify)
-            {
-                continue;
-            }
-
-            sb.AppendLine($"        PropertyChangedEventHandler __h_host_{i} = null!;");
-        }
-
         string leafAccess = BuildChainAccess("root", m.FromSegments);
-        sb.AppendLine("        Lock __gate = new();");
         sb.AppendLine("        return Observable.Create<TReturn>(observer => {");
+        sb.AppendLine("            var __builder = Disposable.CreateBuilder();");
+        sb.AppendLine("            Lock __gate = new();");
+
+        // Segment variables
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
+            sb.AppendLine($"            {m.FromSegments[i].TypeName} __seg_{i} = default!;");
+        }
+
+        // Handler declarations for INPC segments
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
+            if (m.FromSegments[i].IsNotify)
+            {
+                sb.AppendLine($"            PropertyChangedEventHandler __h_seg_{i} = null!;");
+            }
+        }
+
         sb.AppendLine("            void Emit(){ try { observer.OnNext((TReturn)(object?)" + leafAccess + "!); } catch { observer.OnNext(default!); } }");
 
-        // Rewire method (re-evaluate chain and reattach handlers)
+        // Rewire method
         sb.AppendLine("            void Rewire(){");
         sb.AppendLine("                using (__gate.EnterScope()){");
 
-        // detach existing
+        // Detach INPC handlers
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
-            if (!m.FromSegments[i].IsNotify)
+            if (m.FromSegments[i].IsNotify)
             {
-                continue;
+                sb.AppendLine($"                    if(__seg_{i} is INotifyPropertyChanged npc_det_{i}) npc_det_{i}.PropertyChanged -= __h_seg_{i};");
             }
-
-            sb.AppendLine($"                if(__host_{i} is INotifyPropertyChanged npc_det_{i}) npc_det_{i}.PropertyChanged -= __h_host_{i};");
         }
 
-        // recompute chain
+        // Recompute chain
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             string access = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
-            sb.AppendLine($"                try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}");
+            sb.AppendLine($"                    try {{ __seg_{i} = {access}; }} catch {{ __seg_{i} = default!; }}");
         }
 
-        // reattach
+        // Reattach INPC handlers
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
-            if (!m.FromSegments[i].IsNotify)
+            if (m.FromSegments[i].IsNotify)
             {
-                continue;
+                sb.AppendLine($"                    if(__seg_{i} is INotifyPropertyChanged npc_att_{i}) npc_att_{i}.PropertyChanged += __h_seg_{i};");
             }
-
-            sb.AppendLine($"                if(__host_{i} is INotifyPropertyChanged npc_att_{i}) npc_att_{i}.PropertyChanged += __h_host_{i};");
         }
 
         sb.AppendLine("                }");
         sb.AppendLine("            }");
 
-        // assign handlers
+        // Assign INPC handlers for intermediate segments
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             if (!m.FromSegments[i].IsNotify)
@@ -1690,24 +1685,52 @@ internal sealed class CodeEmitter
             }
 
             string nextProp = i + 1 < m.FromSegments.Count ? m.FromSegments[i + 1].Name : m.FromSegments.Last().Name;
-            sb.AppendLine(
-                $"            __h_host_{i} = (s,e) => {{ if(e.PropertyName == \"{nextProp}\") {{ Rewire(); Emit(); }} if(e.PropertyName == \"{m.FromSegments.Last().Name}\") Emit(); }};");
+            sb.AppendLine($"            __h_seg_{i} = (s,e) => {{ if(e.PropertyName == \"{nextProp}\") {{ Rewire(); Emit(); }} if(e.PropertyName == \"{m.FromSegments.Last().Name}\") Emit(); }};");
         }
 
-        // initial wire
+        // Root handler if root implements INPC
+        string firstProp = m.FromSegments[0].Name;
+        sb.AppendLine("            PropertyChangedEventHandler __h_root = null!;");
+        sb.AppendLine("            if((object?)root is INotifyPropertyChanged npc_root) { __h_root = (s,e) => { if(e.PropertyName == \"" + firstProp + "\") { Rewire(); Emit(); } if(e.PropertyName == \"" + m.FromSegments.Last().Name + "\") Emit(); }; npc_root.PropertyChanged += __h_root; }");
+
         sb.AppendLine("            Rewire(); Emit();");
-        sb.AppendLine("            return Disposable.Create(() => {");
+
+        // Add EveryValueChanged watchers for non-INPC parents
+        // Watch root's first segment if root doesn't implement INPC
+        sb.AppendLine("            try { if(!((object?)root is INotifyPropertyChanged)) __builder.Add(Observable.EveryValueChanged(root, r => " + BuildChainAccess("r", m.FromSegments.Take(1).ToList()) + ").Subscribe(_ => { Rewire(); Emit(); })); } catch { }");
+
+        // Watch each subsequent segment whose parent doesn't implement INPC
+        for (int j = 1; j < m.FromSegments.Count; j++)
+        {
+            if (!m.FromSegments[j - 1].IsNotify)
+            {
+                string accessJ = BuildChainAccess("r", m.FromSegments.Take(j + 1).ToList());
+                bool isLeaf = j == m.FromSegments.Count - 1;
+                if (isLeaf)
+                {
+                    sb.AppendLine("            try { __builder.Add(Observable.EveryValueChanged(root, r => " + accessJ + ").Subscribe(_ => Emit())); } catch { }");
+                }
+                else
+                {
+                    sb.AppendLine("            try { __builder.Add(Observable.EveryValueChanged(root, r => " + accessJ + ").Subscribe(_ => { Rewire(); Emit(); })); } catch { }");
+                }
+            }
+        }
+
+        // Cleanup
+        sb.AppendLine("            __builder.Add(Disposable.Create(() => {");
+        sb.AppendLine("                if((object?)root is INotifyPropertyChanged npc_root2 && __h_root is not null) npc_root2.PropertyChanged -= __h_root;");
+
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
-            if (!m.FromSegments[i].IsNotify)
+            if (m.FromSegments[i].IsNotify)
             {
-                continue;
+                sb.AppendLine($"                if(__seg_{i} is INotifyPropertyChanged npc_fin_{i}) npc_fin_{i}.PropertyChanged -= __h_seg_{i};");
             }
-
-            sb.AppendLine($"                if(__host_{i} is INotifyPropertyChanged npc_fin_{i}) npc_fin_{i}.PropertyChanged -= __h_host_{i};");
         }
 
-        sb.AppendLine("            });");
+        sb.AppendLine("            }));");
+        sb.AppendLine("            return __builder.Build();");
         sb.AppendLine("        }).DistinctUntilChanged();");
         sb.AppendLine("    }");
     }
@@ -2162,8 +2185,9 @@ internal sealed class CodeEmitter
     {
         sb.AppendLine($"    private static Observable<{m.WhenLeafTypeName}> __RegWhenChanged_{id}({m.WhenRootTypeName} root)");
         sb.AppendLine("    {");
-        bool allNotify = m.FromSegments.Count > 0 && m.FromSegments.Take(m.FromSegments.Count - 1).All(s => s.IsNotify);
-        if (!allNotify || m.FromSegments.Count == 0)
+
+        // If no segments, fallback to polling the entire expression
+        if (m.FromSegments.Count == 0)
         {
             string getterFallback = ExtractMemberAccess(m.WhenLambda!, "root");
             sb.AppendLine("        try { return Observable.EveryValueChanged(root, _ => { try { return " + getterFallback +
@@ -2173,55 +2197,64 @@ internal sealed class CodeEmitter
             return;
         }
 
+        // Hybrid approach: use INPC handlers where available, EveryValueChanged for non-INPC parents
         sb.AppendLine("        if (root is null) return Observable.Empty<" + m.WhenLeafTypeName + ">();");
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            sb.AppendLine($"        {m.FromSegments[i].TypeName} __host_{i} = default!;");
-        }
-
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            if (m.FromSegments[i].IsNotify)
-            {
-                sb.AppendLine($"        PropertyChangedEventHandler __h_host_{i} = null!;");
-            }
-        }
 
         string leafAccess = BuildChainAccess("root", m.FromSegments);
-        sb.AppendLine("        Lock __gate = new();");
         sb.AppendLine("        return Observable.Create<" + m.WhenLeafTypeName + ">(observer => {");
-        sb.AppendLine("            void Emit(){ try { observer.OnNext((" + m.WhenLeafTypeName + ")(object?)" + leafAccess +
-                      "!); } catch { observer.OnNext(default!); } }");
-        sb.AppendLine("            void Rewire(){");
-        sb.AppendLine("                using (__gate.EnterScope()){");
+        sb.AppendLine("            var __builder = Disposable.CreateBuilder();");
+        sb.AppendLine("            Lock __gate = new();");
+
+        // Segment variables
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
+            sb.AppendLine($"            {m.FromSegments[i].TypeName} __seg_{i} = default!;");
+        }
+
+        // Handler declarations for INPC segments
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             if (m.FromSegments[i].IsNotify)
             {
-                sb.AppendLine($"                if(__host_{i} is INotifyPropertyChanged npc_det_{i}) npc_det_{i}.PropertyChanged -= __h_host_{i};");
+                sb.AppendLine($"            PropertyChangedEventHandler __h_seg_{i} = null!;");
             }
         }
 
+        sb.AppendLine("            void Emit(){ try { observer.OnNext((" + m.WhenLeafTypeName + ")(object?)" + leafAccess + "!); } catch { observer.OnNext(default!); } }");
+
+        // Rewire method
+        sb.AppendLine("            void Rewire(){");
+        sb.AppendLine("                using (__gate.EnterScope()){");
+
+        // Detach INPC handlers
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
+            if (m.FromSegments[i].IsNotify)
+            {
+                sb.AppendLine($"                    if(__seg_{i} is INotifyPropertyChanged npc_det_{i}) npc_det_{i}.PropertyChanged -= __h_seg_{i};");
+            }
+        }
+
+        // Recompute chain
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             string access = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
-            sb.AppendLine($"                try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}");
+            sb.AppendLine($"                    try {{ __seg_{i} = {access}; }} catch {{ __seg_{i} = default!; }}");
         }
 
+        // Reattach INPC handlers
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             if (m.FromSegments[i].IsNotify)
             {
-                sb.AppendLine($"                if(__host_{i} is INotifyPropertyChanged npc_att_{i}) npc_att_{i}.PropertyChanged += __h_host_{i};");
+                sb.AppendLine($"                    if(__seg_{i} is INotifyPropertyChanged npc_att_{i}) npc_att_{i}.PropertyChanged += __h_seg_{i};");
             }
         }
 
         sb.AppendLine("                }");
         sb.AppendLine("            }");
 
-        // Root handler to detect replacement of first segment object
-        string? firstProp = m.FromSegments.Count > 0 ? m.FromSegments[0].Name : null;
-        sb.AppendLine("            PropertyChangedEventHandler __h_root = (s,e) => { if(e.PropertyName == \"" + firstProp + "\") { Rewire(); Emit(); } }; ");
+        // Assign INPC handlers for intermediate segments
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             if (!m.FromSegments[i].IsNotify)
@@ -2229,31 +2262,53 @@ internal sealed class CodeEmitter
                 continue;
             }
 
-            bool isLeafOwner = i == m.FromSegments.Count - 1;
-            if (isLeafOwner)
+            string nextProp = i + 1 < m.FromSegments.Count ? m.FromSegments[i + 1].Name : m.FromSegments.Last().Name;
+            sb.AppendLine($"            __h_seg_{i} = (s,e) => {{ if(e.PropertyName == \"{nextProp}\") {{ Rewire(); Emit(); }} if(e.PropertyName == \"{m.FromSegments.Last().Name}\") Emit(); }};");
+        }
+
+        // Root handler if root implements INPC
+        string firstProp = m.FromSegments[0].Name;
+        sb.AppendLine("            PropertyChangedEventHandler __h_root = null!;");
+        sb.AppendLine("            if((object?)root is INotifyPropertyChanged npc_root) { __h_root = (s,e) => { if(e.PropertyName == \"" + firstProp + "\") { Rewire(); Emit(); } if(e.PropertyName == \"" + m.FromSegments.Last().Name + "\") Emit(); }; npc_root.PropertyChanged += __h_root; }");
+
+        sb.AppendLine("            Rewire(); Emit();");
+
+        // Add EveryValueChanged watchers for non-INPC parents
+        // Watch root's first segment if root doesn't implement INPC
+        sb.AppendLine("            try { if(!((object?)root is INotifyPropertyChanged)) __builder.Add(Observable.EveryValueChanged(root, r => " + BuildChainAccess("r", m.FromSegments.Take(1).ToList()) + ").Subscribe(_ => { Rewire(); Emit(); })); } catch { }");
+
+        // Watch each subsequent segment whose parent doesn't implement INPC
+        for (int j = 1; j < m.FromSegments.Count; j++)
+        {
+            if (!m.FromSegments[j - 1].IsNotify)
             {
-                sb.AppendLine($"            __h_host_{i} = (s,e) => {{ if(e.PropertyName == \"{m.FromSegments.Last().Name}\") Emit(); }};");
-            }
-            else
-            {
-                string nextProp = m.FromSegments[i + 1].Name;
-                sb.AppendLine($"            __h_host_{i} = (s,e) => {{ if(e.PropertyName == \"{nextProp}\") {{ Rewire(); Emit(); }} }};");
+                string accessJ = BuildChainAccess("r", m.FromSegments.Take(j + 1).ToList());
+                bool isLeaf = j == m.FromSegments.Count - 1;
+                if (isLeaf)
+                {
+                    sb.AppendLine("            try { __builder.Add(Observable.EveryValueChanged(root, r => " + accessJ + ").Subscribe(_ => Emit())); } catch { }");
+                }
+                else
+                {
+                    sb.AppendLine("            try { __builder.Add(Observable.EveryValueChanged(root, r => " + accessJ + ").Subscribe(_ => { Rewire(); Emit(); })); } catch { }");
+                }
             }
         }
 
-        sb.AppendLine("            Rewire(); Emit();");
-        sb.AppendLine("            if(root is INotifyPropertyChanged npc_root) npc_root.PropertyChanged += __h_root;");
-        sb.AppendLine("            return Disposable.Create(() => {");
+        // Cleanup
+        sb.AppendLine("            __builder.Add(Disposable.Create(() => {");
+        sb.AppendLine("                if((object?)root is INotifyPropertyChanged npc_root2 && __h_root is not null) npc_root2.PropertyChanged -= __h_root;");
+
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             if (m.FromSegments[i].IsNotify)
             {
-                sb.AppendLine($"                if(__host_{i} is INotifyPropertyChanged npc_fin_{i}) npc_fin_{i}.PropertyChanged -= __h_host_{i};");
+                sb.AppendLine($"                if(__seg_{i} is INotifyPropertyChanged npc_fin_{i}) npc_fin_{i}.PropertyChanged -= __h_seg_{i};");
             }
         }
 
-        sb.AppendLine("                if(root is INotifyPropertyChanged npc_root2) npc_root2.PropertyChanged -= __h_root;");
-        sb.AppendLine("            });");
+        sb.AppendLine("            }));");
+        sb.AppendLine("            return __builder.Build();");
         sb.AppendLine("        }).DistinctUntilChanged();");
         sb.AppendLine("    }");
     }

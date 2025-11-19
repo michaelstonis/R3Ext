@@ -13,6 +13,30 @@ public class Person : ObservableObject
     }
 }
 
+public class SampleViewModel2
+{
+    public int Counter { get; set; }
+
+    public string EditableName
+    {
+        get => field;
+        set
+        {
+            field = value;
+            Person?.Name = value;
+        }
+    }
+
+    public string Status { get; set; }
+
+    public Person Person { get; set; } = new();
+
+    public void Increment()
+    {
+        Counter++;
+    }
+}
+
 public class SampleViewModel : ObservableObject
 {
     private int _counter;
