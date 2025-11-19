@@ -15,7 +15,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     
     steps:
     - name: Checkout
@@ -56,7 +56,6 @@ jobs:
         dotnet restore R3Ext/R3Ext.csproj
         dotnet restore R3Ext.Bindings.SourceGenerator/R3Ext.Bindings.SourceGenerator.csproj
         dotnet restore R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj
-        dotnet restore R3Ext.PropertyChanged.SourceGenerator/R3Ext.PropertyChanged.SourceGenerator.csproj
         dotnet restore R3Ext.Tests/R3Ext.Tests.csproj
     
     - name: Build Libraries (exclude samples)
@@ -77,11 +76,6 @@ jobs:
           /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
           /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
           /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
-        dotnet build R3Ext.PropertyChanged.SourceGenerator/R3Ext.PropertyChanged.SourceGenerator.csproj --configuration Release --no-restore \
-          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
-          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
-          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
-          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
     
     - name: Test
       run: dotnet test R3Ext.Tests/R3Ext.Tests.csproj --configuration Release --no-build --verbosity normal
@@ -96,9 +90,7 @@ jobs:
         
         dotnet pack R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj --configuration Release --no-build --output ./artifacts \
           /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
-        
-        dotnet pack R3Ext.PropertyChanged.SourceGenerator/R3Ext.PropertyChanged.SourceGenerator.csproj --configuration Release --no-build --output ./artifacts \
-          /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
