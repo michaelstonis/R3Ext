@@ -70,11 +70,11 @@ public static class BindingRegistry
         }
 
         list.Add(new OneWayEntry
-                 {
-                     FromType = typeof(TFrom),
-                     TargetType = typeof(TTarget),
-                     Factory = (f, t, conv) => factory((TFrom)f, (TTarget)t, (Func<TFromProp, TTargetProp>?)conv),
-                 });
+        {
+            FromType = typeof(TFrom),
+            TargetType = typeof(TTarget),
+            Factory = (f, t, conv) => factory((TFrom)f, (TTarget)t, (Func<TFromProp, TTargetProp>?)conv),
+        });
     }
 
     public static void RegisterTwoWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath,
@@ -89,11 +89,11 @@ public static class BindingRegistry
         }
 
         list.Add(new TwoWayEntry
-                 {
-                     FromType = typeof(TFrom),
-                     TargetType = typeof(TTarget),
-                     Factory = (f, t, ht, th) => factory((TFrom)f, (TTarget)t, (Func<TFromProp, TTargetProp>?)ht, (Func<TTargetProp, TFromProp>?)th),
-                 });
+        {
+            FromType = typeof(TFrom),
+            TargetType = typeof(TTarget),
+            Factory = (f, t, ht, th) => factory((TFrom)f, (TTarget)t, (Func<TFromProp, TTargetProp>?)ht, (Func<TTargetProp, TFromProp>?)th),
+        });
     }
 
     public static void RegisterWhenChanged<TObj, TReturn>(string whenPath, Func<TObj, Observable<TReturn>> factory)

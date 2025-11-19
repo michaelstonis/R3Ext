@@ -489,36 +489,36 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             if (member is IPropertySymbol ps)
             {
                 PropertySegment seg = new()
-                                      {
-                                          Name = ps.Name,
-                                          TypeName = ps.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          DeclaringTypeName = ps.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          IsReferenceType = ps.Type.IsReferenceType,
-                                          IsNotify = ImplementsNotify(ps.Type),
-                                          HasSetter = ps.SetMethod is not null,
-                                          SetterIsNonPublic = ps.SetMethod is not null && ps.SetMethod.DeclaredAccessibility != Accessibility.Public,
-                                          IsNonPublic = ps.DeclaredAccessibility != Accessibility.Public,
-                                          IsField = false,
-                                          IsNullable = ps.Type.NullableAnnotation == NullableAnnotation.Annotated,
-                                      };
+                {
+                    Name = ps.Name,
+                    TypeName = ps.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = ps.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    IsReferenceType = ps.Type.IsReferenceType,
+                    IsNotify = ImplementsNotify(ps.Type),
+                    HasSetter = ps.SetMethod is not null,
+                    SetterIsNonPublic = ps.SetMethod is not null && ps.SetMethod.DeclaredAccessibility != Accessibility.Public,
+                    IsNonPublic = ps.DeclaredAccessibility != Accessibility.Public,
+                    IsField = false,
+                    IsNullable = ps.Type.NullableAnnotation == NullableAnnotation.Annotated,
+                };
                 segs.Add(seg);
                 current = ps.Type;
             }
             else if (member is IFieldSymbol fs)
             {
                 PropertySegment seg = new()
-                                      {
-                                          Name = fs.Name,
-                                          TypeName = fs.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          DeclaringTypeName = fs.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          IsReferenceType = fs.Type.IsReferenceType,
-                                          IsNotify = ImplementsNotify(fs.Type),
-                                          HasSetter = false,
-                                          SetterIsNonPublic = false,
-                                          IsNonPublic = fs.DeclaredAccessibility != Accessibility.Public,
-                                          IsField = true,
-                                          IsNullable = fs.Type.NullableAnnotation == NullableAnnotation.Annotated,
-                                      };
+                {
+                    Name = fs.Name,
+                    TypeName = fs.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = fs.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    IsReferenceType = fs.Type.IsReferenceType,
+                    IsNotify = ImplementsNotify(fs.Type),
+                    HasSetter = false,
+                    SetterIsNonPublic = false,
+                    IsNonPublic = fs.DeclaredAccessibility != Accessibility.Public,
+                    IsField = true,
+                    IsNullable = fs.Type.NullableAnnotation == NullableAnnotation.Annotated,
+                };
                 segs.Add(seg);
                 current = fs.Type;
             }
@@ -600,35 +600,35 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             if (symbol is IPropertySymbol ps)
             {
                 PropertySegment seg = new()
-                                      {
-                                          Name = ps.Name,
-                                          TypeName = ps.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          DeclaringTypeName = ps.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          IsReferenceType = ps.Type.IsReferenceType,
-                                          IsNotify = ImplementsNotify(ps.Type),
-                                          HasSetter = ps.SetMethod is not null,
-                                          SetterIsNonPublic = ps.SetMethod is not null && ps.SetMethod.DeclaredAccessibility != Accessibility.Public,
-                                          IsNonPublic = ps.DeclaredAccessibility != Accessibility.Public,
-                                          IsField = false,
-                                          IsNullable = ps.Type.NullableAnnotation == NullableAnnotation.Annotated,
-                                      };
+                {
+                    Name = ps.Name,
+                    TypeName = ps.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = ps.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    IsReferenceType = ps.Type.IsReferenceType,
+                    IsNotify = ImplementsNotify(ps.Type),
+                    HasSetter = ps.SetMethod is not null,
+                    SetterIsNonPublic = ps.SetMethod is not null && ps.SetMethod.DeclaredAccessibility != Accessibility.Public,
+                    IsNonPublic = ps.DeclaredAccessibility != Accessibility.Public,
+                    IsField = false,
+                    IsNullable = ps.Type.NullableAnnotation == NullableAnnotation.Annotated,
+                };
                 into.Add(seg);
             }
             else if (symbol is IFieldSymbol fs)
             {
                 PropertySegment seg = new()
-                                      {
-                                          Name = fs.Name,
-                                          TypeName = fs.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          DeclaringTypeName = fs.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          IsReferenceType = fs.Type.IsReferenceType,
-                                          IsNotify = ImplementsNotify(fs.Type),
-                                          HasSetter = false,
-                                          SetterIsNonPublic = false,
-                                          IsNonPublic = fs.DeclaredAccessibility != Accessibility.Public,
-                                          IsField = true,
-                                          IsNullable = fs.Type.NullableAnnotation == NullableAnnotation.Annotated,
-                                      };
+                {
+                    Name = fs.Name,
+                    TypeName = fs.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = fs.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    IsReferenceType = fs.Type.IsReferenceType,
+                    IsNotify = ImplementsNotify(fs.Type),
+                    HasSetter = false,
+                    SetterIsNonPublic = false,
+                    IsNonPublic = fs.DeclaredAccessibility != Accessibility.Public,
+                    IsField = true,
+                    IsNullable = fs.Type.NullableAnnotation == NullableAnnotation.Annotated,
+                };
                 into.Add(seg);
             }
             else
@@ -711,36 +711,36 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             if (member is IPropertySymbol prop)
             {
                 PropertySegment seg = new()
-                                      {
-                                          Name = prop.Name,
-                                          TypeName = prop.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          DeclaringTypeName = prop.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          IsReferenceType = prop.Type.IsReferenceType,
-                                          IsNotify = ImplementsNotify(prop.Type),
-                                          HasSetter = prop.SetMethod is not null,
-                                          SetterIsNonPublic = prop.SetMethod is not null && prop.SetMethod.DeclaredAccessibility != Accessibility.Public,
-                                          IsNonPublic = prop.DeclaredAccessibility != Accessibility.Public,
-                                          IsField = false,
-                                          IsNullable = prop.Type.NullableAnnotation == NullableAnnotation.Annotated,
-                                      };
+                {
+                    Name = prop.Name,
+                    TypeName = prop.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = prop.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    IsReferenceType = prop.Type.IsReferenceType,
+                    IsNotify = ImplementsNotify(prop.Type),
+                    HasSetter = prop.SetMethod is not null,
+                    SetterIsNonPublic = prop.SetMethod is not null && prop.SetMethod.DeclaredAccessibility != Accessibility.Public,
+                    IsNonPublic = prop.DeclaredAccessibility != Accessibility.Public,
+                    IsField = false,
+                    IsNullable = prop.Type.NullableAnnotation == NullableAnnotation.Annotated,
+                };
                 into.Add(seg);
                 current = prop.Type;
             }
             else if (member is IFieldSymbol field)
             {
                 PropertySegment seg = new()
-                                      {
-                                          Name = field.Name,
-                                          TypeName = field.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          DeclaringTypeName = field.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
-                                          IsReferenceType = field.Type.IsReferenceType,
-                                          IsNotify = ImplementsNotify(field.Type),
-                                          HasSetter = false,
-                                          SetterIsNonPublic = false,
-                                          IsNonPublic = field.DeclaredAccessibility != Accessibility.Public,
-                                          IsField = true,
-                                          IsNullable = field.Type.NullableAnnotation == NullableAnnotation.Annotated,
-                                      };
+                {
+                    Name = field.Name,
+                    TypeName = field.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    DeclaringTypeName = field.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    IsReferenceType = field.Type.IsReferenceType,
+                    IsNotify = ImplementsNotify(field.Type),
+                    HasSetter = false,
+                    SetterIsNonPublic = false,
+                    IsNonPublic = field.DeclaredAccessibility != Accessibility.Public,
+                    IsField = true,
+                    IsNullable = field.Type.NullableAnnotation == NullableAnnotation.Annotated,
+                };
                 into.Add(seg);
                 current = field.Type;
             }

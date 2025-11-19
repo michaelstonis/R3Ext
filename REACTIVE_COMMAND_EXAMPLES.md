@@ -124,7 +124,7 @@ var command = ReactiveUICompatibleCommand.CreateFromTask(async () =>
 {
     if (Random.Shared.Next(2) == 0)
         throw new InvalidOperationException("Random error!");
-    
+
     await Task.Delay(100);
 });
 
@@ -261,7 +261,7 @@ var sysCommand = ReactiveUICompatibleCommand<int, int>.CreateFromObservable(
 public class MyViewModel : IDisposable
 {
     private readonly DisposableBag _disposables = new();
-    
+
     public ReactiveProperty<string> SearchText { get; } = new("");
     public ReactiveProperty<bool> IsSearching { get; } = new(false);
     public ReactiveUICompatibleCommand<Unit, Unit> SearchCommand { get; }
@@ -316,11 +316,11 @@ public class MyViewModel : IDisposable
     <Window.DataContext>
         <local:MyViewModel />
     </Window.DataContext>
-    
+
     <StackPanel>
         <TextBox Text="{Binding SearchText.Value, UpdateSourceTrigger=PropertyChanged}" />
         <Button Content="Search" Command="{Binding SearchCommand}" />
-        <ProgressBar IsIndeterminate="True" 
+        <ProgressBar IsIndeterminate="True"
                      Visibility="{Binding IsSearching.Value, Converter={StaticResource BoolToVisibility}}" />
         <ListBox ItemsSource="{Binding Results}" />
     </StackPanel>
