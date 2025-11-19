@@ -95,8 +95,9 @@ internal sealed class UiBindingLookup
             return true;
         }
 
-        bool candidateLooksClr = !candidate.Contains("://", StringComparison.Ordinal);
-        bool existingLooksClr = !existing.Contains("://", StringComparison.Ordinal);
+        // netstandard2.0 compatibility: string.Contains(value, StringComparison) is unavailable
+        bool candidateLooksClr = candidate.IndexOf("://", StringComparison.Ordinal) < 0;
+        bool existingLooksClr = existing.IndexOf("://", StringComparison.Ordinal) < 0;
 
         if (candidateLooksClr && !existingLooksClr)
         {
