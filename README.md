@@ -66,12 +66,6 @@ var saveAll = RxCommand<Unit, Unit[]>.CreateCombined(save1, save2, save3);
 Source-generated, compile-time safe property bindings with automatic change tracking:
 
 ```csharp
-public class MyViewModel : RxObject
-{
-    public ReactiveProperty<string> Name { get; } = new("");
-    public ReactiveProperty<int> Age { get; } = new(0);
-}
-
 // One-way binding with automatic rewiring on intermediate property changes
 viewModel.WhenChanged(vm => vm.User.Profile.DisplayName)
     .Subscribe(name => label.Text = name);
