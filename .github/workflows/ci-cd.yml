@@ -59,21 +59,29 @@ jobs:
         dotnet restore R3Ext.PropertyChanged.SourceGenerator/R3Ext.PropertyChanged.SourceGenerator.csproj
         dotnet restore R3Ext.Tests/R3Ext.Tests.csproj
     
-    - name: Build
+    - name: Build Libraries (exclude samples)
       run: |
-        dotnet build R3Ext.sln --configuration Release --no-restore \
+        # Build only publishable library/source generator projects with version metadata
+        dotnet build R3Ext/R3Ext.csproj --configuration Release --no-restore \
           /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
           /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
           /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
-          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }} \
-          /p:BuildProjectReferences=false
-    
-    - name: Build Library Projects Only
-      run: |
-        dotnet build R3Ext/R3Ext.csproj --configuration Release --no-restore
-        dotnet build R3Ext.Bindings.SourceGenerator/R3Ext.Bindings.SourceGenerator.csproj --configuration Release --no-restore
-        dotnet build R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj --configuration Release --no-restore
-        dotnet build R3Ext.PropertyChanged.SourceGenerator/R3Ext.PropertyChanged.SourceGenerator.csproj --configuration Release --no-restore
+          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+        dotnet build R3Ext.Bindings.SourceGenerator/R3Ext.Bindings.SourceGenerator.csproj --configuration Release --no-restore \
+          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
+          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
+          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
+          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+        dotnet build R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj --configuration Release --no-restore \
+          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
+          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
+          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
+          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+        dotnet build R3Ext.PropertyChanged.SourceGenerator/R3Ext.PropertyChanged.SourceGenerator.csproj --configuration Release --no-restore \
+          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
+          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
+          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
+          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
     
     - name: Test
       run: dotnet test R3Ext.Tests/R3Ext.Tests.csproj --configuration Release --no-build --verbosity normal
