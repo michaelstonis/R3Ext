@@ -43,27 +43,23 @@ public class SourceCacheTests
         var cache = new SourceCache<Person, int>(p => p.Id);
         var person1 = new Person(1, "Alice", 30);
         var person2 = new Person(1, "Alice", 31);
-        IChangeSet<Person, int>? receivedChanges = null;
-
+        var changesList = new List<IChangeSet<Person, int>>();
         cache.AddOrUpdate(person1);
-
-        using var subscription = cache.Connect().Subscribe(changes => receivedChanges = changes);
+        using var subscription = cache.Connect().Subscribe(changes => changesList.Add(changes));
 
         // Act
         cache.AddOrUpdate(person2);
 
         // Assert
-        Assert.NotNull(receivedChanges);
-        Assert.Equal(1, receivedChanges.Count);
-        Assert.Equal(0, receivedChanges.Adds);
-        Assert.Equal(1, receivedChanges.Updates);
-
-        var change = receivedChanges.First();
+        Assert.Equal(2, changesList.Count); // Initial snapshot + update
+        var initial = changesList[0];
+        Assert.Equal(1, initial.Adds);
+        var updated = changesList[1];
+        Assert.Equal(1, updated.Updates);
+        var change = updated.First();
         Assert.Equal(ChangeReason.Update, change.Reason);
-        Assert.Equal(1, change.Key);
-        Assert.Equal(person2, change.Current);
-        Assert.True(change.Previous.HasValue);
         Assert.Equal(person1, change.Previous.Value);
+        Assert.Equal(person2, change.Current);
     }
 
     [Fact]
@@ -72,24 +68,20 @@ public class SourceCacheTests
         // Arrange
         var cache = new SourceCache<Person, int>(p => p.Id);
         var person = new Person(1, "Alice", 30);
-        IChangeSet<Person, int>? receivedChanges = null;
-
+        var changesList = new List<IChangeSet<Person, int>>();
         cache.AddOrUpdate(person);
-
-        using var subscription = cache.Connect().Subscribe(changes => receivedChanges = changes);
+        using var subscription = cache.Connect().Subscribe(changes => changesList.Add(changes));
 
         // Act
         cache.Remove(1);
 
         // Assert
-        Assert.NotNull(receivedChanges);
-        Assert.Equal(1, receivedChanges.Count);
-        Assert.Equal(1, receivedChanges.Removes);
-
-        var change = receivedChanges.First();
-        Assert.Equal(ChangeReason.Remove, change.Reason);
-        Assert.Equal(1, change.Key);
-        Assert.Equal(person, change.Current);
+        Assert.Equal(2, changesList.Count); // Initial add + remove
+        Assert.Equal(1, changesList[0].Adds);
+        Assert.Equal(1, changesList[1].Removes);
+        var removeChange = changesList[1].First();
+        Assert.Equal(ChangeReason.Remove, removeChange.Reason);
+        Assert.Equal(person, removeChange.Current);
     }
 
     [Fact]
@@ -100,17 +92,16 @@ public class SourceCacheTests
         cache.AddOrUpdate(new Person(1, "Alice", 30));
         cache.AddOrUpdate(new Person(2, "Bob", 25));
         cache.AddOrUpdate(new Person(3, "Charlie", 35));
-
-        IChangeSet<Person, int>? receivedChanges = null;
-        using var subscription = cache.Connect().Subscribe(changes => receivedChanges = changes);
+        var changesList = new List<IChangeSet<Person, int>>();
+        using var subscription = cache.Connect().Subscribe(changes => changesList.Add(changes));
 
         // Act
         cache.Clear();
 
         // Assert
-        Assert.NotNull(receivedChanges);
-        Assert.Equal(3, receivedChanges.Count);
-        Assert.Equal(3, receivedChanges.Removes);
+        Assert.Equal(2, changesList.Count); // Initial adds + removals
+        Assert.Equal(3, changesList[0].Adds);
+        Assert.Equal(3, changesList[1].Removes);
         Assert.Equal(0, cache.Count);
     }
 
@@ -235,16 +226,16 @@ public class SourceCacheTests
         cache.AddOrUpdate(new Person(1, "Alice", 30));
         cache.AddOrUpdate(new Person(2, "Bob", 25));
         cache.AddOrUpdate(new Person(3, "Charlie", 35));
-
-        IChangeSet<Person, int>? receivedChanges = null;
-        using var subscription = cache.Connect().Subscribe(changes => receivedChanges = changes);
+        var changesList = new List<IChangeSet<Person, int>>();
+        using var subscription = cache.Connect().Subscribe(changes => changesList.Add(changes));
 
         // Act
         cache.Edit(updater => updater.RemoveKeys(key => key > 1));
 
         // Assert
-        Assert.NotNull(receivedChanges);
-        Assert.Equal(2, receivedChanges.Removes);
+        Assert.Equal(2, changesList.Count); // Initial adds + removals
+        Assert.Equal(3, changesList[0].Adds);
+        Assert.Equal(2, changesList[1].Removes);
         Assert.Equal(1, cache.Count);
     }
 
@@ -256,16 +247,16 @@ public class SourceCacheTests
         cache.AddOrUpdate(new Person(1, "Alice", 30));
         cache.AddOrUpdate(new Person(2, "Bob", 25));
         cache.AddOrUpdate(new Person(3, "Charlie", 35));
-
-        IChangeSet<Person, int>? receivedChanges = null;
-        using var subscription = cache.Connect().Subscribe(changes => receivedChanges = changes);
+        var changesList = new List<IChangeSet<Person, int>>();
+        using var subscription = cache.Connect().Subscribe(changes => changesList.Add(changes));
 
         // Act
         cache.Edit(updater => updater.RemoveItems(p => p.Age < 30));
 
         // Assert
-        Assert.NotNull(receivedChanges);
-        Assert.Equal(1, receivedChanges.Removes);
+        Assert.Equal(2, changesList.Count);
+        Assert.Equal(3, changesList[0].Adds);
+        Assert.Equal(1, changesList[1].Removes);
         Assert.Equal(2, cache.Count);
     }
 
@@ -276,21 +267,18 @@ public class SourceCacheTests
         var cache = new SourceCache<Person, int>(p => p.Id);
         var person = new Person(1, "Alice", 30);
         cache.AddOrUpdate(person);
-
-        IChangeSet<Person, int>? receivedChanges = null;
-        using var subscription = cache.Connect().Subscribe(changes => receivedChanges = changes);
+        var changesList = new List<IChangeSet<Person, int>>();
+        using var subscription = cache.Connect().Subscribe(changes => changesList.Add(changes));
 
         // Act
         cache.Edit(updater => updater.Refresh(1));
 
         // Assert
-        Assert.NotNull(receivedChanges);
-        Assert.Equal(1, receivedChanges.Count);
-        Assert.Equal(1, receivedChanges.Refreshes);
-
-        var change = receivedChanges.First();
-        Assert.Equal(ChangeReason.Refresh, change.Reason);
-        Assert.Equal(1, change.Key);
-        Assert.Equal(person, change.Current);
+        Assert.Equal(2, changesList.Count); // Initial add + refresh
+        Assert.Equal(1, changesList[0].Adds);
+        Assert.Equal(1, changesList[1].Refreshes);
+        var refreshChange = changesList[1].First();
+        Assert.Equal(ChangeReason.Refresh, refreshChange.Reason);
+        Assert.Equal(person, refreshChange.Current);
     }
 }

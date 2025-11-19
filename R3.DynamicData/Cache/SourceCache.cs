@@ -90,7 +90,7 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     /// <inheritdoc/>
     public Observable<IChangeSet<TObject, TKey>> Connect()
     {
-        return _changes.AsObservable();
+        return Observable.Create<IChangeSet<TObject, TKey>>(ConnectImplementation);
     }
 
     /// <inheritdoc/>
@@ -101,19 +101,7 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
             return Connect();
         }
 
-        return _changes.AsObservable().Select(changes =>
-        {
-            var filtered = new ChangeSet<TObject, TKey>();
-            foreach (var change in changes)
-            {
-                if (predicate(change.Current))
-                {
-                    filtered.Add(change);
-                }
-            }
-
-            return (IChangeSet<TObject, TKey>)filtered;
-        });
+        return Observable.Create<IChangeSet<TObject, TKey>>(observer => ConnectWithPredicateImplementation(observer, predicate));
     }
 
     /// <inheritdoc/>
@@ -174,6 +162,87 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
         {
             _changes.OnNext(changes);
         }
+    }
+
+    private IDisposable ConnectImplementation(Observer<IChangeSet<TObject, TKey>> observer)
+    {
+        // Emit initial snapshot.
+        lock (_locker)
+        {
+            if (_data.Count > 0)
+            {
+                var initial = new ChangeSet<TObject, TKey>(_data.Count);
+                foreach (var kvp in _data)
+                {
+                    initial.Add(new Change<TObject, TKey>(Kernel.ChangeReason.Add, kvp.Key, kvp.Value));
+                }
+
+                observer.OnNext(initial);
+            }
+        }
+
+        return _changes.Subscribe(observer.OnNext, observer.OnErrorResume, observer.OnCompleted);
+    }
+
+    private IDisposable ConnectWithPredicateImplementation(Observer<IChangeSet<TObject, TKey>> observer, Func<TObject, bool> predicate)
+    {
+        // Emit initial filtered snapshot.
+        lock (_locker)
+        {
+            if (_data.Count > 0)
+            {
+                var initialFiltered = new ChangeSet<TObject, TKey>();
+                foreach (var kvp in _data)
+                {
+                    if (predicate(kvp.Value))
+                    {
+                        initialFiltered.Add(new Change<TObject, TKey>(Kernel.ChangeReason.Add, kvp.Key, kvp.Value));
+                    }
+                }
+
+                if (initialFiltered.Count > 0)
+                {
+                    observer.OnNext(initialFiltered);
+                }
+            }
+        }
+
+        // Subscribe to future changes and filter them.
+        return _changes.Subscribe(
+            changes =>
+            {
+                var filtered = new ChangeSet<TObject, TKey>();
+                foreach (var change in changes)
+                {
+                    if (predicate(change.Current))
+                    {
+                        filtered.Add(change);
+                    }
+                    else if (change.Reason == Kernel.ChangeReason.Update || change.Reason == Kernel.ChangeReason.Remove)
+                    {
+                        // If an item was previously included and now no longer matches, emit a Remove.
+                        // We infer previous inclusion if the change is Remove (original cache removal) or Update with Previous value matching predicate.
+                        if (change.Reason == Kernel.ChangeReason.Remove)
+                        {
+                            if (change.Previous.HasValue && predicate(change.Previous.Value))
+                            {
+                                filtered.Add(new Change<TObject, TKey>(Kernel.ChangeReason.Remove, change.Key, change.Current, change.Current));
+                            }
+                        }
+                        else if (change.Reason == Kernel.ChangeReason.Update && change.Previous.HasValue && predicate(change.Previous.Value))
+                        {
+                            filtered.Add(new Change<TObject, TKey>(Kernel.ChangeReason.Remove, change.Key, change.Previous.Value, change.Previous.Value));
+                        }
+                    }
+                }
+
+                if (filtered.Count > 0)
+                {
+                    observer.OnNext(filtered);
+                }
+            },
+            observer.OnErrorResume,
+            observer.OnCompleted);
     }
 
     private sealed class CacheUpdater : ICacheUpdater<TObject, TKey>
