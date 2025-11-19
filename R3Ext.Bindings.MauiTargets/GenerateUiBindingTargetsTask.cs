@@ -60,20 +60,20 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
             }
 
             UiBindingMetadataDto metadata = new()
-                                            {
-                                                AssemblyName = ProjectAssemblyName,
-                                                Controls = controls.Select(kvp => new UiControlTypeDto
-                                                                                  {
-                                                                                      Type = NormalizeContainingType(kvp.Key),
-                                                                                      Fields = kvp.Value
-                                                                                          .Select(f => new UiControlFieldDto
-                                                                                                       {
-                                                                                                           Name = f.FieldName,
-                                                                                                           Type = NormalizeType(f.FieldType),
-                                                                                                       })
-                                                                                          .ToArray(),
-                                                                                  }).ToArray(),
-                                            };
+            {
+                AssemblyName = ProjectAssemblyName,
+                Controls = controls.Select(kvp => new UiControlTypeDto
+                {
+                    Type = NormalizeContainingType(kvp.Key),
+                    Fields = kvp.Value
+                                                          .Select(f => new UiControlFieldDto
+                                                          {
+                                                              Name = f.FieldName,
+                                                              Type = NormalizeType(f.FieldType),
+                                                          })
+                                                          .ToArray(),
+                }).ToArray(),
+            };
 
             Directory.CreateDirectory(IntermediateOutputPath);
             string outputPath = Path.Combine(IntermediateOutputPath, "R3Ext.BindingTargets.json");
@@ -100,12 +100,12 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
     }
 
     private static readonly Dictionary<string, string> KnownNamespaceMappings = new(StringComparer.Ordinal)
-                                                                                {
-                                                                                    ["http://schemas.microsoft.com/dotnet/2021/maui"] =
+    {
+        ["http://schemas.microsoft.com/dotnet/2021/maui"] =
                                                                                         "Microsoft.Maui.Controls",
-                                                                                    ["http://schemas.microsoft.com/winfx/2009/xaml"] =
+        ["http://schemas.microsoft.com/winfx/2009/xaml"] =
                                                                                         "Microsoft.Maui.Controls.Xaml",
-                                                                                };
+    };
 
     private static void ScanGeneratedCode(string path, Dictionary<string, HashSet<(string FieldName, string FieldType)>> controls)
     {

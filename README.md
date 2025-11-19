@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="logo.svg" alt="R3Ext Logo" width="200" />
+
 # R3Ext
 
 **Extensions and Utilities for the R3 Reactive Library**
