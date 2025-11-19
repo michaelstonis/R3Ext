@@ -28,6 +28,9 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
+    - name: Restore .NET workloads (MAUI)
+      run: dotnet workload restore
+    
     - name: Install GitVersion
       uses: gittools/actions/gitversion/setup@v1.1.1
       with:
