@@ -2,7 +2,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <IncludeBuildOutput>false</IncludeBuildOutput>
         <IsRoslynAnalyzer>true</IsRoslynAnalyzer>
         <AssemblyName>R3Ext.Bindings.SourceGenerator</AssemblyName>
         <RootNamespace>R3Ext.Bindings.SourceGenerator</RootNamespace>
@@ -28,9 +27,7 @@
                           PrivateAssets="all" />
     </ItemGroup>
     <ItemGroup>
-        <None Include="README.md"
-              Pack="true"
-              PackagePath="analyzers/dotnet/cs"
-              Visible="false" />
+        <!-- Include the source generator assembly as analyzer -->
+        <Analyzer Include="$(TargetPath)" />
     </ItemGroup>
 </Project>

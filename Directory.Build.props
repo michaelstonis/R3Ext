@@ -46,4 +46,13 @@
         <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json"
                          Link="stylecop.json" />
     </ItemGroup>
+
+    <!-- Ensure README.md from repo root is included in all packages -->
+    <ItemGroup>
+        <None Include="$(MSBuildThisFileDirectory)README.md"
+              Pack="true"
+              PackagePath="\"
+              Link="README.md"
+              Condition="Exists('$(MSBuildThisFileDirectory)README.md')" />
+    </ItemGroup>
 </Project>
