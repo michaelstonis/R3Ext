@@ -1,5 +1,3 @@
-using System;
-
 namespace R3Ext;
 
 // Instrumentation counters for generated binding/notification wiring. Enabled when R3EXT_TRACE compilation symbol is defined.

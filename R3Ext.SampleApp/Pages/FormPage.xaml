@@ -1,0 +1,27 @@
+<?xml version="1.0"
+    encoding="utf-8" ?>
+
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" x:Class="R3Ext.SampleApp.FormPage" Title="Form">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="Form Demo" Style="{StaticResource SubHeadline}" />
+
+            <Label Text="Name" />
+            <Entry x:Name="NameEntry" Placeholder="Your name" />
+            <Label x:Name="NameError" TextColor="Red" />
+
+            <Label Text="Email" />
+            <Entry x:Name="EmailEntry" Keyboard="Email" Placeholder="you@example.com" />
+            <Label x:Name="EmailError" TextColor="Red" />
+
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                <Label Text="Accept Terms" />
+                <Switch x:Name="TermsSwitch" Grid.Column="1" />
+            </Grid>
+
+            <Button x:Name="SubmitBtn" Text="Submit" Clicked="OnSubmit" />
+            <Label x:Name="SubmitStatus" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

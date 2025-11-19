@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <IsRoslynAnalyzer>true</IsRoslynAnalyzer>
+        <AssemblyName>R3Ext.Bindings.SourceGenerator</AssemblyName>
+        <RootNamespace>R3Ext.Bindings.SourceGenerator</RootNamespace>
+        <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+        <!-- NuGet Package Settings -->
+        <IsPackable>true</IsPackable>
+        <PackageId>R3Ext.Bindings.SourceGenerator</PackageId>
+        <Title>R3Ext Bindings Source Generator</Title>
+        <DevelopmentDependency>true</DevelopmentDependency>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers"
+                          Version="3.3.4"
+                          PrivateAssets="all" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp"
+                          Version="4.11.0"
+                          PrivateAssets="all" />
+        <PackageReference Include="Microsoft.CodeAnalysis"
+                          Version="4.11.0"
+                          PrivateAssets="all" />
+        <PackageReference Include="System.Text.Json"
+                          Version="9.0.0"
+                          PrivateAssets="all" />
+    </ItemGroup>
+    <ItemGroup>
+        <!-- Package the built DLL as analyzer during pack -->
+        <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+</Project>

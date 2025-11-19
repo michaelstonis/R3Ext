@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project>
+  <!-- Automatically enable R3Ext UI binding metadata generation when this project is referenced -->
+  <PropertyGroup>
+    <GenerateR3ExtUiBindingTargets Condition="'$(GenerateR3ExtUiBindingTargets)' == ''">true</GenerateR3ExtUiBindingTargets>
+    <!-- Enable Roslyn generator outputs on disk for debugging registrations -->
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>obj/gen</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+  <!-- Import the targets file from the parent directory -->
+  <Import Project="$(MSBuildThisFileDirectory)..\GenerateUiBindingTargets.targets"/>
+</Project>
