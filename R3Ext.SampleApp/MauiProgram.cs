@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using R3.Maui;
+﻿using R3.Maui;
 
 namespace R3Ext.SampleApp;
 

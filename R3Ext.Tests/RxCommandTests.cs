@@ -1,10 +1,10 @@
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using R3;
 using R3.Collections;
 
 namespace R3Ext.Tests;
 
-public class ReactiveCommandTests
+public class RxCommandTests
 {
     [Fact]
     public void Create_WithSyncAction_ExecutesSuccessfully()
