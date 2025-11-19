@@ -1,12 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace R3Ext;
 
 /// <summary>
-/// Extension methods for <see cref="RxObject"/> and <see cref="RxRecord"/> 
+/// Extension methods for <see cref="RxObject"/> and <see cref="RxRecord"/>
 /// providing convenient property change helpers.
 /// </summary>
 public static class RxObjectExtensions
@@ -22,9 +20,15 @@ public static class RxObjectExtensions
         [CallerMemberName] string? propertyName = null)
         where TObj : INotifyPropertyChanged, INotifyPropertyChanging
     {
-        if (propertyName == null) throw new ArgumentNullException(nameof(propertyName));
+        if (propertyName == null)
+        {
+            throw new ArgumentNullException(nameof(propertyName));
+        }
+
         if (EqualityComparer<TRet>.Default.Equals(backingField, newValue))
+        {
             return newValue;
+        }
 
         reactiveObject.RaisePropertyChanging(propertyName);
         backingField = newValue;
@@ -33,17 +37,25 @@ public static class RxObjectExtensions
     }
 
     /// <summary>
-    /// Explicitly raise PropertyChanged for a given property. 
+    /// Explicitly raise PropertyChanged for a given property.
     /// Useful for custom properties that compute derived state.
     /// </summary>
     public static void RaisePropertyChanged<T>(this T reactiveObject, [CallerMemberName] string? propertyName = null)
         where T : INotifyPropertyChanged
     {
-        if (propertyName == null) return;
+        if (propertyName == null)
+        {
+            return;
+        }
+
         if (reactiveObject is RxObject rxObj)
+        {
             rxObj.RaisePropertyChanged(propertyName);
+        }
         else if (reactiveObject is RxRecord rxRec)
+        {
             rxRec.RaisePropertyChanged(propertyName);
+        }
     }
 
     /// <summary>
@@ -52,10 +64,18 @@ public static class RxObjectExtensions
     public static void RaisePropertyChanging<T>(this T reactiveObject, [CallerMemberName] string? propertyName = null)
         where T : INotifyPropertyChanging
     {
-        if (propertyName == null) return;
+        if (propertyName == null)
+        {
+            return;
+        }
+
         if (reactiveObject is RxObject rxObj)
+        {
             rxObj.RaisePropertyChanging(propertyName);
+        }
         else if (reactiveObject is RxRecord rxRec)
+        {
             rxRec.RaisePropertyChanging(propertyName);
+        }
     }
 }

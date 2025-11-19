@@ -1,5 +1,3 @@
-using System.Threading;
-
 namespace R3Ext;
 
 public sealed class InteractionContext<TInput, TOutput> : IOutputContext<TInput, TOutput>
@@ -22,6 +20,7 @@ public sealed class InteractionContext<TInput, TOutput> : IOutputContext<TInput,
         {
             throw new InvalidOperationException("Output has already been set.");
         }
+
         _output = output;
     }
 
@@ -31,6 +30,7 @@ public sealed class InteractionContext<TInput, TOutput> : IOutputContext<TInput,
         {
             throw new InvalidOperationException("Output has not been set.");
         }
+
         return _output;
     }
 }

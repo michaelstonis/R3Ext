@@ -1,8 +1,5 @@
-using System;
 using System.Globalization;
-using Microsoft.Maui.Controls;
 using R3;
-using R3Ext;
 using R3Ext.SampleApp.ViewModels;
 
 namespace R3Ext.SampleApp;
@@ -14,9 +11,9 @@ public partial class ConversionFormPage : ContentPage
 
     public ConversionFormPage()
     {
-        InitializeComponent();
-        SetupBindings();
-        UpdateTotals();
+        this.InitializeComponent();
+        this.SetupBindings();
+        this.UpdateTotals();
     }
 
     private void SetupBindings()
@@ -44,16 +41,20 @@ public partial class ConversionFormPage : ContentPage
         _vm.BindOneWay(DiscountLabel, v => v.Discount, l => l.Text, discount => $"Discount: {discount * 100:F1}%")
             .AddTo(ref _bindings);
 
-        _vm.WhenChanged(v => v.UnitPrice).Subscribe(_ => UpdateTotals()).AddTo(ref _bindings);
-        _vm.WhenChanged(v => v.Quantity).Subscribe(_ => UpdateTotals()).AddTo(ref _bindings);
-        _vm.WhenChanged(v => v.TaxRate).Subscribe(_ => UpdateTotals()).AddTo(ref _bindings);
-        _vm.WhenChanged(v => v.Discount).Subscribe(_ => UpdateTotals()).AddTo(ref _bindings);
+        _vm.WhenChanged(v => v.UnitPrice).Subscribe(_ => this.UpdateTotals()).AddTo(ref _bindings);
+        _vm.WhenChanged(v => v.Quantity).Subscribe(_ => this.UpdateTotals()).AddTo(ref _bindings);
+        _vm.WhenChanged(v => v.TaxRate).Subscribe(_ => this.UpdateTotals()).AddTo(ref _bindings);
+        _vm.WhenChanged(v => v.Discount).Subscribe(_ => this.UpdateTotals()).AddTo(ref _bindings);
     }
 
     private static decimal ParseDecimal(string? text, decimal fallback)
     {
-        if (string.IsNullOrWhiteSpace(text)) return fallback;
-        if (decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out var value))
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return fallback;
+        }
+
+        if (decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out decimal value))
         {
             return value < 0 ? 0 : value;
         }
@@ -63,8 +64,12 @@ public partial class ConversionFormPage : ContentPage
 
     private static int ParseInt(string? text, int fallback)
     {
-        if (string.IsNullOrWhiteSpace(text)) return fallback;
-        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.CurrentCulture, out var value))
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return fallback;
+        }
+
+        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.CurrentCulture, out int value))
         {
             return Math.Max(0, value);
         }
@@ -74,10 +79,13 @@ public partial class ConversionFormPage : ContentPage
 
     private static double ParsePercent(string? text, double fallback)
     {
-        if (string.IsNullOrWhiteSpace(text)) return fallback;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return fallback;
+        }
 
-        var normalized = text.Replace("%", string.Empty, StringComparison.Ordinal).Trim();
-        if (double.TryParse(normalized, NumberStyles.Float, CultureInfo.CurrentCulture, out var value))
+        string normalized = text.Replace("%", string.Empty, StringComparison.Ordinal).Trim();
+        if (double.TryParse(normalized, NumberStyles.Float, CultureInfo.CurrentCulture, out double value))
         {
             return Math.Clamp(value / 100.0, 0, 1);
         }
@@ -87,18 +95,18 @@ public partial class ConversionFormPage : ContentPage
 
     private void UpdateTotals()
     {
-        var subtotal = _vm.UnitPrice * _vm.Quantity;
-        var discountAmount = subtotal * (decimal)_vm.Discount;
-        var discounted = subtotal - discountAmount;
-        var taxAmount = discounted * (decimal)_vm.TaxRate;
-        var total = discounted + taxAmount;
+        decimal subtotal = _vm.UnitPrice * _vm.Quantity;
+        decimal discountAmount = subtotal * (decimal)_vm.Discount;
+        decimal discounted = subtotal - discountAmount;
+        decimal taxAmount = discounted * (decimal)_vm.TaxRate;
+        decimal total = discounted + taxAmount;
 
         SubtotalLabel.Text = $"Subtotal: {subtotal.ToString("C", CultureInfo.CurrentCulture)}";
         DiscountAmountLabel.Text = $"Discount: -{discountAmount.ToString("C", CultureInfo.CurrentCulture)}";
         TaxAmountLabel.Text = $"Tax: {taxAmount.ToString("C", CultureInfo.CurrentCulture)}";
         TotalLabel.Text = $"Total: {total.ToString("C", CultureInfo.CurrentCulture)}";
 
-        var perUnit = _vm.Quantity > 0 ? total / _vm.Quantity : total;
+        decimal perUnit = _vm.Quantity > 0 ? total / _vm.Quantity : total;
         EffectiveUnitPriceLabel.Text = $"Effective per unit: {perUnit.ToString("C", CultureInfo.CurrentCulture)}";
     }
 

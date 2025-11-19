@@ -2,13 +2,13 @@
 
 public partial class App : Application
 {
-	public App()
-	{
-		InitializeComponent();
-	}
+    public App()
+    {
+        this.InitializeComponent();
+    }
 
-	protected override Window CreateWindow(IActivationState? activationState)
-	{
-		return new Window(new AppShell());
-	}
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        return new Window(new AppShell());
+    }
 }

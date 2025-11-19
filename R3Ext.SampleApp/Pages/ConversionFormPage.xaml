@@ -1,36 +1,25 @@
-<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0"
+    encoding="utf-8" ?>
+
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="R3Ext.SampleApp.ConversionFormPage"
-             Title="Conversion Form">
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" x:Class="R3Ext.SampleApp.ConversionFormPage"
+    Title="Conversion Form">
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="18">
-            <Label Text="Checkout Calculator"
-                   Style="{StaticResource SubHeadline}" />
+            <Label Text="Checkout Calculator" Style="{StaticResource SubHeadline}" />
             <Label Text="Two-way conversions keep numeric models and text inputs synchronized." />
 
             <Frame Padding="16" HasShadow="False" BorderColor="#DDDDDD" CornerRadius="12">
-                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="12">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="12"
+                    ColumnSpacing="12">
                     <Label Text="Unit price" Grid.Row="0" Grid.Column="0" VerticalTextAlignment="Center" />
-                    <Entry x:Name="UnitPriceEntry"
-                           Grid.Row="0"
-                           Grid.Column="1"
-                           Keyboard="Numeric"
-                           Placeholder="29.99" />
+                    <Entry x:Name="UnitPriceEntry" Grid.Row="0" Grid.Column="1" Keyboard="Numeric" Placeholder="29.99" />
 
                     <Label Text="Quantity" Grid.Row="1" VerticalTextAlignment="Center" />
-                    <Entry x:Name="QuantityEntry"
-                           Grid.Row="1"
-                           Grid.Column="1"
-                           Keyboard="Numeric"
-                           Placeholder="2" />
+                    <Entry x:Name="QuantityEntry" Grid.Row="1" Grid.Column="1" Keyboard="Numeric" Placeholder="2" />
 
                     <Label Text="Tax rate" Grid.Row="2" VerticalTextAlignment="Center" />
-                    <Entry x:Name="TaxRateEntry"
-                           Grid.Row="2"
-                           Grid.Column="1"
-                           Keyboard="Numeric"
-                           Placeholder="8.25" />
+                    <Entry x:Name="TaxRateEntry" Grid.Row="2" Grid.Column="1" Keyboard="Numeric" Placeholder="8.25" />
 
                     <Label Text="Discount" Grid.Row="3" VerticalTextAlignment="Center" />
                     <StackLayout Grid.Row="3" Grid.Column="1" Spacing="6">

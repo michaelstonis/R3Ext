@@ -1,4 +1,3 @@
-using System;
 using R3;
 
 namespace R3Ext;
@@ -19,14 +18,22 @@ public static class TimingExtensions
     /// <returns>An observable that emits first value immediately then debounces subsequent values.</returns>
     public static Observable<T> DebounceImmediate<T>(this Observable<T> source, TimeSpan dueTime, TimeProvider? timeProvider = null)
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (dueTime < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(dueTime));
-        var tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (dueTime < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dueTime));
+        }
+
+        TimeProvider tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
 
         // Share subscription to avoid multiple subscriptions to source.
-        var shared = source.Share();
-        var first = shared.Take(1);
-        var rest = shared.Skip(1).Debounce(dueTime, tp);
+        Observable<T> shared = source.Share();
+        Observable<T> first = shared.Take(1);
+        Observable<T> rest = shared.Skip(1).Debounce(dueTime, tp);
         return Observable.Merge(first, rest);
     }
 
@@ -36,7 +43,9 @@ public static class TimingExtensions
     public readonly struct HeartbeatEvent<T>
     {
         public bool IsHeartbeat { get; }
+
         public T? Value { get; }
+
         internal HeartbeatEvent(bool isHeartbeat, T? value)
         {
             IsHeartbeat = isHeartbeat;
@@ -50,16 +59,24 @@ public static class TimingExtensions
     /// </summary>
     public static Observable<HeartbeatEvent<T>> Heartbeat<T>(this Observable<T> source, TimeSpan quietPeriod, TimeProvider? timeProvider = null)
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (quietPeriod <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(quietPeriod));
-        var tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (quietPeriod <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quietPeriod));
+        }
+
+        TimeProvider tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
 
         return Observable.Create<HeartbeatEvent<T>>(observer =>
         {
             Lock gate = new();
             bool disposed = false;
             IDisposable? upstream = null;
-            System.Threading.ITimer? timer = null; // using ITimer from TimeProvider
+            ITimer? timer = null; // using ITimer from TimeProvider
 
             void DisposeTimer()
             {
@@ -70,14 +87,19 @@ public static class TimingExtensions
             void ScheduleHeartbeat()
             {
                 DisposeTimer();
-                timer = tp.CreateTimer(_ =>
-                {
-                    using (gate.EnterScope())
+                timer = tp.CreateTimer(
+                    _ =>
                     {
-                        if (disposed) return;
-                        observer.OnNext(new HeartbeatEvent<T>(true, default));
-                    }
-                }, null, quietPeriod, quietPeriod);
+                        using (gate.EnterScope())
+                        {
+                            if (disposed)
+                            {
+                                return;
+                            }
+
+                            observer.OnNext(new HeartbeatEvent<T>(true, default));
+                        }
+                    }, null, quietPeriod, quietPeriod);
             }
 
             upstream = source.Subscribe(
@@ -85,7 +107,11 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
+                        if (disposed)
+                        {
+                            return;
+                        }
+
                         observer.OnNext(new HeartbeatEvent<T>(false, x));
                         ScheduleHeartbeat();
                     }
@@ -94,7 +120,11 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
+                        if (disposed)
+                        {
+                            return;
+                        }
+
                         observer.OnErrorResume(ex);
                     }
                 },
@@ -102,7 +132,11 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
+                        if (disposed)
+                        {
+                            return;
+                        }
+
                         DisposeTimer();
                         observer.OnCompleted(r);
                     }
@@ -112,7 +146,11 @@ public static class TimingExtensions
             {
                 using (gate.EnterScope())
                 {
-                    if (disposed) return;
+                    if (disposed)
+                    {
+                        return;
+                    }
+
                     disposed = true;
                     DisposeTimer();
                     upstream?.Dispose();
@@ -127,7 +165,9 @@ public static class TimingExtensions
     public readonly struct StaleEvent<T>
     {
         public bool IsStale { get; }
+
         public T? Value { get; }
+
         internal StaleEvent(bool isStale, T? value)
         {
             IsStale = isStale;
@@ -142,9 +182,17 @@ public static class TimingExtensions
     /// </summary>
     public static Observable<StaleEvent<T>> DetectStale<T>(this Observable<T> source, TimeSpan quietPeriod, TimeProvider? timeProvider = null)
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (quietPeriod <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(quietPeriod));
-        var tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (quietPeriod <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quietPeriod));
+        }
+
+        TimeProvider tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
 
         return Observable.Create<StaleEvent<T>>(observer =>
         {
@@ -152,26 +200,32 @@ public static class TimingExtensions
             bool disposed = false;
             bool staleEmitted = false;
             IDisposable? upstream = null;
-            System.Threading.ITimer? timer = null;
+            ITimer? timer = null;
 
             void EnsureTimer()
             {
                 if (timer is null)
                 {
-                    timer = tp.CreateTimer(_ =>
-                    {
-                        using (gate.EnterScope())
+                    timer = tp.CreateTimer(
+                        _ =>
                         {
-                            if (disposed) return;
-                            if (!staleEmitted)
+                            using (gate.EnterScope())
                             {
-                                observer.OnNext(new StaleEvent<T>(true, default));
-                                staleEmitted = true;
+                                if (disposed)
+                                {
+                                    return;
+                                }
+
+                                if (!staleEmitted)
+                                {
+                                    observer.OnNext(new StaleEvent<T>(true, default));
+                                    staleEmitted = true;
+                                }
+
+                                // Stop timer until next value arrives.
+                                timer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                             }
-                            // Stop timer until next value arrives.
-                            timer!.Change(System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
-                        }
-                    }, null, System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+                        }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                 }
             }
 
@@ -179,7 +233,7 @@ public static class TimingExtensions
             {
                 EnsureTimer();
                 staleEmitted = false;
-                timer!.Change(quietPeriod, System.Threading.Timeout.InfiniteTimeSpan);
+                timer!.Change(quietPeriod, Timeout.InfiniteTimeSpan);
             }
 
             // Start timer immediately to detect initial inactivity.
@@ -190,7 +244,11 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
+                        if (disposed)
+                        {
+                            return;
+                        }
+
                         observer.OnNext(new StaleEvent<T>(false, x));
                         ResetQuietTimer();
                     }
@@ -199,8 +257,12 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
-                        timer?.Change(System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+                        if (disposed)
+                        {
+                            return;
+                        }
+
+                        timer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                         observer.OnErrorResume(ex);
                     }
                 },
@@ -208,7 +270,11 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
+                        if (disposed)
+                        {
+                            return;
+                        }
+
                         timer?.Dispose();
                         observer.OnCompleted(r);
                     }
@@ -218,7 +284,11 @@ public static class TimingExtensions
             {
                 using (gate.EnterScope())
                 {
-                    if (disposed) return;
+                    if (disposed)
+                    {
+                        return;
+                    }
+
                     disposed = true;
                     timer?.Dispose();
                     upstream?.Dispose();
@@ -233,48 +303,63 @@ public static class TimingExtensions
     /// </summary>
     public static Observable<T[]> BufferUntilInactive<T>(this Observable<T> source, TimeSpan quietPeriod, TimeProvider? timeProvider = null)
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (quietPeriod <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(quietPeriod));
-        var tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (quietPeriod <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(quietPeriod));
+        }
+
+        TimeProvider tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
 
         return Observable.Create<T[]>(observer =>
         {
             Lock gate = new();
             bool disposed = false;
-            var buffer = new System.Collections.Generic.List<T>();
+            List<T> buffer = new();
             IDisposable? upstream = null;
-            System.Threading.ITimer? timer = null;
+            ITimer? timer = null;
 
             void EnsureTimer()
             {
                 if (timer is null)
                 {
-                    timer = tp.CreateTimer(_ =>
-                    {
-                        T[]? toEmit = null;
-                        using (gate.EnterScope())
+                    timer = tp.CreateTimer(
+                        _ =>
                         {
-                            if (disposed) return;
-                            if (buffer.Count > 0)
+                            T[]? toEmit = null;
+                            using (gate.EnterScope())
                             {
-                                toEmit = buffer.ToArray();
-                                buffer.Clear();
+                                if (disposed)
+                                {
+                                    return;
+                                }
+
+                                if (buffer.Count > 0)
+                                {
+                                    toEmit = buffer.ToArray();
+                                    buffer.Clear();
+                                }
+
+                                // Stop timer after firing; restarted on next value.
+                                timer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                             }
-                            // Stop timer after firing; restarted on next value.
-                            timer!.Change(System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
-                        }
-                        if (toEmit is not null)
-                        {
-                            observer.OnNext(toEmit);
-                        }
-                    }, null, System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+
+                            if (toEmit is not null)
+                            {
+                                observer.OnNext(toEmit);
+                            }
+                        }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                 }
             }
 
             void ResetQuietTimer()
             {
                 EnsureTimer();
-                timer!.Change(quietPeriod, System.Threading.Timeout.InfiniteTimeSpan);
+                timer!.Change(quietPeriod, Timeout.InfiniteTimeSpan);
             }
 
             upstream = source.Subscribe(
@@ -282,7 +367,11 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
+                        if (disposed)
+                        {
+                            return;
+                        }
+
                         buffer.Add(x);
                         ResetQuietTimer();
                     }
@@ -291,13 +380,18 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
+                        if (disposed)
+                        {
+                            return;
+                        }
+
                         // Flush any pending on error then propagate
                         if (buffer.Count > 0)
                         {
                             observer.OnNext(buffer.ToArray());
                             buffer.Clear();
                         }
+
                         observer.OnErrorResume(ex);
                     }
                 },
@@ -305,13 +399,18 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
+                        if (disposed)
+                        {
+                            return;
+                        }
+
                         timer?.Dispose();
                         if (buffer.Count > 0)
                         {
                             observer.OnNext(buffer.ToArray());
                             buffer.Clear();
                         }
+
                         observer.OnCompleted(r);
                     }
                 });
@@ -320,7 +419,11 @@ public static class TimingExtensions
             {
                 using (gate.EnterScope())
                 {
-                    if (disposed) return;
+                    if (disposed)
+                    {
+                        return;
+                    }
+
                     disposed = true;
                     timer?.Dispose();
                     upstream?.Dispose();
@@ -337,9 +440,17 @@ public static class TimingExtensions
     /// </summary>
     public static Observable<T> Conflate<T>(this Observable<T> source, TimeSpan period, TimeProvider? timeProvider = null)
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (period <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(period));
-        var tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (period <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(period));
+        }
+
+        TimeProvider tp = timeProvider ?? ObservableSystem.DefaultTimeProvider;
 
         return Observable.Create<T>(observer =>
         {
@@ -349,39 +460,46 @@ public static class TimingExtensions
             bool hasPending = false;
             T? latest = default;
             IDisposable? upstream = null;
-            System.Threading.ITimer? timer = null;
+            ITimer? timer = null;
 
             void EnsureTimer()
             {
                 if (timer is null)
                 {
-                    timer = tp.CreateTimer(_ =>
-                    {
-                        T? toEmit = default;
-                        bool emit = false;
-                        using (gate.EnterScope())
+                    timer = tp.CreateTimer(
+                        _ =>
                         {
-                            if (disposed) return;
-                            if (hasPending)
+                            T? toEmit = default;
+                            bool emit = false;
+                            using (gate.EnterScope())
                             {
-                                toEmit = latest;
-                                hasPending = false;
-                                emit = true;
-                                // continue gating, schedule next window
-                                timer!.Change(period, System.Threading.Timeout.InfiniteTimeSpan);
+                                if (disposed)
+                                {
+                                    return;
+                                }
+
+                                if (hasPending)
+                                {
+                                    toEmit = latest;
+                                    hasPending = false;
+                                    emit = true;
+
+                                    // continue gating, schedule next window
+                                    timer!.Change(period, Timeout.InfiniteTimeSpan);
+                                }
+                                else
+                                {
+                                    // no pending, stop gating
+                                    gating = false;
+                                    timer!.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                                }
                             }
-                            else
+
+                            if (emit)
                             {
-                                // no pending, stop gating
-                                gating = false;
-                                timer!.Change(System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+                                observer.OnNext(toEmit!);
                             }
-                        }
-                        if (emit)
-                        {
-                            observer.OnNext(toEmit!);
-                        }
-                    }, null, System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+                        }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                 }
             }
 
@@ -390,7 +508,11 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
+                        if (disposed)
+                        {
+                            return;
+                        }
+
                         if (!gating)
                         {
                             // First value in a new window: emit immediately and start window
@@ -399,7 +521,7 @@ public static class TimingExtensions
                             hasPending = false;
                             latest = default;
                             EnsureTimer();
-                            timer!.Change(period, System.Threading.Timeout.InfiniteTimeSpan);
+                            timer!.Change(period, Timeout.InfiniteTimeSpan);
                         }
                         else
                         {
@@ -413,8 +535,12 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
-                        timer?.Change(System.Threading.Timeout.InfiniteTimeSpan, System.Threading.Timeout.InfiniteTimeSpan);
+                        if (disposed)
+                        {
+                            return;
+                        }
+
+                        timer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                         observer.OnErrorResume(ex);
                     }
                 },
@@ -422,7 +548,11 @@ public static class TimingExtensions
                 {
                     using (gate.EnterScope())
                     {
-                        if (disposed) return;
+                        if (disposed)
+                        {
+                            return;
+                        }
+
                         timer?.Dispose();
                         observer.OnCompleted(r);
                     }
@@ -432,7 +562,11 @@ public static class TimingExtensions
             {
                 using (gate.EnterScope())
                 {
-                    if (disposed) return;
+                    if (disposed)
+                    {
+                        return;
+                    }
+
                     disposed = true;
                     timer?.Dispose();
                     upstream?.Dispose();

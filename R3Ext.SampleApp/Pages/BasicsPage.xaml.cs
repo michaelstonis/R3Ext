@@ -1,23 +1,20 @@
-using System;
-using Microsoft.Maui.Controls;
 using R3;
-using R3Ext;
 using R3Ext.SampleApp.ViewModels;
 
 namespace R3Ext.SampleApp;
 
 public partial class BasicsPage : ContentPage
 {
-    readonly SampleViewModel _vm = new();
-    DisposableBag _bindings;
+    private readonly SampleViewModel _vm = new();
+    private DisposableBag _bindings;
 
     public BasicsPage()
     {
-        InitializeComponent();
-        SetupBindings();
+        this.InitializeComponent();
+        this.SetupBindings();
     }
 
-    void SetupBindings()
+    private void SetupBindings()
     {
         // Two-way binding EditableName <-> Entry.Text
         _vm.BindTwoWay(NameEntry, v => v.EditableName, e => e.Text)
@@ -46,7 +43,10 @@ public partial class BasicsPage : ContentPage
             .AddTo(ref _bindings);
     }
 
-    void OnIncrement(object? sender, EventArgs e) => _vm.Increment();
+    private void OnIncrement(object? sender, EventArgs e)
+    {
+        _vm.Increment();
+    }
 
     protected override void OnDisappearing()
     {

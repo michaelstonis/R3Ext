@@ -1,8 +1,6 @@
-using System;
 using System.ComponentModel;
 using R3;
-using R3Ext;
-using Xunit;
+using R3.Collections;
 
 namespace R3Ext.Tests;
 
@@ -11,6 +9,7 @@ public class RxObjectExtensionsTests
     private class TestVm : RxObject
     {
         private string _value = "initial";
+
         public string Value
         {
             get => _value;
@@ -21,8 +20,8 @@ public class RxObjectExtensionsTests
     [Fact]
     public void ExtensionRaiseAndSetIfChanged_WorksOutsideClass()
     {
-        var vm = new TestVm();
-        var changed = vm.Changed.ToLiveList();
+        TestVm vm = new();
+        LiveList<PropertyChangedEventArgs> changed = vm.Changed.ToLiveList();
         vm.Value = "changed";
         Assert.Single(changed);
         Assert.Equal("Value", changed[0].PropertyName);
@@ -31,7 +30,7 @@ public class RxObjectExtensionsTests
     [Fact]
     public void ExtensionRaisePropertyChanged_TriggersEvent()
     {
-        var vm = new TestVm();
+        TestVm vm = new();
         string? propName = null;
         vm.PropertyChanged += (_, e) => propName = e.PropertyName;
         vm.RaisePropertyChanged("CustomProp");
@@ -41,7 +40,7 @@ public class RxObjectExtensionsTests
     [Fact]
     public void ExtensionRaisePropertyChanging_TriggersEvent()
     {
-        var vm = new TestVm();
+        TestVm vm = new();
         string? propName = null;
         vm.PropertyChanging += (_, e) => propName = e.PropertyName;
         vm.RaisePropertyChanging("CustomProp");

@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -25,15 +21,19 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
     {
         try
         {
-            var controls = new Dictionary<string, HashSet<(string FieldName, string FieldType)>>();
+            Dictionary<string, HashSet<(string FieldName, string FieldType)>> controls = new();
 
             // Prefer generated .g.cs files for precise field names/types
             if (GeneratedCodeFiles is not null && GeneratedCodeFiles.Length > 0)
             {
-                foreach (var item in GeneratedCodeFiles)
+                foreach (ITaskItem item in GeneratedCodeFiles)
                 {
-                    var path = item.ItemSpec;
-                    if (!File.Exists(path)) continue;
+                    string? path = item.ItemSpec;
+                    if (!File.Exists(path))
+                    {
+                        continue;
+                    }
+
                     ScanGeneratedCode(path, controls);
                 }
             }
@@ -41,10 +41,14 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
             // Fallback to XAML parse if nothing found from generated code
             if (controls.Count == 0 && XamlFiles is not null)
             {
-                foreach (var item in XamlFiles)
+                foreach (ITaskItem item in XamlFiles)
                 {
-                    var path = item.ItemSpec;
-                    if (!File.Exists(path)) continue;
+                    string? path = item.ItemSpec;
+                    if (!File.Exists(path))
+                    {
+                        continue;
+                    }
+
                     ScanXaml(path, controls);
                 }
             }
@@ -55,21 +59,25 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
                 return true;
             }
 
-            var metadata = new UiBindingMetadataDto
-            {
-                AssemblyName = ProjectAssemblyName,
-                Controls = controls.Select(kvp => new UiControlTypeDto
-                {
-                    Type = NormalizeContainingType(kvp.Key),
-                    Fields = kvp.Value
-                        .Select(f => new UiControlFieldDto { Name = f.FieldName, Type = NormalizeType(f.FieldType) })
-                        .ToArray()
-                }).ToArray()
-            };
+            UiBindingMetadataDto metadata = new()
+                                            {
+                                                AssemblyName = ProjectAssemblyName,
+                                                Controls = controls.Select(kvp => new UiControlTypeDto
+                                                                                  {
+                                                                                      Type = NormalizeContainingType(kvp.Key),
+                                                                                      Fields = kvp.Value
+                                                                                          .Select(f => new UiControlFieldDto
+                                                                                                       {
+                                                                                                           Name = f.FieldName,
+                                                                                                           Type = NormalizeType(f.FieldType),
+                                                                                                       })
+                                                                                          .ToArray(),
+                                                                                  }).ToArray(),
+                                            };
 
             Directory.CreateDirectory(IntermediateOutputPath);
-            var outputPath = Path.Combine(IntermediateOutputPath, "R3Ext.BindingTargets.json");
-            var json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = false });
+            string outputPath = Path.Combine(IntermediateOutputPath, "R3Ext.BindingTargets.json");
+            string json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = false, });
             File.WriteAllText(outputPath, json);
             Log.LogMessage(MessageImportance.Low, $"R3Ext: wrote UI binding metadata to {outputPath}");
             return true;
@@ -82,41 +90,53 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
     }
 
     private static string NormalizeType(string type)
-        => type.StartsWith("global::", StringComparison.Ordinal) ? type : "global::" + type.Trim();
+    {
+        return type.StartsWith("global::", StringComparison.Ordinal) ? type : "global::" + type.Trim();
+    }
 
     private static string NormalizeContainingType(string type)
-        => type.StartsWith("global::", StringComparison.Ordinal) ? type : "global::" + type.Trim();
+    {
+        return type.StartsWith("global::", StringComparison.Ordinal) ? type : "global::" + type.Trim();
+    }
 
     private static readonly Dictionary<string, string> KnownNamespaceMappings = new(StringComparer.Ordinal)
-    {
-        ["http://schemas.microsoft.com/dotnet/2021/maui"] = "Microsoft.Maui.Controls",
-        ["http://schemas.microsoft.com/winfx/2009/xaml"] = "Microsoft.Maui.Controls.Xaml"
-    };
+                                                                                {
+                                                                                    ["http://schemas.microsoft.com/dotnet/2021/maui"] =
+                                                                                        "Microsoft.Maui.Controls",
+                                                                                    ["http://schemas.microsoft.com/winfx/2009/xaml"] =
+                                                                                        "Microsoft.Maui.Controls.Xaml",
+                                                                                };
 
     private static void ScanGeneratedCode(string path, Dictionary<string, HashSet<(string FieldName, string FieldType)>> controls)
     {
-        var text = File.ReadAllText(path);
+        string text = File.ReadAllText(path);
+
         // Capture namespace and partial class to form fully qualified containing type
-        var namespaceRegex = new Regex(@"^\s*namespace\s+(?<ns>[A-Za-z_][A-Za-z0-9_.]*)", RegexOptions.Compiled);
+        Regex namespaceRegex = new(@"^\s*namespace\s+(?<ns>[A-Za-z_][A-Za-z0-9_.]*)", RegexOptions.Compiled);
+
         // Support file-scoped namespaces: namespace Foo.Bar;
-        var fileScopedNamespaceRegex = new Regex(@"^\s*namespace\s+(?<ns>[A-Za-z_][A-Za-z0-9_.]*)\s*;", RegexOptions.Compiled);
-        var classRegex = new Regex(@"partial\s+class\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
+        Regex fileScopedNamespaceRegex = new(@"^\s*namespace\s+(?<ns>[A-Za-z_][A-Za-z0-9_.]*)\s*;", RegexOptions.Compiled);
+        Regex classRegex = new(@"partial\s+class\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
+
         // Capture field declarations; tolerate modifiers
-        var fieldRegex = new Regex(@"(?:(?:public|internal|protected|private)\s+)?(?:(?:static|readonly|volatile)\s+)*(?<type>(?:global::)?[A-Za-z_][A-Za-z0-9_.<>]*)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*;", RegexOptions.Compiled);
+        Regex fieldRegex =
+            new(
+                @"(?:(?:public|internal|protected|private)\s+)?(?:(?:static|readonly|volatile)\s+)*(?<type>(?:global::)?[A-Za-z_][A-Za-z0-9_.<>]*)\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*;",
+                RegexOptions.Compiled);
 
         string? currentNs = null;
         string? currentClass = null;
         int namespaceBraceDepth = -1;
         int classBraceDepth = -1;
         bool fileScopedNamespaceActive = false;
-        var braceDepth = 0;
+        int braceDepth = 0;
 
-        foreach (var line in text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None))
+        foreach (string line in text.Split(new[] { "\r\n", "\n", }, StringSplitOptions.None))
         {
-            var openCount = CountChar(line, '{');
-            var closeCount = CountChar(line, '}');
+            int openCount = CountChar(line, '{');
+            int closeCount = CountChar(line, '}');
 
-            var fsMatch = fileScopedNamespaceRegex.Match(line);
+            Match fsMatch = fileScopedNamespaceRegex.Match(line);
             if (fsMatch.Success)
             {
                 currentNs = fsMatch.Groups["ns"].Value;
@@ -125,7 +145,7 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
             }
             else
             {
-                var nsMatch = namespaceRegex.Match(line);
+                Match nsMatch = namespaceRegex.Match(line);
                 if (nsMatch.Success)
                 {
                     currentNs = nsMatch.Groups["ns"].Value;
@@ -134,30 +154,34 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
                 }
             }
 
-            var classMatch = classRegex.Match(line);
+            Match classMatch = classRegex.Match(line);
             if (classMatch.Success)
             {
                 currentClass = classMatch.Groups["name"].Value;
-                var depthIncrement = openCount > 0 ? openCount : 1;
+                int depthIncrement = openCount > 0 ? openCount : 1;
                 classBraceDepth = braceDepth;
                 classBraceDepth += depthIncrement;
             }
 
-            if (currentClass is null) continue;
+            if (currentClass is null)
+            {
+                continue;
+            }
 
-            var fieldMatch = fieldRegex.Match(line);
+            Match fieldMatch = fieldRegex.Match(line);
             if (fieldMatch.Success)
             {
-                var fieldType = fieldMatch.Groups["type"].Value;
-                var fieldName = fieldMatch.Groups["name"].Value;
-                var fullType = (string.IsNullOrEmpty(currentNs) ? currentClass : currentNs + "." + currentClass);
+                string fieldType = fieldMatch.Groups["type"].Value;
+                string fieldName = fieldMatch.Groups["name"].Value;
+                string fullType = string.IsNullOrEmpty(currentNs) ? currentClass : currentNs + "." + currentClass;
                 fullType = NormalizeContainingType(fullType);
 
-                if (!controls.TryGetValue(fullType, out var set))
+                if (!controls.TryGetValue(fullType, out HashSet<(string FieldName, string FieldType)>? set))
                 {
                     set = new HashSet<(string FieldName, string FieldType)>();
                     controls[fullType] = set;
                 }
+
                 set.Add((fieldName, NormalizeType(fieldType)));
             }
 
@@ -170,6 +194,7 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
                     currentNs = null;
                     namespaceBraceDepth = -1;
                 }
+
                 if (classBraceDepth >= 0 && braceDepth < classBraceDepth)
                 {
                     currentClass = null;
@@ -183,40 +208,52 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
     {
         try
         {
-            var doc = XDocument.Load(path);
-            var root = doc.Root;
-            if (root is null) return;
+            XDocument doc = XDocument.Load(path);
+            XElement? root = doc.Root;
+            if (root is null)
+            {
+                return;
+            }
 
-            var xClass = root.Attributes().FirstOrDefault(a => a.Name.LocalName == "Class")?.Value
-                      ?? root.Attributes().FirstOrDefault(a => a.Name.LocalName == "x:Class")?.Value;
-            if (string.IsNullOrWhiteSpace(xClass)) return;
+            string? xClass = root.Attributes().FirstOrDefault(a => a.Name.LocalName == "Class")?.Value
+                             ?? root.Attributes().FirstOrDefault(a => a.Name.LocalName == "x:Class")?.Value;
+            if (string.IsNullOrWhiteSpace(xClass))
+            {
+                return;
+            }
 
-            var containingType = NormalizeContainingType(xClass!);
-            if (!controls.TryGetValue(containingType, out var set))
+            string containingType = NormalizeContainingType(xClass!);
+            if (!controls.TryGetValue(containingType, out HashSet<(string FieldName, string FieldType)>? set))
             {
                 set = new HashSet<(string FieldName, string FieldType)>();
                 controls[containingType] = set;
             }
 
-            var nsMappings = root.Attributes()
+            Dictionary<string, string> nsMappings = root.Attributes()
                 .Where(a => a.IsNamespaceDeclaration)
                 .ToDictionary(a => a.Name.LocalName, a => a.Value, StringComparer.Ordinal);
 
-            var defaultNs = root.GetDefaultNamespace();
+            XNamespace defaultNs = root.GetDefaultNamespace();
             if (!string.IsNullOrEmpty(defaultNs.NamespaceName) && !nsMappings.ContainsKey(string.Empty))
             {
                 nsMappings[string.Empty] = defaultNs.NamespaceName;
             }
 
-            foreach (var el in root.Descendants())
+            foreach (XElement? el in root.Descendants())
             {
-                var nameAttr = el.Attributes().FirstOrDefault(a => a.Name.LocalName == "Name")
-                            ?? el.Attributes().FirstOrDefault(a => a.Name.LocalName.EndsWith(":Name", StringComparison.Ordinal));
-                if (nameAttr is null) continue;
+                XAttribute? nameAttr = el.Attributes().FirstOrDefault(a => a.Name.LocalName == "Name")
+                                       ?? el.Attributes().FirstOrDefault(a => a.Name.LocalName.EndsWith(":Name", StringComparison.Ordinal));
+                if (nameAttr is null)
+                {
+                    continue;
+                }
 
-                var name = nameAttr.Value;
-                var clrType = ResolveClrType(el.Name, nsMappings);
-                if (clrType is null) continue;
+                string name = nameAttr.Value;
+                string? clrType = ResolveClrType(el.Name, nsMappings);
+                if (clrType is null)
+                {
+                    continue;
+                }
 
                 set.Add((name, NormalizeType(clrType)));
             }
@@ -229,28 +266,40 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
 
     private static string? ResolveClrType(XName elementName, Dictionary<string, string> nsMappings)
     {
-        var local = elementName.LocalName;
-        if (string.IsNullOrEmpty(local)) return null;
+        string local = elementName.LocalName;
+        if (string.IsNullOrEmpty(local))
+        {
+            return null;
+        }
 
-        var ns = elementName.NamespaceName;
+        string ns = elementName.NamespaceName;
         if (!string.IsNullOrEmpty(ns))
         {
-            var resolved = ResolveNamespaceValue(ns, local);
-            if (resolved is not null) return resolved;
+            string? resolved = ResolveNamespaceValue(ns, local);
+            if (resolved is not null)
+            {
+                return resolved;
+            }
 
-            foreach (var mapping in nsMappings)
+            foreach (KeyValuePair<string, string> mapping in nsMappings)
             {
                 if (string.Equals(mapping.Value, ns, StringComparison.Ordinal))
                 {
                     resolved = ResolveNamespaceValue(mapping.Value, local);
-                    if (resolved is not null) return resolved;
+                    if (resolved is not null)
+                    {
+                        return resolved;
+                    }
                 }
             }
         }
-        else if (nsMappings.TryGetValue(string.Empty, out var defaultNamespaceValue))
+        else if (nsMappings.TryGetValue(string.Empty, out string? defaultNamespaceValue))
         {
-            var resolved = ResolveNamespaceValue(defaultNamespaceValue, local);
-            if (resolved is not null) return resolved;
+            string? resolved = ResolveNamespaceValue(defaultNamespaceValue, local);
+            if (resolved is not null)
+            {
+                return resolved;
+            }
         }
 
         return null;
@@ -258,37 +307,53 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
 
     private static string? ResolveNamespaceValue(string nsValue, string local)
     {
-        if (string.IsNullOrWhiteSpace(nsValue)) return null;
+        if (string.IsNullOrWhiteSpace(nsValue))
+        {
+            return null;
+        }
 
         if (nsValue.StartsWith("clr-namespace:", StringComparison.Ordinal))
         {
-            var remainder = nsValue.Substring("clr-namespace:".Length);
-            var separatorIndex = remainder.IndexOf(';');
+            string remainder = nsValue.Substring("clr-namespace:".Length);
+            int separatorIndex = remainder.IndexOf(';');
             if (separatorIndex >= 0)
             {
                 remainder = remainder.Substring(0, separatorIndex);
             }
+
             remainder = remainder.Trim();
-            if (remainder.Length == 0) return null;
+            if (remainder.Length == 0)
+            {
+                return null;
+            }
+
             return remainder + "." + local;
         }
 
         if (nsValue.StartsWith("using:", StringComparison.Ordinal))
         {
-            var remainder = nsValue.Substring("using:".Length).Trim();
-            if (remainder.Length == 0) return null;
+            string remainder = nsValue.Substring("using:".Length).Trim();
+            if (remainder.Length == 0)
+            {
+                return null;
+            }
+
             return remainder + "." + local;
         }
 
-        if (KnownNamespaceMappings.TryGetValue(nsValue, out var clrNamespace))
+        if (KnownNamespaceMappings.TryGetValue(nsValue, out string? clrNamespace))
         {
             return clrNamespace + "." + local;
         }
 
         if (!nsValue.Contains("://", StringComparison.Ordinal))
         {
-            var trimmed = nsValue.Trim().TrimEnd('.');
-            if (trimmed.Length == 0) return null;
+            string trimmed = nsValue.Trim().TrimEnd('.');
+            if (trimmed.Length == 0)
+            {
+                return null;
+            }
+
             return trimmed + "." + local;
         }
 
@@ -297,29 +362,36 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
 
     private static int CountChar(string text, char ch)
     {
-        var count = 0;
-        foreach (var c in text)
+        int count = 0;
+        foreach (char c in text)
         {
-            if (c == ch) count++;
+            if (c == ch)
+            {
+                count++;
+            }
         }
+
         return count;
     }
 
     private sealed class UiBindingMetadataDto
     {
         public string AssemblyName { get; set; } = string.Empty;
+
         public UiControlTypeDto[] Controls { get; set; } = Array.Empty<UiControlTypeDto>();
     }
 
     private sealed class UiControlTypeDto
     {
         public string Type { get; set; } = string.Empty;
+
         public UiControlFieldDto[] Fields { get; set; } = Array.Empty<UiControlFieldDto>();
     }
 
     private sealed class UiControlFieldDto
     {
         public string Name { get; set; } = string.Empty;
+
         public string Type { get; set; } = string.Empty;
     }
 }

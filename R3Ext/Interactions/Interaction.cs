@@ -1,6 +1,4 @@
 using R3;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace R3Ext;
 
@@ -11,8 +9,12 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
 
     public IDisposable RegisterHandler(Action<IInteractionContext<TInput, TOutput>> handler)
     {
-        if (handler is null) throw new ArgumentNullException(nameof(handler));
-        return RegisterHandler(ctx =>
+        if (handler is null)
+        {
+            throw new ArgumentNullException(nameof(handler));
+        }
+
+        return this.RegisterHandler(ctx =>
         {
             handler(ctx);
             return Observable.ReturnUnit();
@@ -21,33 +23,45 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
 
     public IDisposable RegisterHandler(Func<IInteractionContext<TInput, TOutput>, Task> handler)
     {
-        if (handler is null) throw new ArgumentNullException(nameof(handler));
-        return RegisterHandler(ctx => Observable.FromAsync(async ct => { await handler(ctx); }));
+        if (handler is null)
+        {
+            throw new ArgumentNullException(nameof(handler));
+        }
+
+        return this.RegisterHandler(ctx => Observable.FromAsync(async ct => { await handler(ctx); }));
     }
 
     public IDisposable RegisterHandler<TDontCare>(Func<IInteractionContext<TInput, TOutput>, Observable<TDontCare>> handler)
     {
-        if (handler is null) throw new ArgumentNullException(nameof(handler));
+        if (handler is null)
+        {
+            throw new ArgumentNullException(nameof(handler));
+        }
 
         Observable<Unit> Wrapper(IInteractionContext<TInput, TOutput> context)
-            => handler(context).Select(_ => Unit.Default);
+        {
+            return handler(context).Select(_ => Unit.Default);
+        }
 
-        AddHandler(Wrapper);
-        return Disposable.Create(() => RemoveHandler(Wrapper));
+        this.AddHandler(Wrapper);
+        return Disposable.Create(() => this.RemoveHandler(Wrapper));
     }
 
     public IDisposable RegisterHandler<TDontCare>(Func<IInteractionContext<TInput, TOutput>, IObservable<TDontCare>> handler)
     {
-        if (handler is null) throw new ArgumentNullException(nameof(handler));
+        if (handler is null)
+        {
+            throw new ArgumentNullException(nameof(handler));
+        }
 
-        return RegisterHandler(ctx => handler(ctx).ToObservable());
+        return this.RegisterHandler(ctx => handler(ctx).ToObservable());
     }
 
     public virtual Observable<TOutput> Handle(TInput input)
     {
-        var context = GenerateContext(input);
+        IOutputContext<TInput, TOutput> context = this.GenerateContext(input);
 
-        return Enumerable.Reverse(GetHandlers())
+        return Enumerable.Reverse(this.GetHandlers())
             .ToObservable()
             .Select(handler => Observable.Defer(() => handler(context)))
             .Concat()
@@ -55,10 +69,9 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
             .IgnoreElements()
             .Select(_ => default(TOutput)!)
             .Concat(
-                Observable.Defer(
-                    () => context.IsHandled
-                        ? Observable.Return(context.GetOutput())
-                        : Observable.Throw<TOutput>(new UnhandledInteractionException<TInput, TOutput>(this, input))));
+                Observable.Defer(() => context.IsHandled
+                    ? Observable.Return(context.GetOutput())
+                    : Observable.Throw<TOutput>(new UnhandledInteractionException<TInput, TOutput>(this, input))));
     }
 
     protected Func<IInteractionContext<TInput, TOutput>, Observable<Unit>>[] GetHandlers()
@@ -70,7 +83,9 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
     }
 
     protected virtual IOutputContext<TInput, TOutput> GenerateContext(TInput input)
-        => new InteractionContext<TInput, TOutput>(input);
+    {
+        return new InteractionContext<TInput, TOutput>(input);
+    }
 
     private void AddHandler(Func<IInteractionContext<TInput, TOutput>, Observable<Unit>> handler)
     {

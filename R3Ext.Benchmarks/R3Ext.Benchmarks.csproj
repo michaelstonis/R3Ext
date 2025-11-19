@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Project Sdk="Microsoft.NET.Sdk">
-    <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <OutputType>Exe</OutputType>
-        <IsPackable>false</IsPackable>
-    </PropertyGroup>
-    <ItemGroup>
-        <PackageReference Include="BenchmarkDotNet"
-                          Version="0.13.12" />
-    </ItemGroup>
-    <ItemGroup>
-        <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
-        <ProjectReference Include="..\R3Ext.Bindings.SourceGenerator\R3Ext.Bindings.SourceGenerator.csproj"
-                          ReferenceOutputAssembly="false"
-                          OutputItemType="Analyzer" />
-    </ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet"
+                      Version="0.13.12"/>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\R3Ext\R3Ext.csproj"/>
+    <ProjectReference Include="..\R3Ext.Bindings.SourceGenerator\R3Ext.Bindings.SourceGenerator.csproj"
+                      ReferenceOutputAssembly="false"
+                      OutputItemType="Analyzer"/>
+  </ItemGroup>
 </Project>

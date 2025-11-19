@@ -1,9 +1,6 @@
-using System;
 using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
-using Microsoft.Maui.Controls;
 using R3;
-using R3Ext;
 
 namespace R3Ext.SampleApp;
 
@@ -15,9 +12,23 @@ public partial class FormPage : ContentPage
         private string _email = string.Empty;
         private bool _acceptTerms;
 
-        public string Name { get => _name; set => SetProperty(ref _name, value); }
-        public string Email { get => _email; set => SetProperty(ref _email, value); }
-        public bool AcceptTerms { get => _acceptTerms; set => SetProperty(ref _acceptTerms, value); }
+        public string Name
+        {
+            get => _name;
+            set => this.SetProperty(ref _name, value);
+        }
+
+        public string Email
+        {
+            get => _email;
+            set => this.SetProperty(ref _email, value);
+        }
+
+        public bool AcceptTerms
+        {
+            get => _acceptTerms;
+            set => this.SetProperty(ref _acceptTerms, value);
+        }
     }
 
     private readonly FormViewModel _vm = new();
@@ -25,8 +36,8 @@ public partial class FormPage : ContentPage
 
     public FormPage()
     {
-        InitializeComponent();
-        SetupBindings();
+        this.InitializeComponent();
+        this.SetupBindings();
     }
 
     private void SetupBindings()
@@ -37,11 +48,11 @@ public partial class FormPage : ContentPage
         _vm.BindTwoWay(TermsSwitch, v => v.AcceptTerms, c => c.IsToggled).AddTo(ref _bindings);
 
         // Validation streams
-        var nameValid = _vm.WhenChanged(v => v.Name)
+        Observable<bool> nameValid = _vm.WhenChanged(v => v.Name)
             .Select(n => !string.IsNullOrWhiteSpace(n) && n.Trim().Length >= 2)
             .Share();
 
-        var emailValid = _vm.WhenChanged(v => v.Email)
+        Observable<bool> emailValid = _vm.WhenChanged(v => v.Email)
             .Select(IsValidEmail)
             .Share();
 
@@ -53,19 +64,23 @@ public partial class FormPage : ContentPage
         emailValid.Subscribe(ok => EmailError.Text = ok ? string.Empty : "Please enter a valid email.").AddTo(ref _bindings);
 
         // Enable submit when all valid
-        new[] { nameValid, emailValid, termsValid }.CombineLatestValuesAreAllTrue()
+        new[] { nameValid, emailValid, termsValid, }.CombineLatestValuesAreAllTrue()
             .Subscribe(ok => SubmitBtn.IsEnabled = ok)
             .AddTo(ref _bindings);
     }
 
-    static bool IsValidEmail(string? email)
+    private static bool IsValidEmail(string? email)
     {
-        if (string.IsNullOrWhiteSpace(email)) return false;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return false;
+        }
+
         // very simple pattern for demo purposes
         return Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
     }
 
-    void OnSubmit(object? sender, EventArgs e)
+    private void OnSubmit(object? sender, EventArgs e)
     {
         SubmitStatus.Text = $"Submitted: {_vm.Name} <{_vm.Email}>";
     }

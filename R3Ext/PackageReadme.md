@@ -1,11 +1,14 @@
 # R3Ext
 
-Extensions and utilities for the [R3 reactive library](https://github.com/Cysharp/R3) including ReactiveUI-compatible components.
+Extensions and utilities for the [R3 reactive library](https://github.com/Cysharp/R3) including ReactiveUI-compatible
+components.
 
 ## Features
 
 ### RxCommand
+
 Reactive command implementation with:
+
 - Synchronous and asynchronous execution
 - Observable result streams
 - CanExecute gating
@@ -14,7 +17,9 @@ Reactive command implementation with:
 - Command composition
 
 ### RxObject & RxRecord
+
 Reactive base classes for ViewModels:
+
 - PropertyChanging/PropertyChanged events
 - Reactive Changing/Changed observable streams
 - RaiseAndSetIfChanged helper
@@ -22,6 +27,7 @@ Reactive base classes for ViewModels:
 - Works with class (RxObject) and record (RxRecord) types
 
 ### Extension Methods
+
 - Command mixins (InvokeCommand with projection)
 - Async coordination helpers
 - Creation operators
@@ -30,6 +36,7 @@ Reactive base classes for ViewModels:
 - Collection operators
 
 ### Source Generators
+
 - Data binding code generation
 - Property change notification helpers
 

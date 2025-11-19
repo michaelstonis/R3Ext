@@ -2,6 +2,6 @@
 
 ### New Rules
 
-Rule ID | Category | Severity | Notes
---------|----------|----------|-------
-R3BG001 | BindingGenerator | Warning | Incomplete binding generation
+ Rule ID | Category         | Severity | Notes                         
+---------|------------------|----------|-------------------------------
+ R3BG001 | BindingGenerator | Warning  | Incomplete binding generation 

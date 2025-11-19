@@ -11,19 +11,19 @@ public sealed class ConverterPlaygroundViewModel : ObservableObject
     public double TemperatureCelsius
     {
         get => _temperatureCelsius;
-        set => SetProperty(ref _temperatureCelsius, value);
+        set => this.SetProperty(ref _temperatureCelsius, value);
     }
 
     public double Humidity
     {
         get => _humidity;
-        set => SetProperty(ref _humidity, value);
+        set => this.SetProperty(ref _humidity, value);
     }
 
     public bool IsRaining
     {
         get => _isRaining;
-        set => SetProperty(ref _isRaining, value);
+        set => this.SetProperty(ref _isRaining, value);
     }
 }
 
@@ -37,24 +37,24 @@ public sealed class ConversionFormViewModel : ObservableObject
     public decimal UnitPrice
     {
         get => _unitPrice;
-        set => SetProperty(ref _unitPrice, value);
+        set => this.SetProperty(ref _unitPrice, value);
     }
 
     public int Quantity
     {
         get => _quantity;
-        set => SetProperty(ref _quantity, value);
+        set => this.SetProperty(ref _quantity, value);
     }
 
     public double Discount
     {
         get => _discount;
-        set => SetProperty(ref _discount, value);
+        set => this.SetProperty(ref _discount, value);
     }
 
     public double TaxRate
     {
         get => _taxRate;
-        set => SetProperty(ref _taxRate, value);
+        set => this.SetProperty(ref _taxRate, value);
     }
 }

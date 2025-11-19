@@ -1,19 +1,44 @@
-﻿using Microsoft.Maui.Controls;
-
-namespace R3Ext.SampleApp;
+﻿namespace R3Ext.SampleApp;
 
 public partial class MainPage : ContentPage
 {
-	public MainPage()
-	{
-		InitializeComponent();
-	}
+    public MainPage()
+    {
+        this.InitializeComponent();
+    }
 
-	async void OnGoBasics(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//BasicsPage");
-	async void OnGoDeep(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//DeepBindingPage");
-	async void OnGoConverters(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//ConverterPlaygroundPage");
-	async void OnGoConversionForm(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//ConversionFormPage");
-	async void OnGoControls(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//ControlsPage");
-	async void OnGoPerformance(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//PerformancePage");
-	async void OnGoForm(object? sender, EventArgs e) => await Shell.Current.GoToAsync("//FormPage");
+    private async void OnGoBasics(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//BasicsPage");
+    }
+
+    private async void OnGoDeep(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//DeepBindingPage");
+    }
+
+    private async void OnGoConverters(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//ConverterPlaygroundPage");
+    }
+
+    private async void OnGoConversionForm(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//ConversionFormPage");
+    }
+
+    private async void OnGoControls(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//ControlsPage");
+    }
+
+    private async void OnGoPerformance(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//PerformancePage");
+    }
+
+    private async void OnGoForm(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//FormPage");
+    }
 }

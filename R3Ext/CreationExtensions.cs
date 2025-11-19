@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using R3;
 
 namespace R3Ext;
@@ -21,6 +19,7 @@ public static class CreationExtensions
             {
                 observer.OnNext(items[i]);
             }
+
             observer.OnCompleted();
             return Disposable.Create(() => { });
         });
@@ -32,12 +31,20 @@ public static class CreationExtensions
     public static Observable<TResult> Using<TResource, TResult>(Func<TResource> resourceFactory, Func<TResource, Observable<TResult>> observableFactory)
         where TResource : IDisposable
     {
-        if (resourceFactory is null) throw new ArgumentNullException(nameof(resourceFactory));
-        if (observableFactory is null) throw new ArgumentNullException(nameof(observableFactory));
+        if (resourceFactory is null)
+        {
+            throw new ArgumentNullException(nameof(resourceFactory));
+        }
+
+        if (observableFactory is null)
+        {
+            throw new ArgumentNullException(nameof(observableFactory));
+        }
+
         return Observable.Create<TResult>(observer =>
         {
-            var resource = resourceFactory();
-            var subscription = observableFactory(resource).Subscribe(observer);
+            TResource resource = resourceFactory();
+            IDisposable subscription = observableFactory(resource).Subscribe(observer);
             return Disposable.Combine(subscription, resource);
         });
     }
@@ -47,12 +54,17 @@ public static class CreationExtensions
     /// </summary>
     public static Observable<Unit> Start(Action action, bool configureAwait = true)
     {
-        if (action is null) throw new ArgumentNullException(nameof(action));
-        return Observable.FromAsync(async ct =>
+        if (action is null)
         {
-            action();
-            await ValueTask.CompletedTask;
-        }, configureAwait);
+            throw new ArgumentNullException(nameof(action));
+        }
+
+        return Observable.FromAsync(
+            async ct =>
+            {
+                action();
+                await ValueTask.CompletedTask;
+            }, configureAwait);
     }
 
     /// <summary>
@@ -60,7 +72,11 @@ public static class CreationExtensions
     /// </summary>
     public static Observable<TResult> Start<TResult>(Func<TResult> func, bool configureAwait = true)
     {
-        if (func is null) throw new ArgumentNullException(nameof(func));
+        if (func is null)
+        {
+            throw new ArgumentNullException(nameof(func));
+        }
+
         return Observable.FromAsync(ct => new ValueTask<TResult>(func()), configureAwait);
     }
 }

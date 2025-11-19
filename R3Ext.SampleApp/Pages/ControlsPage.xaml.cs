@@ -1,8 +1,5 @@
-using System;
 using CommunityToolkit.Mvvm.ComponentModel;
-using Microsoft.Maui.Controls;
 using R3;
-using R3Ext;
 
 namespace R3Ext.SampleApp;
 
@@ -16,11 +13,35 @@ public partial class ControlsPage : ContentPage
         private DateTime _date = DateTime.Today;
         private TimeSpan _time = DateTime.Now.TimeOfDay;
 
-        public double SliderValue { get => _sliderValue; set => SetProperty(ref _sliderValue, value); }
-        public double StepperValue { get => _stepperValue; set => SetProperty(ref _stepperValue, value); }
-        public bool Toggle { get => _toggle; set => SetProperty(ref _toggle, value); }
-        public DateTime Date { get => _date; set => SetProperty(ref _date, value); }
-        public TimeSpan Time { get => _time; set => SetProperty(ref _time, value); }
+        public double SliderValue
+        {
+            get => _sliderValue;
+            set => this.SetProperty(ref _sliderValue, value);
+        }
+
+        public double StepperValue
+        {
+            get => _stepperValue;
+            set => this.SetProperty(ref _stepperValue, value);
+        }
+
+        public bool Toggle
+        {
+            get => _toggle;
+            set => this.SetProperty(ref _toggle, value);
+        }
+
+        public DateTime Date
+        {
+            get => _date;
+            set => this.SetProperty(ref _date, value);
+        }
+
+        public TimeSpan Time
+        {
+            get => _time;
+            set => this.SetProperty(ref _time, value);
+        }
     }
 
     private readonly ControlsViewModel _vm = new();
@@ -28,8 +49,8 @@ public partial class ControlsPage : ContentPage
 
     public ControlsPage()
     {
-        InitializeComponent();
-        SetupBindings();
+        this.InitializeComponent();
+        this.SetupBindings();
     }
 
     private void SetupBindings()

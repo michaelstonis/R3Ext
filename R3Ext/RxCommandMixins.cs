@@ -1,5 +1,4 @@
-using System;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using R3;
 
 namespace R3Ext;
@@ -15,8 +14,16 @@ public static class RxCommandMixins
     /// </summary>
     public static IDisposable InvokeCommand<T>(this Observable<T> source, ICommand command)
     {
-        if (source == null) throw new ArgumentNullException(nameof(source));
-        if (command == null) throw new ArgumentNullException(nameof(command));
+        if (source == null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (command == null)
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+
         return source
             .Where(v => command.CanExecute(v))
             .Subscribe(v => command.Execute(v));
@@ -27,8 +34,16 @@ public static class RxCommandMixins
     /// </summary>
     public static IDisposable InvokeCommand<T>(this Observable<T> source, RxCommand<Unit, Unit> command)
     {
-        if (source == null) throw new ArgumentNullException(nameof(source));
-        if (command == null) throw new ArgumentNullException(nameof(command));
+        if (source == null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (command == null)
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+
         return source
             .WithLatestFrom(command.CanExecute, (v, can) => can)
             .Where(can => can)
@@ -40,8 +55,16 @@ public static class RxCommandMixins
     /// </summary>
     public static IDisposable InvokeCommand<TInput, TOutput>(this Observable<TInput> source, RxCommand<TInput, TOutput> command)
     {
-        if (source == null) throw new ArgumentNullException(nameof(source));
-        if (command == null) throw new ArgumentNullException(nameof(command));
+        if (source == null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (command == null)
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+
         return source
             .WithLatestFrom(command.CanExecute, (v, can) => (v, can))
             .Where(x => x.can)
@@ -56,9 +79,21 @@ public static class RxCommandMixins
         RxCommand<TInput, TOutput> command,
         Func<TSource, TInput> selector)
     {
-        if (source == null) throw new ArgumentNullException(nameof(source));
-        if (command == null) throw new ArgumentNullException(nameof(command));
-        if (selector == null) throw new ArgumentNullException(nameof(selector));
+        if (source == null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (command == null)
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+
+        if (selector == null)
+        {
+            throw new ArgumentNullException(nameof(selector));
+        }
+
         return source
             .Select(selector)
             .WithLatestFrom(command.CanExecute, (param, can) => (param, can))
@@ -74,9 +109,21 @@ public static class RxCommandMixins
         RxCommand<TInput, TOutput> command,
         Func<TSource, TInput> selector)
     {
-        if (source == null) throw new ArgumentNullException(nameof(source));
-        if (command == null) throw new ArgumentNullException(nameof(command));
-        if (selector == null) throw new ArgumentNullException(nameof(selector));
+        if (source == null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (command == null)
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+
+        if (selector == null)
+        {
+            throw new ArgumentNullException(nameof(selector));
+        }
+
         return source.ToObservable().InvokeCommand(command, selector);
     }
 }

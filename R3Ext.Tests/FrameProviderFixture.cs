@@ -1,6 +1,4 @@
-using System;
 using R3;
-using Xunit;
 
 namespace R3Ext.Tests;
 
@@ -9,6 +7,7 @@ namespace R3Ext.Tests;
 public sealed class FrameProviderFixture : IDisposable
 {
     private readonly dynamic _previous;
+
     public FakeFrameProvider Provider { get; } = new();
 
     public FrameProviderFixture()
@@ -17,7 +16,10 @@ public sealed class FrameProviderFixture : IDisposable
         ObservableSystem.DefaultFrameProvider = Provider;
     }
 
-    public void Advance() => Provider.Advance();
+    public void Advance()
+    {
+        Provider.Advance();
+    }
 
     public void Dispose()
     {

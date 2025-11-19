@@ -1,8 +1,5 @@
-using System;
 using CommunityToolkit.Mvvm.ComponentModel;
-using Microsoft.Maui.Controls;
 using R3;
-using R3Ext;
 
 namespace R3Ext.SampleApp;
 
@@ -13,9 +10,22 @@ public partial class PerformancePage : ContentPage
         private string _input = string.Empty;
         private int _clicks;
 
-        public string Input { get => _input; set => SetProperty(ref _input, value); }
-        public int Clicks { get => _clicks; set => SetProperty(ref _clicks, value); }
-        public void Increment(int by = 1) => Clicks += by;
+        public string Input
+        {
+            get => _input;
+            set => this.SetProperty(ref _input, value);
+        }
+
+        public int Clicks
+        {
+            get => _clicks;
+            set => this.SetProperty(ref _clicks, value);
+        }
+
+        public void Increment(int by = 1)
+        {
+            Clicks += by;
+        }
     }
 
     private readonly PerfViewModel _vm = new();
@@ -23,8 +33,8 @@ public partial class PerformancePage : ContentPage
 
     public PerformancePage()
     {
-        InitializeComponent();
-        SetupBindings();
+        this.InitializeComponent();
+        this.SetupBindings();
     }
 
     private void SetupBindings()
@@ -53,8 +63,15 @@ public partial class PerformancePage : ContentPage
             .AddTo(ref _bindings);
     }
 
-    void OnSpam(object? sender, EventArgs e) => _vm.Increment();
-    void OnSpam10(object? sender, EventArgs e) => _vm.Increment(10);
+    private void OnSpam(object? sender, EventArgs e)
+    {
+        _vm.Increment();
+    }
+
+    private void OnSpam10(object? sender, EventArgs e)
+    {
+        _vm.Increment(10);
+    }
 
     protected override void OnDisappearing()
     {

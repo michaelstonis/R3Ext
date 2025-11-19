@@ -1,121 +1,51 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0"
+    encoding="utf-8" ?>
+
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="R3Ext.SampleApp.DeepBindingPage"
-             Title="Deep Binding">
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" x:Class="R3Ext.SampleApp.DeepBindingPage"
+    Title="Deep Binding">
     <ScrollView>
-        <VerticalStackLayout Padding="20"
-                             Spacing="18">
-            <Label Text="Deep Chain Diagnostics"
-                   Style="{StaticResource SubHeadline}" />
-            <Grid ColumnDefinitions="140,*"
-                  RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
-                  RowSpacing="6">
-                <Label Text="Root"
-                       Grid.Row="0" />
-                <Label x:Name="DeepRootLabel"
-                       Text="(waiting)"
-                       Grid.Row="0"
-                       Grid.Column="1" />
-                <Label Text="A"
-                       Grid.Row="1" />
-                <Label x:Name="DeepALabel"
-                       Text="(waiting)"
-                       Grid.Row="1"
-                       Grid.Column="1" />
-                <Label Text="B"
-                       Grid.Row="2" />
-                <Label x:Name="DeepBLabel"
-                       Text="(waiting)"
-                       Grid.Row="2"
-                       Grid.Column="1" />
-                <Label Text="C"
-                       Grid.Row="3" />
-                <Label x:Name="DeepCLabel"
-                       Text="(waiting)"
-                       Grid.Row="3"
-                       Grid.Column="1" />
-                <Label Text="D"
-                       Grid.Row="4" />
-                <Label x:Name="DeepDLabel"
-                       Text="(waiting)"
-                       Grid.Row="4"
-                       Grid.Column="1" />
-                <Label Text="Leaf"
-                       Grid.Row="5" />
-                <Label x:Name="DeepLeafLabel"
-                       Text="(waiting)"
-                       Grid.Row="5"
-                       Grid.Column="1" />
-                <Label Text="Leaf.Name"
-                       Grid.Row="6" />
-                <Label x:Name="DeepLeafNameLabel"
-                       Text="(waiting)"
-                       Grid.Row="6"
-                       Grid.Column="1" />
+        <VerticalStackLayout Padding="20" Spacing="18">
+            <Label Text="Deep Chain Diagnostics" Style="{StaticResource SubHeadline}" />
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+                <Label Text="Root" Grid.Row="0" />
+                <Label x:Name="DeepRootLabel" Text="(waiting)" Grid.Row="0" Grid.Column="1" />
+                <Label Text="A" Grid.Row="1" />
+                <Label x:Name="DeepALabel" Text="(waiting)" Grid.Row="1" Grid.Column="1" />
+                <Label Text="B" Grid.Row="2" />
+                <Label x:Name="DeepBLabel" Text="(waiting)" Grid.Row="2" Grid.Column="1" />
+                <Label Text="C" Grid.Row="3" />
+                <Label x:Name="DeepCLabel" Text="(waiting)" Grid.Row="3" Grid.Column="1" />
+                <Label Text="D" Grid.Row="4" />
+                <Label x:Name="DeepDLabel" Text="(waiting)" Grid.Row="4" Grid.Column="1" />
+                <Label Text="Leaf" Grid.Row="5" />
+                <Label x:Name="DeepLeafLabel" Text="(waiting)" Grid.Row="5" Grid.Column="1" />
+                <Label Text="Leaf.Name" Grid.Row="6" />
+                <Label x:Name="DeepLeafNameLabel" Text="(waiting)" Grid.Row="6" Grid.Column="1" />
             </Grid>
-            <Label Text="Mixed Chain Diagnostics"
-                   Style="{StaticResource SubHeadline}" />
-            <Grid ColumnDefinitions="140,*"
-                  RowDefinitions="Auto,Auto,Auto,Auto"
-                  RowSpacing="6">
-                <Label Text="Root"
-                       Grid.Row="0" />
-                <Label x:Name="MixedRootLabel"
-                       Text="(waiting)"
-                       Grid.Row="0"
-                       Grid.Column="1" />
-                <Label Text="NonNotify"
-                       Grid.Row="1" />
-                <Label x:Name="MixedParentLabel"
-                       Text="(waiting)"
-                       Grid.Row="1"
-                       Grid.Column="1" />
-                <Label Text="Child"
-                       Grid.Row="2" />
-                <Label x:Name="MixedChildLabel"
-                       Text="(waiting)"
-                       Grid.Row="2"
-                       Grid.Column="1" />
-                <Label Text="Child.Name"
-                       Grid.Row="3" />
-                <Label x:Name="MixedChildNameLabel"
-                       Text="(waiting)"
-                       Grid.Row="3"
-                       Grid.Column="1" />
+            <Label Text="Mixed Chain Diagnostics" Style="{StaticResource SubHeadline}" />
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
+                <Label Text="Root" Grid.Row="0" />
+                <Label x:Name="MixedRootLabel" Text="(waiting)" Grid.Row="0" Grid.Column="1" />
+                <Label Text="NonNotify" Grid.Row="1" />
+                <Label x:Name="MixedParentLabel" Text="(waiting)" Grid.Row="1" Grid.Column="1" />
+                <Label Text="Child" Grid.Row="2" />
+                <Label x:Name="MixedChildLabel" Text="(waiting)" Grid.Row="2" Grid.Column="1" />
+                <Label Text="Child.Name" Grid.Row="3" />
+                <Label x:Name="MixedChildNameLabel" Text="(waiting)" Grid.Row="3" Grid.Column="1" />
             </Grid>
-            <Label Text="Binding Playground"
-                   Style="{StaticResource SubHeadline}" />
-            <Grid ColumnDefinitions="160,*"
-                  RowDefinitions="Auto,Auto,Auto,Auto"
-                  RowSpacing="6">
-                <Label Text="Deep Leaf (two-way)"
-                       Grid.Row="0" />
-                <Entry x:Name="DeepLeafEntry"
-                       Grid.Row="0"
-                       Grid.Column="1"
-                       Placeholder="Edit deep leaf name" />
-                <Label Text="Deep Leaf Mirror"
-                       Grid.Row="1" />
-                <Label x:Name="DeepLeafMirrorLabel"
-                       Text="(waiting)"
-                       Grid.Row="1"
-                       Grid.Column="1" />
-                <Label Text="Mixed Child (two-way)"
-                       Grid.Row="2" />
-                <Entry x:Name="MixedChildEntry"
-                       Grid.Row="2"
-                       Grid.Column="1"
-                       Placeholder="Edit mixed child name" />
-                <Label Text="Mixed Child Mirror"
-                       Grid.Row="3" />
-                <Label x:Name="MixedChildMirrorLabel"
-                       Text="(waiting)"
-                       Grid.Row="3"
-                       Grid.Column="1" />
+            <Label Text="Binding Playground" Style="{StaticResource SubHeadline}" />
+            <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
+                <Label Text="Deep Leaf (two-way)" Grid.Row="0" />
+                <Entry x:Name="DeepLeafEntry" Grid.Row="0" Grid.Column="1" Placeholder="Edit deep leaf name" />
+                <Label Text="Deep Leaf Mirror" Grid.Row="1" />
+                <Label x:Name="DeepLeafMirrorLabel" Text="(waiting)" Grid.Row="1" Grid.Column="1" />
+                <Label Text="Mixed Child (two-way)" Grid.Row="2" />
+                <Entry x:Name="MixedChildEntry" Grid.Row="2" Grid.Column="1" Placeholder="Edit mixed child name" />
+                <Label Text="Mixed Child Mirror" Grid.Row="3" />
+                <Label x:Name="MixedChildMirrorLabel" Text="(waiting)" Grid.Row="3" Grid.Column="1" />
             </Grid>
-            <Button Text="Mutate Chain"
-                    Clicked="OnMutate" />
+            <Button Text="Mutate Chain" Clicked="OnMutate" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

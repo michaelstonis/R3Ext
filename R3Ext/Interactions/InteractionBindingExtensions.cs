@@ -1,6 +1,4 @@
-using System;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
 using R3;
 
 namespace R3Ext;
@@ -11,16 +9,28 @@ public static class InteractionBindingExtensions
         this TViewModel viewModel,
         Expression<Func<TViewModel, Interaction<TInput, TOutput>?>> interactionProperty,
         Func<IInteractionContext<TInput, TOutput>, Task> handler,
-        [System.Runtime.CompilerServices.CallerArgumentExpression("interactionProperty")] string? propertyExpressionPath = null)
+        [System.Runtime.CompilerServices.CallerArgumentExpression("interactionProperty")]
+        string? propertyExpressionPath = null)
     {
-        if (viewModel is null) throw new ArgumentNullException(nameof(viewModel));
-        if (interactionProperty is null) throw new ArgumentNullException(nameof(interactionProperty));
-        if (handler is null) throw new ArgumentNullException(nameof(handler));
+        if (viewModel is null)
+        {
+            throw new ArgumentNullException(nameof(viewModel));
+        }
+
+        if (interactionProperty is null)
+        {
+            throw new ArgumentNullException(nameof(interactionProperty));
+        }
+
+        if (handler is null)
+        {
+            throw new ArgumentNullException(nameof(handler));
+        }
 
         Interaction<TInput, TOutput>? currentInstance = null;
         IDisposable? currentRegistration = null;
 
-        var subscription = viewModel.WhenChanged(interactionProperty, propertyExpressionPath)
+        IDisposable subscription = viewModel.WhenChanged(interactionProperty, propertyExpressionPath)
             .Subscribe(newInstance =>
             {
                 if (!ReferenceEquals(newInstance, currentInstance))
@@ -42,9 +52,14 @@ public static class InteractionBindingExtensions
         this TViewModel viewModel,
         Expression<Func<TViewModel, Interaction<TInput, TOutput>?>> interactionProperty,
         Action<IInteractionContext<TInput, TOutput>> handler,
-        [System.Runtime.CompilerServices.CallerArgumentExpression("interactionProperty")] string? propertyExpressionPath = null)
+        [System.Runtime.CompilerServices.CallerArgumentExpression("interactionProperty")]
+        string? propertyExpressionPath = null)
     {
-        if (handler is null) throw new ArgumentNullException(nameof(handler));
+        if (handler is null)
+        {
+            throw new ArgumentNullException(nameof(handler));
+        }
+
         return viewModel.BindInteraction(interactionProperty, ctx =>
         {
             handler(ctx);
@@ -56,16 +71,28 @@ public static class InteractionBindingExtensions
         this TViewModel viewModel,
         Expression<Func<TViewModel, Interaction<TInput, TOutput>?>> interactionProperty,
         Func<IInteractionContext<TInput, TOutput>, Observable<TDontCare>> handler,
-        [System.Runtime.CompilerServices.CallerArgumentExpression("interactionProperty")] string? propertyExpressionPath = null)
+        [System.Runtime.CompilerServices.CallerArgumentExpression("interactionProperty")]
+        string? propertyExpressionPath = null)
     {
-        if (viewModel is null) throw new ArgumentNullException(nameof(viewModel));
-        if (interactionProperty is null) throw new ArgumentNullException(nameof(interactionProperty));
-        if (handler is null) throw new ArgumentNullException(nameof(handler));
+        if (viewModel is null)
+        {
+            throw new ArgumentNullException(nameof(viewModel));
+        }
+
+        if (interactionProperty is null)
+        {
+            throw new ArgumentNullException(nameof(interactionProperty));
+        }
+
+        if (handler is null)
+        {
+            throw new ArgumentNullException(nameof(handler));
+        }
 
         Interaction<TInput, TOutput>? currentInstance = null;
         IDisposable? currentRegistration = null;
 
-        var subscription = viewModel.WhenChanged(interactionProperty, propertyExpressionPath)
+        IDisposable subscription = viewModel.WhenChanged(interactionProperty, propertyExpressionPath)
             .Subscribe(newInstance =>
             {
                 if (!ReferenceEquals(newInstance, currentInstance))

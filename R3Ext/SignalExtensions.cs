@@ -1,4 +1,3 @@
-using System;
 using R3;
 
 namespace R3Ext;
@@ -14,7 +13,11 @@ public static class SignalExtensions
     /// </summary>
     public static Observable<Unit> AsSignal<T>(this Observable<T> source)
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
         return source.AsUnitObservable();
     }
 }

@@ -21,6 +21,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Testing", "Testing", "{F202
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Platforms", "Platforms", "{596203A4-13AC-4F73-9740-9D3374BE6608}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "[ Solution ]", "[ Solution ]", "{2B83DD64-4579-407B-B3D2-BB506042AAED}"
+	ProjectSection(SolutionItems) = preProject
+		GitVersion.yml = GitVersion.yml
+		Directory.Build.props = Directory.Build.props
+		.gitignore = .gitignore
+		.gitattributes = .gitattributes
+		README.md = README.md
+		.editorconfig = .editorconfig
+		stylecop.json = stylecop.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
