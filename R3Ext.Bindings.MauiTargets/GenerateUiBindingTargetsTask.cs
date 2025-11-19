@@ -346,7 +346,8 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
             return clrNamespace + "." + local;
         }
 
-        if (!nsValue.Contains("://", StringComparison.Ordinal))
+        // netstandard2.0 compatibility: string.Contains(value, StringComparison) is unavailable
+        if (nsValue.IndexOf("://", StringComparison.Ordinal) < 0)
         {
             string trimmed = nsValue.Trim().TrimEnd('.');
             if (trimmed.Length == 0)
