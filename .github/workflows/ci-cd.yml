@@ -60,17 +60,21 @@ jobs:
     
     - name: Build Libraries (exclude samples)
       run: |
-        # Build only publishable library/source generator projects with version metadata
-        dotnet build R3Ext/R3Ext.csproj --configuration Release --no-restore \
-          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
-          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
-          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
-          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+        # Build source generator first (dependency for main library)
         dotnet build R3Ext.Bindings.SourceGenerator/R3Ext.Bindings.SourceGenerator.csproj --configuration Release --no-restore \
           /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
           /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
           /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
           /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+        
+        # Build main library (uses source generator)
+        dotnet build R3Ext/R3Ext.csproj --configuration Release --no-restore \
+          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
+          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
+          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
+          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+        
+        # Build MAUI targets
         dotnet build R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj --configuration Release --no-restore \
           /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
           /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \

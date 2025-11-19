@@ -27,7 +27,7 @@
                           PrivateAssets="all" />
     </ItemGroup>
     <ItemGroup>
-        <!-- Include the source generator assembly as analyzer -->
-        <Analyzer Include="$(TargetPath)" />
+        <!-- Package the built DLL as analyzer during pack -->
+        <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     </ItemGroup>
 </Project>
