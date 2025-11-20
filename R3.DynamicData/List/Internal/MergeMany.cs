@@ -1,5 +1,7 @@
 // Port of DynamicData to R3.
 
+using R3.DynamicData.List;
+
 namespace R3.DynamicData.List.Internal;
 
 internal sealed class MergeMany<TSource, TDestination>
