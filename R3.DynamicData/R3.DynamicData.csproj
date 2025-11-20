@@ -1,8 +1,7 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFrameworks>net9.0;net8.0;net6.0;netstandard2.0</TargetFrameworks>
-        <LangVersion>12.0</LangVersion>
+        <TargetFrameworks>net9.0;</TargetFrameworks>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -11,8 +10,7 @@
         <Title>R3 Dynamic Data</Title>
         <Description>DynamicData ported to R3 - Reactive collections for high-performance scenarios. API-compatible with DynamicData but powered by R3 for superior performance.</Description>
         <PackageTags>reactive;rx;r3;dynamicdata;collections;observable;linq</PackageTags>
-        <Authors>Michael Stonis</Authors>
-        <Copyright>Copyright (c) 2025 Michael Stonis</Copyright>
+        <Copyright>Copyright (c) 2025</Copyright>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/michaelstonis/R3Ext</RepositoryUrl>
     </PropertyGroup>
