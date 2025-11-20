@@ -198,6 +198,18 @@ public static class ObservableListEx
         return new Internal.DynamicFilter<T>(source, predicateChanged).Run();
     }
 
+    public static Observable<IChangeSet<T>> Reverse<T>(
+        this Observable<IChangeSet<T>> source)
+    {
+        return new Internal.Reverse<T>(source).Run();
+    }
+
+    public static Observable<IChangeSet<T>> RemoveIndex<T>(
+        this Observable<IChangeSet<T>> source)
+    {
+        return new Internal.RemoveIndex<T>(source).Run();
+    }
+
     public static Observable<IChangeSet<T>> DisposeMany<T>(
         this Observable<IChangeSet<T>> source)
         where T : IDisposable

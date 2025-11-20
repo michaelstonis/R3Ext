@@ -6,12 +6,46 @@ namespace R3Ext.Tests;
 
 public class RemoveIndexTests
 {
-    [Fact(Skip="RemoveIndex operator not implemented yet")]
+    [Fact]
     public void RemoveIndex_RemovesIndicesFromAllChanges()
     {
-        // Placeholder: original test logic removed because RemoveIndex operator is not yet implemented.
-        // The previous body subscribed to source.Connect().RemoveIndex() and performed a sequence of mutations
-        // asserting indices were normalized to -1. Once the operator is added, restore that logic.
-        Assert.True(true);
+        var source = new SourceList<int>();
+        var captured = new List<IChangeSet<int>>();
+        var subscription = source.Connect().RemoveIndex().Subscribe(c => captured.Add(c));
+
+        source.Add(1);
+        source.Add(2);
+        source.AddRange(new[] { 3, 4 });
+        source.Move(0, 2); // Move operation
+        source.Replace(1, 5); // Replace operation at index 1
+        source.Remove(3); // Remove a value from range added
+        source.Clear();
+
+        subscription.Dispose();
+
+        Assert.NotEmpty(captured);
+        foreach (var changeSet in captured)
+        {
+            foreach (var change in changeSet)
+            {
+                switch (change.Reason)
+                {
+                    case ListChangeReason.Moved:
+                        Assert.Equal(-1, change.CurrentIndex);
+                        Assert.Equal(-1, change.PreviousIndex);
+                        break;
+                    case ListChangeReason.Replace:
+                        Assert.Equal(-1, change.CurrentIndex);
+                        Assert.Equal(-1, change.PreviousIndex);
+                        break;
+                    case ListChangeReason.Refresh:
+                        Assert.Equal(-1, change.CurrentIndex);
+                        break;
+                    default:
+                        Assert.Equal(-1, change.CurrentIndex);
+                        break;
+                }
+            }
+        }
     }
 }
