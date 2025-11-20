@@ -1,4 +1,3 @@
-
 // Port of DynamicData to R3.
 
 namespace R3.DynamicData.Cache;
