@@ -30,9 +30,35 @@ public class ChangeSet<T> : IChangeSet<T>
 
     public int TotalChanges => _changes.Count;
 
-    public int Adds => _changes.Count(c => c.Reason == ListChangeReason.Add || c.Reason == ListChangeReason.AddRange);
+    public int Adds => _changes.Sum(c =>
+    {
+        if (c.Reason == ListChangeReason.Add)
+        {
+            return 1;
+        }
 
-    public int Removes => _changes.Count(c => c.Reason == ListChangeReason.Remove || c.Reason == ListChangeReason.RemoveRange || c.Reason == ListChangeReason.Clear);
+        if (c.Reason == ListChangeReason.AddRange)
+        {
+            return c.Range?.Count ?? 0;
+        }
+
+        return 0;
+    });
+
+    public int Removes => _changes.Sum(c =>
+    {
+        if (c.Reason == ListChangeReason.Remove)
+        {
+            return 1;
+        }
+
+        if (c.Reason == ListChangeReason.RemoveRange || c.Reason == ListChangeReason.Clear)
+        {
+            return c.Range?.Count ?? 0;
+        }
+
+        return 0;
+    });
 
     public int Moves => _changes.Count(c => c.Reason == ListChangeReason.Moved);
 
