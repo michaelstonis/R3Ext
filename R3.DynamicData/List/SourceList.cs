@@ -249,7 +249,7 @@ public sealed class SourceList<T> : ISourceList<T>
             var removed = _items.ToList();
             _items.Clear();
             var changeSet = new ChangeSet<T>(1);
-            changeSet.Add(new Change<T>(ListChangeReason.Clear, default!, -1));
+            changeSet.Add(new Change<T>(ListChangeReason.Clear, removed, -1));
             PublishChanges(changeSet);
         }
     }
@@ -415,8 +415,9 @@ public sealed class SourceList<T> : ISourceList<T>
                 return;
             }
 
+            var removed = _source._items.ToList();
             _source._items.Clear();
-            Changes.Add(new Change<T>(ListChangeReason.Clear, default!, -1));
+            Changes.Add(new Change<T>(ListChangeReason.Clear, removed, -1));
         }
     }
 }
