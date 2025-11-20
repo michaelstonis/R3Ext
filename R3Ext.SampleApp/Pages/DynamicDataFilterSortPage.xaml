@@ -6,36 +6,105 @@
     <ScrollView>
         <VerticalStackLayout Padding="20"
                              Spacing="16">
-            <Label Text="Filter and sort people using DynamicData"
-                   Style="{StaticResource SubHeadline}" />
-            <Entry x:Name="FilterEntry"
-                   Placeholder="Filter by name contains..."
-                   TextChanged="OnFilterChanged" />
-            <Grid ColumnDefinitions="*,*"
-                  ColumnSpacing="8">
-                <Button Text="Sort A-Z"
-                        Clicked="OnSortAscending" />
-                <Button Text="Sort Z-A"
-                        Grid.Column="1"
-                        Clicked="OnSortDescending" />
-            </Grid>
+            <Label Text="Filter, Sort, and AutoRefresh with DynamicData"
+                   Style="{StaticResource Headline}" />
+            
+            <!-- Add Person -->
+            <Frame BorderColor="LightBlue" Padding="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Add Person" FontAttributes="Bold" />
+                    <Entry x:Name="NameEntry" Placeholder="Name" />
+                    <Entry x:Name="AgeEntry" Placeholder="Age" Keyboard="Numeric" />
+                    <Button Text="Add Person" Clicked="OnAddPerson" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Filter Controls -->
+            <Frame BorderColor="Purple" Padding="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Filter" FontAttributes="Bold" />
+                    <Entry x:Name="FilterEntry"
+                           Placeholder="Filter by name contains..."
+                           TextChanged="OnFilterChanged" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Text="Age >= 30"
+                                Clicked="OnFilterAge30Plus" />
+                        <Button Text="Show All"
+                                Grid.Column="1"
+                                Clicked="OnShowAll" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Sort Controls -->
+            <Frame BorderColor="Orange" Padding="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Sort" FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Text="Name A-Z"
+                                Clicked="OnSortNameAscending" />
+                        <Button Text="Name Z-A"
+                                Grid.Column="1"
+                                Clicked="OnSortNameDescending" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Text="Age Low-High"
+                                Clicked="OnSortAgeLowHigh" />
+                        <Button Text="Age High-Low"
+                                Grid.Column="1"
+                                Clicked="OnSortAgeHighLow" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Statistics -->
+            <Frame BorderColor="Green" Padding="12">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Statistics" FontAttributes="Bold" />
+                    <Label x:Name="CountLabel" Text="Visible: 0 / Total: 0" />
+                    <Label x:Name="AvgAgeLabel" Text="Avg Age (visible): 0" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- People Collection -->
+            <Label Text="People (AutoRefresh enabled)" FontAttributes="Bold" />
             <CollectionView x:Name="PeopleView"
-                            HeightRequest="400"
+                            HeightRequest="300"
                             SelectionMode="None">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Frame Padding="8"
+                        <Frame Padding="12"
                                Margin="0,4"
                                HasShadow="False"
                                BorderColor="LightGray">
-                            <VerticalStackLayout>
-                                <Label Text="{Binding Name}"
-                                       FontAttributes="Bold" />
-                            </VerticalStackLayout>
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                <VerticalStackLayout Spacing="2">
+                                    <Label Text="{Binding Name}"
+                                           FontAttributes="Bold" />
+                                    <Label Text="{Binding Age, StringFormat='Age: {0}'}"
+                                           FontSize="12"
+                                           TextColor="Gray" />
+                                </VerticalStackLayout>
+                                <Button Grid.Column="1"
+                                        Text="+1 Year"
+                                        Clicked="OnIncrementAge"
+                                        CommandParameter="{Binding .}"
+                                        Padding="8,4"
+                                        FontSize="12" />
+                                <Button Grid.Column="2"
+                                        Text="Remove"
+                                        Clicked="OnRemovePerson"
+                                        CommandParameter="{Binding .}"
+                                        Padding="8,4"
+                                        FontSize="12"
+                                        BackgroundColor="DarkRed" />
+                            </Grid>
                         </Frame>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
+
+            <Button Text="Clear All" Clicked="OnClear" BackgroundColor="DarkRed" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

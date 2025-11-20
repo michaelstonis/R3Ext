@@ -7,24 +7,65 @@
     Title="DynamicData Basics">
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="16">
-            <Label Text="SourceList of int bound to a ListView" Style="{StaticResource SubHeadline}" />
+            <Label Text="SourceList with Multiple Operators" Style="{StaticResource Headline}" />
 
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <Entry x:Name="NewItemEntry" Placeholder="Enter number" Keyboard="Numeric" />
-                <Button Text="Add" Grid.Column="1" Clicked="OnAddItem" />
-            </Grid>
+            <!-- Add Controls -->
+            <Frame BorderColor="LightBlue" Padding="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Add Numbers" FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Entry x:Name="NewItemEntry" Placeholder="Enter number" Keyboard="Numeric" />
+                        <Button Text="Add" Grid.Column="1" Clicked="OnAddItem" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                        <Button Text="Add Random" Clicked="OnAddRandom" />
+                        <Button Text="Add Range (1-10)" Grid.Column="1" Clicked="OnAddRange" />
+                        <Button Text="Clear" Grid.Column="2" Clicked="OnClear" BackgroundColor="DarkRed" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
 
-            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                <Button Text="Add Random" Clicked="OnAddRandom" />
-                <Button Text="Remove Selected" Grid.Column="1" Clicked="OnRemoveSelected" />
-                <Button Text="Clear" Grid.Column="2" Clicked="OnClear" />
-            </Grid>
+            <!-- Operations -->
+            <Frame BorderColor="Purple" Padding="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Operations" FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Text="Sort Ascending" Clicked="OnSortAscending" />
+                        <Button Text="Sort Descending" Grid.Column="1" Clicked="OnSortDescending" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Button Text="Show Even Only" Clicked="OnFilterEven" />
+                        <Button Text="Show All" Grid.Column="1" Clicked="OnShowAll" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
 
-            <CollectionView x:Name="ItemsView" HeightRequest="300" SelectionMode="Single">
+            <!-- Statistics -->
+            <Frame BorderColor="Green" Padding="12">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Live Statistics" FontAttributes="Bold" />
+                    <Label x:Name="CountLabel" Text="Count: 0" />
+                    <Label x:Name="SumLabel" Text="Sum: 0" />
+                    <Label x:Name="FilterLabel" Text="Filter: None" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Items Display -->
+            <Label Text="Current Items" FontAttributes="Bold" />
+            <CollectionView x:Name="ItemsView" HeightRequest="250" SelectionMode="Single">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Frame Padding="8" Margin="0,4" HasShadow="False" BorderColor="LightGray">
-                            <Label Text="{Binding .}" />
+                        <Frame Padding="12" Margin="0,4" HasShadow="False" BorderColor="LightGray">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <Label Text="{Binding .}" FontSize="18" VerticalOptions="Center" />
+                                <Button Grid.Column="1" 
+                                        Text="Remove" 
+                                        Clicked="OnRemoveItem"
+                                        CommandParameter="{Binding .}"
+                                        Padding="8,4"
+                                        FontSize="12"
+                                        BackgroundColor="DarkRed" />
+                            </Grid>
                         </Frame>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>

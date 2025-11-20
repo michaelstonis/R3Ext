@@ -17,6 +17,12 @@
     <ShellContent Title="DD Filter &amp; Sort"
                   ContentTemplate="{DataTemplate local:DynamicDataFilterSortPage}"
                   Route="DynamicDataFilterSortPage" />
+    <ShellContent Title="DD SourceCache"
+                  ContentTemplate="{DataTemplate local:DynamicDataCachePage}"
+                  Route="DynamicDataCachePage" />
+    <ShellContent Title="DD Operators"
+                  ContentTemplate="{DataTemplate local:DynamicDataOperatorsPage}"
+                  Route="DynamicDataOperatorsPage" />
     <ShellContent Title="Deep Binding"
                   ContentTemplate="{DataTemplate local:DeepBindingPage}"
                   Route="DeepBindingPage" />
