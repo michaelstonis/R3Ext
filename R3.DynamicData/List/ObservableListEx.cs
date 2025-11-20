@@ -1192,4 +1192,90 @@ public static class ObservableListEx
             }
         }
     }
+
+    /// <summary>
+    /// Reverses the ordering of the change stream by maintaining an internal list and emitting the reversed view.
+    /// NOTE: Simplified implementation always emits a Clear + AddRange diff after the initial AddRange.
+    /// </summary>
+    public static Observable<IChangeSet<T>> Reverse<T>(this Observable<IChangeSet<T>> source)
+        where T : notnull
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        return Observable.Create<IChangeSet<T>>(observer =>
+        {
+            var forward = new List<T>();
+            var reversed = new List<T>();
+
+            return source.Subscribe(changes =>
+            {
+                // Apply incoming changes to forward list
+                foreach (var change in changes)
+                {
+                    switch (change.Reason)
+                    {
+                        case ListChangeReason.Add:
+                            forward.Insert(change.CurrentIndex, change.Item);
+                            break;
+                        case ListChangeReason.AddRange:
+                            forward.InsertRange(change.CurrentIndex, change.Range);
+                            break;
+                        case ListChangeReason.Remove:
+                            forward.RemoveAt(change.CurrentIndex);
+                            break;
+                        case ListChangeReason.RemoveRange:
+                            forward.RemoveRange(change.CurrentIndex, change.Range.Count);
+                            break;
+                        case ListChangeReason.Replace:
+                            forward[change.CurrentIndex] = change.Item;
+                            break;
+                        case ListChangeReason.Moved:
+                            var item = forward[change.PreviousIndex];
+                            forward.RemoveAt(change.PreviousIndex);
+                            forward.Insert(change.CurrentIndex, item);
+                            break;
+                        case ListChangeReason.Clear:
+                            forward.Clear();
+                            break;
+                        case ListChangeReason.Refresh:
+                            // No structural change
+                            break;
+                    }
+                }
+
+                var newReversed = forward.AsEnumerable().Reverse().ToList();
+
+                var diff = new ChangeSet<T>();
+                if (reversed.Count == 0 && newReversed.Count > 0)
+                {
+                    diff.Add(new Change<T>(ListChangeReason.AddRange, newReversed, 0));
+                }
+                else if (newReversed.Count == 0 && reversed.Count > 0)
+                {
+                    diff.Add(new Change<T>(ListChangeReason.Clear, reversed, -1));
+                }
+                else if (!newReversed.SequenceEqual(reversed))
+                {
+                    // Simplified: emit clear + add range
+                    if (reversed.Count > 0)
+                    {
+                        diff.Add(new Change<T>(ListChangeReason.Clear, reversed, -1));
+                    }
+                    if (newReversed.Count > 0)
+                    {
+                        diff.Add(new Change<T>(ListChangeReason.AddRange, newReversed, 0));
+                    }
+                }
+
+                reversed = newReversed;
+                if (diff.Count > 0)
+                {
+                    observer.OnNext(diff);
+                }
+            }, observer.OnErrorResume, observer.OnCompleted);
+        });
+    }
 }
