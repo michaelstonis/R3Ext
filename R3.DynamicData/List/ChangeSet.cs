@@ -9,6 +9,8 @@ public class ChangeSet<T> : IChangeSet<T>
 {
     private readonly List<Change<T>> _changes;
 
+    public static readonly ChangeSet<T> Empty = new ChangeSet<T>();
+
     public ChangeSet()
     {
         _changes = new List<Change<T>>();
