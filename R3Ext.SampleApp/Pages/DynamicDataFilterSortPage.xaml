@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="R3Ext.SampleApp.DynamicDataFilterSortPage"
+             Title="Filter &amp; Sort">
+    <ScrollView>
+        <VerticalStackLayout Padding="20"
+                             Spacing="16">
+            <Label Text="Filter and sort people using DynamicData"
+                   Style="{StaticResource SubHeadline}" />
+            <Entry x:Name="FilterEntry"
+                   Placeholder="Filter by name contains..."
+                   TextChanged="OnFilterChanged" />
+            <Grid ColumnDefinitions="*,*"
+                  ColumnSpacing="8">
+                <Button Text="Sort A-Z"
+                        Clicked="OnSortAscending" />
+                <Button Text="Sort Z-A"
+                        Grid.Column="1"
+                        Clicked="OnSortDescending" />
+            </Grid>
+            <CollectionView x:Name="PeopleView"
+                            HeightRequest="400"
+                            SelectionMode="None">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame Padding="8"
+                               Margin="0,4"
+                               HasShadow="False"
+                               BorderColor="LightGray">
+                            <VerticalStackLayout>
+                                <Label Text="{Binding Name}"
+                                       FontAttributes="Bold" />
+                            </VerticalStackLayout>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

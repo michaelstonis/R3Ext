@@ -42,8 +42,16 @@ public static class ObservableListEx
         Observable<IComparer<T>> comparerChanged,
         SortOptions options = SortOptions.None)
     {
-        var comparer = Comparer<T>.Default;
-        return new Sort<T>(source, comparer, options, comparerChanged: comparerChanged).Run();
+        return source.Sort(Comparer<T>.Default, comparerChanged, options);
+    }
+
+    public static Observable<IChangeSet<T>> Sort<T>(
+        this Observable<IChangeSet<T>> source,
+        IComparer<T> initialComparer,
+        Observable<IComparer<T>> comparerChanged,
+        SortOptions options = SortOptions.None)
+    {
+        return new Sort<T>(source, initialComparer, options, comparerChanged: comparerChanged).Run();
     }
 
     public static Observable<IChangeSet<T>> Sort<T>(

@@ -11,7 +11,6 @@
         <!-- Disable built-in .NET analyzers; we'll add only the binding generator -->
         <EnableNETAnalyzers>false</EnableNETAnalyzers>
     </PropertyGroup>
-
     <!-- Remove analyzers pulled in via Directory.Build.props packages (StyleCop, Roslynator, etc.) -->
     <ItemGroup>
         <Analyzer Remove="@(Analyzer)" />
@@ -19,14 +18,16 @@
         <PackageReference Remove="Microsoft.CodeAnalysis.NetAnalyzers" />
         <PackageReference Remove="Roslynator.Analyzers" />
     </ItemGroup>
-
     <ItemGroup>
-        <PackageReference Include="BenchmarkDotNet" Version="0.13.12" />
-        <PackageReference Include="ReactiveUI" Version="22.2.1" />
-        <PackageReference Include="ReactiveMarbles.PropertyChanged" Version="2.0.27" />
-        <PackageReference Include="System.Reactive" Version="6.1.0" />
+        <PackageReference Include="BenchmarkDotNet"
+                          Version="0.13.12" />
+        <PackageReference Include="ReactiveUI"
+                          Version="22.2.1" />
+        <PackageReference Include="ReactiveMarbles.PropertyChanged"
+                          Version="2.0.27" />
+        <PackageReference Include="System.Reactive"
+                          Version="6.1.0" />
     </ItemGroup>
-
     <ItemGroup>
         <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
         <!-- Add the R3Ext binding source generator as an analyzer for this project only -->

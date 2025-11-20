@@ -179,7 +179,7 @@ public class BindingBenchmarks
     }
 }
 
- 
+
 // Cross-framework binding benchmarks modeled after ReactiveMarbles' BindBenchmarks
 // Compares: ReactiveUI.Bind (UI), ReactiveMarbles.PropertyChanged.BindTwoWay (PC), and R3Ext.BindTwoWay (R3)
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]

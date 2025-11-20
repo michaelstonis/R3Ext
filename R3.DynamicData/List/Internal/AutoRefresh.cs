@@ -23,7 +23,8 @@ internal sealed class AutoRefresh<TObject, TAny>
 
     public Observable<IChangeSet<TObject>> Run()
     {
-        var merged = _source
+        // Create a stream of refresh-only change sets triggered by the reevaluator observables.
+        var refreshes = _source
             .Select(changeSet =>
             {
                 var itemObservables = changeSet
@@ -32,14 +33,18 @@ internal sealed class AutoRefresh<TObject, TAny>
 
                 return itemObservables.Merge();
             })
-            .Merge();
-
-        return ApplyBufferIfNeeded(merged
+            .Merge()
             .Select(_ =>
             {
                 var refreshChange = Change<TObject>.Refresh;
                 return (IChangeSet<TObject>)new ChangeSet<TObject>(new[] { refreshChange });
-            }));
+            });
+
+        var bufferedRefreshes = ApplyBufferIfNeeded(refreshes);
+
+        // Merge original change sets with refresh notifications so downstream
+        // operators still see Adds/Removes while also reacting to Refresh.
+        return _source.Merge(bufferedRefreshes);
     }
 
     private Observable<IChangeSet<TObject>> ApplyBufferIfNeeded(Observable<IChangeSet<TObject>> source)

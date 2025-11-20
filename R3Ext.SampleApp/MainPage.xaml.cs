@@ -12,6 +12,16 @@ public partial class MainPage : ContentPage
         await Shell.Current.GoToAsync("//BasicsPage");
     }
 
+    private async void OnGoDynamicDataBasics(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//DynamicDataBasicsPage");
+    }
+
+    private async void OnGoDynamicDataFilterSort(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//DynamicDataFilterSortPage");
+    }
+
     private async void OnGoDeep(object? sender, EventArgs e)
     {
         await Shell.Current.GoToAsync("//DeepBindingPage");
