@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Michael Stonis. All rights reserved.
+
 // Port of DynamicData to R3.
 
 using R3;

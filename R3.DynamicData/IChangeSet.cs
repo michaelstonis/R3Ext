@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Michael Stonis. All rights reserved.
+
 // This is a port of DynamicData to R3 for enhanced performance.
 // Original DynamicData: Copyright (c) 2011-2023 Roland Pheasant. Licensed under the MIT license.
 

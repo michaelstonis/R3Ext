@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Michael Stonis. All rights reserved.
+
 // Supporting types for Bind operator in R3.DynamicData
 
 using System.Collections.ObjectModel;
