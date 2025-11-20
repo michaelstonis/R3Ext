@@ -55,7 +55,7 @@ public partial class DynamicDataCachePage : ContentPage
                 Id = id,
                 Name = this.NameEntry.Text,
                 Age = age,
-                City = city
+                City = city,
             };
 
             _cache.AddOrUpdate(person);
@@ -79,7 +79,7 @@ public partial class DynamicDataCachePage : ContentPage
             Id = startId + i,
             Name = names[_random.Next(names.Length)],
             Age = _random.Next(18, 65),
-            City = cities[_random.Next(cities.Length)]
+            City = cities[_random.Next(cities.Length)],
         }).ToArray();
 
         _cache.AddOrUpdate(batch);
@@ -108,7 +108,7 @@ public partial class DynamicDataCachePage : ContentPage
             new PersonWithId { Id = 2, Name = "Bob Smith", Age = 35, City = "London" },
             new PersonWithId { Id = 3, Name = "Charlie Davis", Age = 42, City = "Tokyo" },
             new PersonWithId { Id = 4, Name = "Diana Prince", Age = 31, City = "Paris" },
-            new PersonWithId { Id = 5, Name = "Eve Miller", Age = 26, City = "Sydney" }
+            new PersonWithId { Id = 5, Name = "Eve Miller", Age = 26, City = "Sydney" },
         });
     }
 
@@ -144,7 +144,7 @@ public partial class DynamicDataCachePage : ContentPage
                         R3.DynamicData.Kernel.ChangeReason.Add => "Added",
                         R3.DynamicData.Kernel.ChangeReason.Update => "Updated",
                         R3.DynamicData.Kernel.ChangeReason.Remove => "Removed",
-                        _ => "Changed"
+                        _ => "Changed",
                     };
                     this.WatchLabel.Text = $"ID {id} {action}: {change.Current.Name} ({change.Current.City})";
                     this.WatchLabel.TextColor = Microsoft.Maui.Graphics.Colors.Green;

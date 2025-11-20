@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.Maui.Controls;
+using R3;
 using R3.DynamicData.List;
 using R3Ext.SampleApp.ViewModels;
 
@@ -14,12 +15,16 @@ public partial class DynamicDataOperatorsPage : ContentPage
 {
     private readonly SourceList<PersonWithHobbies> _source = new();
     private readonly Random _random = new();
-    
+
+    private readonly string[] _names = { "Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Henry", "Ivy", "Jack" };
+    private readonly string[] _cities = { "New York", "London", "Tokyo", "Paris", "Sydney" };
+    private readonly string[] _hobbies = { "Reading", "Gaming", "Cooking", "Hiking", "Photography", "Music", "Sports", "Art" };
+
     private ReadOnlyObservableCollection<string> _transformedPeople = null!;
     private ReadOnlyObservableCollection<Group<string, PersonWithHobbies>> _groupedPeople = null!;
     private ReadOnlyObservableCollection<string> _distinctCities = null!;
     private ReadOnlyObservableCollection<string> _allHobbies = null!;
-    
+
     private IDisposable? _transformSub;
     private IDisposable? _groupSub;
     private IDisposable? _distinctSub;
@@ -29,10 +34,6 @@ public partial class DynamicDataOperatorsPage : ContentPage
     private IDisposable? _groupCountSub;
     private IDisposable? _distinctCountSub;
     private IDisposable? _hobbiesCountSub;
-
-    private readonly string[] _names = { "Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Henry", "Ivy", "Jack" };
-    private readonly string[] _cities = { "New York", "London", "Tokyo", "Paris", "Sydney" };
-    private readonly string[] _hobbies = { "Reading", "Gaming", "Cooking", "Hiking", "Photography", "Music", "Sports", "Art" };
 
     public DynamicDataOperatorsPage()
     {
@@ -129,14 +130,14 @@ public partial class DynamicDataOperatorsPage : ContentPage
             Name = name,
             City = city,
             Age = age,
-            Hobbies = hobbies
+            Hobbies = hobbies,
         };
     }
 
     private void UpdateDistinctCitiesDisplay()
     {
         this.DistinctCitiesLayout.Children.Clear();
-        
+
         foreach (var city in _distinctCities)
         {
             var frame = new Frame
@@ -150,8 +151,8 @@ public partial class DynamicDataOperatorsPage : ContentPage
                 {
                     Text = city,
                     TextColor = Microsoft.Maui.Graphics.Colors.White,
-                    FontSize = 12
-                }
+                    FontSize = 12,
+                },
             };
             this.DistinctCitiesLayout.Children.Add(frame);
         }

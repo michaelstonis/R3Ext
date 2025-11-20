@@ -17,7 +17,7 @@ public partial class DynamicDataFilterSortPage : ContentPage
     private static readonly IComparer<PersonWithAge> NameDescComparer = Comparer<PersonWithAge>.Create((a, b) => string.Compare(b.Name, a.Name, StringComparison.OrdinalIgnoreCase));
     private static readonly IComparer<PersonWithAge> AgeLowHighComparer = Comparer<PersonWithAge>.Create((a, b) => a.Age.CompareTo(b.Age));
     private static readonly IComparer<PersonWithAge> AgeHighLowComparer = Comparer<PersonWithAge>.Create((a, b) => b.Age.CompareTo(a.Age));
-    
+
     private readonly SourceList<PersonWithAge> _source = new();
     private readonly Subject<Func<PersonWithAge, bool>> _predicateSubject = new();
     private readonly Subject<IComparer<PersonWithAge>> _comparerSubject = new();
