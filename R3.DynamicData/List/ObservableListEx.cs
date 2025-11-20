@@ -176,4 +176,20 @@ public static class ObservableListEx
     {
         return new Internal.DisposeMany<T>(source, disposeAction).Run();
     }
+
+    public static Observable<IChangeSet<T>> SubscribeMany<T>(
+        this Observable<IChangeSet<T>> source,
+        Func<T, IDisposable> subscriptionFactory)
+        where T : notnull
+    {
+        return new Internal.SubscribeMany<T>(source, subscriptionFactory).Run();
+    }
+
+    public static Observable<TDestination> MergeMany<TSource, TDestination>(
+        this Observable<IChangeSet<TSource>> source,
+        Func<TSource, Observable<TDestination>> selector)
+        where TSource : notnull
+    {
+        return new Internal.MergeMany<TSource, TDestination>(source, selector).Run();
+    }
 }
