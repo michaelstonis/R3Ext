@@ -13,6 +13,7 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     private readonly Func<TObject, TKey> _keySelector;
     private readonly Dictionary<TKey, TObject> _data;
     private readonly Subject<IChangeSet<TObject, TKey>> _changes;
+    private readonly Subject<int> _countChanged;
     private readonly object _locker = new();
     private bool _isDisposed;
 
@@ -64,6 +65,9 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
         }
     }
 
+    /// <inheritdoc/>
+    public Observable<int> CountChanged => _countChanged;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SourceCache{TObject, TKey}"/> class.
     /// </summary>
@@ -73,6 +77,7 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
         _keySelector = keySelector ?? throw new ArgumentNullException(nameof(keySelector));
         _data = new Dictionary<TKey, TObject>();
         _changes = new Subject<IChangeSet<TObject, TKey>>();
+        _countChanged = new Subject<int>();
     }
 
     /// <inheritdoc/>
@@ -83,6 +88,15 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
             return _data.TryGetValue(key, out var value)
                 ? Kernel.Optional<TObject>.Some(value)
                 : Kernel.Optional<TObject>.None;
+        }
+    }
+
+    /// <inheritdoc/>
+    public IReadOnlyCollection<TObject> Preview()
+    {
+        lock (_locker)
+        {
+            return _data.Values.ToList();
         }
     }
 
@@ -101,6 +115,24 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
         }
 
         return Observable.Create<IChangeSet<TObject, TKey>>(observer => ConnectWithPredicateImplementation(observer, predicate));
+    }
+
+    /// <inheritdoc/>
+    public Observable<Change<TObject, TKey>> Watch(TKey key)
+    {
+        return Observable.Create<Change<TObject, TKey>>(observer =>
+        {
+            return _changes.Subscribe(
+                changes =>
+                {
+                    foreach (var change in changes.Where(c => EqualityComparer<TKey>.Default.Equals(c.Key, key)))
+                    {
+                        observer.OnNext(change);
+                    }
+                },
+                observer.OnErrorResume,
+                observer.OnCompleted);
+        });
     }
 
     /// <inheritdoc/>
@@ -123,6 +155,12 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     public void AddOrUpdate(TObject item)
     {
         Edit(updater => updater.AddOrUpdate(item));
+    }
+
+    /// <inheritdoc/>
+    public void AddOrUpdate(IEnumerable<TObject> items)
+    {
+        Edit(updater => updater.AddOrUpdate(items));
     }
 
     /// <inheritdoc/>
@@ -153,6 +191,7 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
 
         _isDisposed = true;
         _changes.Dispose();
+        _countChanged.Dispose();
     }
 
     private void PublishChanges(ChangeSet<TObject, TKey> changes)
@@ -160,6 +199,7 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
         if (changes.Count > 0)
         {
             _changes.OnNext(changes);
+            _countChanged.OnNext(_data.Count);
         }
     }
 

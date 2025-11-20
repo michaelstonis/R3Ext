@@ -31,11 +31,22 @@ public interface ISourceCache<TObject, TKey> : IDisposable
     IEnumerable<KeyValuePair<TObject, TKey>> KeyValues { get; }
 
     /// <summary>
+    /// Gets an observable that emits the count whenever the cache count changes.
+    /// </summary>
+    Observable<int> CountChanged { get; }
+
+    /// <summary>
     /// Looks up the value for the specified key.
     /// </summary>
     /// <param name="key">The key.</param>
     /// <returns>The value if found, otherwise an empty optional.</returns>
     Kernel.Optional<TObject> Lookup(TKey key);
+
+    /// <summary>
+    /// Returns a read-only snapshot of all items.
+    /// </summary>
+    /// <returns>A read-only collection of items.</returns>
+    IReadOnlyCollection<TObject> Preview();
 
     /// <summary>
     /// Connects to the cache and observes changes.
@@ -51,6 +62,13 @@ public interface ISourceCache<TObject, TKey> : IDisposable
     Observable<IChangeSet<TObject, TKey>> Connect(Func<TObject, bool>? predicate);
 
     /// <summary>
+    /// Watches a single item by key.
+    /// </summary>
+    /// <param name="key">The key to watch.</param>
+    /// <returns>An observable of changes for the specified key.</returns>
+    Observable<Change<TObject, TKey>> Watch(TKey key);
+
+    /// <summary>
     /// Executes a batch update operation.
     /// </summary>
     /// <param name="updateAction">The update action.</param>
@@ -61,6 +79,12 @@ public interface ISourceCache<TObject, TKey> : IDisposable
     /// </summary>
     /// <param name="item">The item to add or update.</param>
     void AddOrUpdate(TObject item);
+
+    /// <summary>
+    /// Adds or updates multiple items.
+    /// </summary>
+    /// <param name="items">The items to add or update.</param>
+    void AddOrUpdate(IEnumerable<TObject> items);
 
     /// <summary>
     /// Removes the item with the specified key.
