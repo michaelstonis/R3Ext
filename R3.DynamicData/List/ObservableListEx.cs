@@ -143,4 +143,11 @@ public static class ObservableListEx
     {
         return new Internal.TransformMany<TSource, TDestination>(source, manySelector, comparer).Run();
     }
+
+    public static Observable<IChangeSet<T>> Filter<T>(
+        this Observable<IChangeSet<T>> source,
+        Func<T, bool> predicate)
+    {
+        return new Internal.Filter<T>(source, predicate).Run();
+    }
 }
