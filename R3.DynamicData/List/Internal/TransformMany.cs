@@ -110,7 +110,14 @@ internal sealed class TransformMany<TSource, TDestination>
 
                 case ListChangeReason.Clear:
                     parents.Clear();
-                    result.Clear();
+                    if (result.Count > 0)
+                    {
+                        for (int i = result.Count - 1; i >= 0; i--)
+                        {
+                            result.RemoveAt(i);
+                        }
+                    }
+
                     break;
 
                 case ListChangeReason.Refresh:
@@ -143,14 +150,7 @@ internal sealed class TransformMany<TSource, TDestination>
         }
 
         int insertAt = ComputeChildStartIndex(parents, parentIndex);
-        if (children.Count == 1)
-        {
-            result.Insert(insertAt, children[0]);
-        }
-        else
-        {
-            result.InsertRange(children, insertAt);
-        }
+        InsertChildren(result, children, insertAt);
     }
 
     private void HandleRemove(List<ParentEntry> parents, ChangeAwareList<TDestination> result, int parentIndex)
@@ -168,14 +168,7 @@ internal sealed class TransformMany<TSource, TDestination>
             return;
         }
 
-        if (count == 1)
-        {
-            result.RemoveAt(start);
-        }
-        else
-        {
-            result.RemoveRange(start, count);
-        }
+        RemoveChildren(result, start, count);
     }
 
     private void HandleRemoveRange(List<ParentEntry> parents, ChangeAwareList<TDestination> result, int parentIndex, int parentCount)
@@ -198,14 +191,7 @@ internal sealed class TransformMany<TSource, TDestination>
             return;
         }
 
-        if (totalChildCount == 1)
-        {
-            result.RemoveAt(start);
-        }
-        else
-        {
-            result.RemoveRange(start, totalChildCount);
-        }
+        RemoveChildren(result, start, totalChildCount);
     }
 
     private void HandleReplace(List<ParentEntry> parents, ChangeAwareList<TDestination> result, int parentIndex, TSource newParent, TSource? previousParent)
@@ -216,45 +202,13 @@ internal sealed class TransformMany<TSource, TDestination>
         }
 
         var oldEntry = parents[parentIndex];
-        var oldChildren = oldEntry.Children;
+        var oldChildren = new List<TDestination>(oldEntry.Children);
         var newChildren = _manySelector(newParent)?.ToList() ?? new List<TDestination>();
-        parents[parentIndex] = new ParentEntry { Source = newParent, Children = newChildren };
-
         int start = ComputeChildStartIndex(parents, parentIndex);
 
-        // Diff
-        var removed = oldChildren.Where(c => !newChildren.Contains(c, _comparer)).ToList();
-        var added = newChildren.Where(c => !oldChildren.Contains(c, _comparer)).ToList();
+        AlignChildBlock(result, start, oldChildren, newChildren);
 
-        if (removed.Count == 0 && added.Count == 0)
-        {
-            return; // no changes
-        }
-
-        // Remove in descending index order for stability.
-        if (removed.Count > 0)
-        {
-            var removalIndices = removed.Select(r => oldChildren.FindIndex(x => _comparer.Equals(x, r))).Where(i => i >= 0).OrderByDescending(i => i).ToList();
-            foreach (var idx in removalIndices)
-            {
-                result.RemoveAt(start + idx);
-            }
-        }
-
-        if (added.Count > 0)
-        {
-            // Insert all added at end of current block (after removals). Compute current block length.
-            int currentBlockLength = parents[parentIndex].Children.Count - removed.Count; // approximate length after removals
-            int insertAt = start + currentBlockLength;
-            if (added.Count == 1)
-            {
-                result.Insert(insertAt, added[0]);
-            }
-            else
-            {
-                result.InsertRange(added, insertAt);
-            }
-        }
+        parents[parentIndex] = new ParentEntry { Source = newParent, Children = newChildren };
     }
 
     private void HandleMove(List<ParentEntry> parents, ChangeAwareList<TDestination> result, int oldParentIndex, int newParentIndex)
@@ -270,42 +224,22 @@ internal sealed class TransformMany<TSource, TDestination>
         }
 
         var entry = parents[oldParentIndex];
+        var children = new List<TDestination>(entry.Children);
+
+        int oldStart = ComputeChildStartIndex(parents, oldParentIndex);
+
         parents.RemoveAt(oldParentIndex);
         parents.Insert(newParentIndex, entry);
 
-        // Move block of children.
-        var blockSize = entry.Children.Count;
-        if (blockSize == 0)
+        if (children.Count == 0)
         {
             return;
         }
 
-        int oldStart = ComputeChildStartIndex(parents, oldParentIndex < newParentIndex ? newParentIndex : oldParentIndex);
+        RemoveChildren(result, oldStart, children.Count);
 
-        // After removal+insert, indices shift; recompute positions.
-        oldStart = ComputeChildStartIndex(parents, newParentIndex);
         int newStart = ComputeChildStartIndex(parents, newParentIndex);
-        if (oldStart == newStart)
-        {
-            return;
-        }
-
-        // Move each child individually to preserve ordering.
-        // If moving forward (oldStart < newStart) indices shift after each move; adjust.
-        if (oldStart < newStart)
-        {
-            for (int i = 0; i < blockSize; i++)
-            {
-                result.Move(oldStart, newStart + i);
-            }
-        }
-        else
-        {
-            for (int i = 0; i < blockSize; i++)
-            {
-                result.Move(oldStart + i, newStart + i);
-            }
-        }
+        InsertChildren(result, children, newStart);
     }
 
     private void HandleRefresh(List<ParentEntry> parents, ChangeAwareList<TDestination> result, int parentIndex)
@@ -317,5 +251,72 @@ internal sealed class TransformMany<TSource, TDestination>
 
         var parent = parents[parentIndex].Source;
         HandleReplace(parents, result, parentIndex, parent, parent);
+    }
+
+    private void InsertChildren(ChangeAwareList<TDestination> result, IReadOnlyList<TDestination> children, int insertAt)
+    {
+        for (int i = 0; i < children.Count; i++)
+        {
+            result.Insert(insertAt + i, children[i]);
+        }
+    }
+
+    private static void RemoveChildren(ChangeAwareList<TDestination> result, int startIndex, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            result.RemoveAt(startIndex);
+        }
+    }
+
+    private void AlignChildBlock(ChangeAwareList<TDestination> result, int startIndex, List<TDestination> currentChildren, List<TDestination> targetChildren)
+    {
+        var working = new List<TDestination>(currentChildren);
+        int position = 0;
+
+        while (position < targetChildren.Count)
+        {
+            if (position < working.Count && _comparer.Equals(working[position], targetChildren[position]))
+            {
+                position++;
+                continue;
+            }
+
+            int existingIndex = FindIndex(working, targetChildren[position], position + 1);
+            if (existingIndex >= 0)
+            {
+                for (int removeIdx = existingIndex - 1; removeIdx >= position; removeIdx--)
+                {
+                    result.RemoveAt(startIndex + removeIdx);
+                    working.RemoveAt(removeIdx);
+                }
+
+                position++;
+                continue;
+            }
+
+            result.Insert(startIndex + position, targetChildren[position]);
+            working.Insert(position, targetChildren[position]);
+            position++;
+        }
+
+        for (int removeIdx = working.Count - 1; removeIdx >= targetChildren.Count; removeIdx--)
+        {
+            result.RemoveAt(startIndex + removeIdx);
+            working.RemoveAt(removeIdx);
+        }
+    }
+
+    private int FindIndex(List<TDestination> items, TDestination value, int startIndex)
+    {
+        for (int i = startIndex; i < items.Count; i++)
+        {
+            if (_comparer.Equals(items[i], value))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 }

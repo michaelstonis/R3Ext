@@ -1,6 +1,11 @@
 // Copyright (c) 2025 Michael Stonis. All rights reserved.
 // Port of DynamicData to R3.
 
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq.Expressions;
+using R3.DynamicData.Binding;
 using R3.DynamicData.List.Internal;
 
 namespace R3.DynamicData.List;
@@ -121,6 +126,30 @@ public static class ObservableListEx
         });
     }
 
+    // Bind to IObservableCollection<T>
+    public static IDisposable Bind<T>(
+        this Observable<IChangeSet<T>> source,
+        IObservableCollection<T> targetCollection,
+        int resetThreshold = BindingOptions.DefaultResetThreshold)
+    {
+        var options = new BindingOptions { ResetThreshold = resetThreshold };
+        var adaptor = new ObservableCollectionAdaptor<T>(targetCollection, options);
+        return source.Subscribe(changes => adaptor.Adapt(changes));
+    }
+
+    // Bind to out ReadOnlyObservableCollection<T>
+    public static IDisposable Bind<T>(
+        this Observable<IChangeSet<T>> source,
+        out ReadOnlyObservableCollection<T> readOnlyObservableCollection,
+        int resetThreshold = BindingOptions.DefaultResetThreshold)
+    {
+        var target = new ObservableCollectionExtended<T>();
+        readOnlyObservableCollection = new ReadOnlyObservableCollection<T>(target);
+        var options = new BindingOptions { ResetThreshold = resetThreshold };
+        var adaptor = new ObservableCollectionAdaptor<T>(target, options);
+        return source.Subscribe(changes => adaptor.Adapt(changes));
+    }
+
     public static Observable<IChangeSet<Group<TKey, T>>> Group<T, TKey>(
         this Observable<IChangeSet<T>> source,
         Func<T, TKey> keySelector,
@@ -191,5 +220,73 @@ public static class ObservableListEx
         where TSource : notnull
     {
         return new Internal.MergeMany<TSource, TDestination>(source, selector).Run();
+    }
+
+    public static Observable<IChangeSet<TObject>> AutoRefresh<TObject>(
+        this Observable<IChangeSet<TObject>> source,
+        TimeSpan? changeSetBuffer = null,
+        TimeSpan? propertyChangeThrottle = null,
+        TimeProvider? timeProvider = null)
+        where TObject : INotifyPropertyChanged
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        return source.AutoRefreshOnObservable(
+            t =>
+            {
+                if (propertyChangeThrottle is null)
+                {
+                    return t.WhenAnyPropertyChanged();
+                }
+
+                return t.WhenAnyPropertyChanged().Debounce(propertyChangeThrottle.Value, timeProvider ?? ObservableSystem.DefaultTimeProvider);
+            },
+            changeSetBuffer,
+            timeProvider);
+    }
+
+    public static Observable<IChangeSet<TObject>> AutoRefresh<TObject, TProperty>(
+        this Observable<IChangeSet<TObject>> source,
+        Expression<Func<TObject, TProperty>> propertyAccessor,
+        TimeSpan? changeSetBuffer = null,
+        TimeSpan? propertyChangeThrottle = null,
+        TimeProvider? timeProvider = null)
+        where TObject : INotifyPropertyChanged
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (propertyAccessor is null)
+        {
+            throw new ArgumentNullException(nameof(propertyAccessor));
+        }
+
+        return source.AutoRefreshOnObservable(
+            t =>
+            {
+                if (propertyChangeThrottle is null)
+                {
+                    return t.WhenPropertyChanged(propertyAccessor, false);
+                }
+
+                return t.WhenPropertyChanged(propertyAccessor, false).Debounce(propertyChangeThrottle.Value, timeProvider ?? ObservableSystem.DefaultTimeProvider);
+            },
+            changeSetBuffer,
+            timeProvider);
+    }
+
+    public static Observable<IChangeSet<TObject>> AutoRefreshOnObservable<TObject, TAny>(
+        this Observable<IChangeSet<TObject>> source,
+        Func<TObject, Observable<TAny>> reevaluator,
+        TimeSpan? changeSetBuffer = null,
+        TimeProvider? timeProvider = null)
+        where TObject : notnull
+    {
+        return new Internal.AutoRefresh<TObject, TAny>(source, reevaluator, changeSetBuffer, timeProvider).Run();
     }
 }

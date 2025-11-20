@@ -4,6 +4,7 @@
 namespace R3.DynamicData.List.Internal;
 
 internal sealed class Sort<T>
+    where T : notnull
 {
     private readonly Observable<IChangeSet<T>> _source;
     private readonly IComparer<T> _comparer;

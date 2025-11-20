@@ -71,6 +71,34 @@ public readonly struct Change<T> : IEquatable<Change<T>>
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="Change{T}"/> struct for a refresh operation.
+    /// </summary>
+    public Change(ListChangeReason reason)
+    {
+        if (reason != ListChangeReason.Refresh)
+        {
+            throw new ArgumentException("This constructor is only for Refresh operations");
+        }
+
+        Reason = reason;
+        Item = default!;
+        CurrentIndex = -1;
+        PreviousIndex = -1;
+        PreviousItem = default;
+        _range = null;
+    }
+
+    /// <summary>
+    /// Gets a refresh change.
+    /// </summary>
+    public static Change<T> Refresh => new Change<T>(ListChangeReason.Refresh);
+
+    /// <summary>
+    /// Gets the current item.
+    /// </summary>
+    public T Current => Item;
+
+    /// <summary>
     /// Gets the reason for the change.
     /// </summary>
     public ListChangeReason Reason { get; }

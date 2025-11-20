@@ -105,8 +105,14 @@ internal sealed class Filter<T>
                     break;
 
                 case ListChangeReason.Clear:
-                    slots.Clear();
-                    filtered.Clear();
+                    if (slots.Count > 0)
+                    {
+                        for (int i = slots.Count - 1; i >= 0; i--)
+                        {
+                            HandleRemove(slots, filtered, i);
+                        }
+                    }
+
                     break;
 
                 case ListChangeReason.Refresh:
