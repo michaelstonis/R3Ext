@@ -150,4 +150,11 @@ public static class ObservableListEx
     {
         return new Internal.Filter<T>(source, predicate).Run();
     }
+
+    public static Observable<IChangeSet<T>> Filter<T>(
+        this Observable<IChangeSet<T>> source,
+        Observable<Func<T, bool>> predicateChanged)
+    {
+        return new Internal.DynamicFilter<T>(source, predicateChanged).Run();
+    }
 }
