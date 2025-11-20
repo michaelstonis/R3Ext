@@ -2,41 +2,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace R3Ext.SampleApp.ViewModels;
 
-public class Person : ObservableObject
-{
-    private string _name = string.Empty;
-
-    public string Name
-    {
-        get => _name;
-        set => this.SetProperty(ref _name, value);
-    }
-}
-
-public class SampleViewModel2
-{
-    public int Counter { get; set; }
-
-    public string EditableName
-    {
-        get => field;
-        set
-        {
-            field = value;
-            Person?.Name = value;
-        }
-    }
-
-    public string Status { get; set; }
-
-    public Person Person { get; set; } = new();
-
-    public void Increment()
-    {
-        Counter++;
-    }
-}
-
 public class SampleViewModel : ObservableObject
 {
     private int _counter;
