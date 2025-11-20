@@ -1153,4 +1153,43 @@ public static class ObservableListEx
 
         return Internal.ToObservableChangeSet<TObject>.CreateFromEnumerable(source, expireAfter, 0);
     }
+
+    /// <summary>
+    /// Removes index information from all changes in the stream (sets indices to -1).
+    /// </summary>
+    public static Observable<IChangeSet<T>> RemoveIndex<T>(this Observable<IChangeSet<T>> source)
+        where T : notnull
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        return source.Select(changes => (IChangeSet<T>)new ChangeSet<T>(changes.Select(RemoveIndexMapper)));
+
+        static Change<T> RemoveIndexMapper(Change<T> change)
+        {
+            switch (change.Reason)
+            {
+                case ListChangeReason.Add:
+                    return new Change<T>(ListChangeReason.Add, change.Item, -1);
+                case ListChangeReason.AddRange:
+                    return new Change<T>(ListChangeReason.AddRange, change.Range, -1);
+                case ListChangeReason.Remove:
+                    return new Change<T>(ListChangeReason.Remove, change.Item, -1);
+                case ListChangeReason.RemoveRange:
+                    return new Change<T>(ListChangeReason.RemoveRange, change.Range, -1);
+                case ListChangeReason.Clear:
+                    return new Change<T>(ListChangeReason.Clear, change.Range, -1);
+                case ListChangeReason.Replace:
+                    return new Change<T>(ListChangeReason.Replace, change.Item, change.PreviousItem, -1);
+                case ListChangeReason.Moved:
+                    return new Change<T>(ListChangeReason.Moved, change.Item, -1, -1);
+                case ListChangeReason.Refresh:
+                    return Change<T>.Refresh; // Already index agnostic
+                default:
+                    return change; // Fallback (should not hit)
+            }
+        }
+    }
 }
