@@ -80,11 +80,8 @@ public sealed class SourceList<T> : ISourceList<T>
         {
             var startIndex = _items.Count;
             _items.AddRange(itemsList);
-            var changeSet = new ChangeSet<T>(itemsList.Count);
-            for (int i = 0; i < itemsList.Count; i++)
-            {
-                changeSet.Add(new Change<T>(ListChangeReason.AddRange, itemsList[i], startIndex + i));
-            }
+            var changeSet = new ChangeSet<T>(1);
+            changeSet.Add(new Change<T>(ListChangeReason.AddRange, itemsList, startIndex));
 
             PublishChanges(changeSet);
         }
@@ -112,11 +109,8 @@ public sealed class SourceList<T> : ISourceList<T>
         lock (_lock)
         {
             _items.InsertRange(index, itemsList);
-            var changeSet = new ChangeSet<T>(itemsList.Count);
-            for (int i = 0; i < itemsList.Count; i++)
-            {
-                changeSet.Add(new Change<T>(ListChangeReason.AddRange, itemsList[i], index + i));
-            }
+            var changeSet = new ChangeSet<T>(1);
+            changeSet.Add(new Change<T>(ListChangeReason.AddRange, itemsList, index));
 
             PublishChanges(changeSet);
         }
@@ -160,11 +154,8 @@ public sealed class SourceList<T> : ISourceList<T>
         {
             var removed = _items.GetRange(index, count);
             _items.RemoveRange(index, count);
-            var changeSet = new ChangeSet<T>(count);
-            for (int i = 0; i < removed.Count; i++)
-            {
-                changeSet.Add(new Change<T>(ListChangeReason.RemoveRange, removed[i], index + i));
-            }
+            var changeSet = new ChangeSet<T>(1);
+            changeSet.Add(new Change<T>(ListChangeReason.RemoveRange, removed, index));
 
             PublishChanges(changeSet);
         }
@@ -205,9 +196,10 @@ public sealed class SourceList<T> : ISourceList<T>
             var index = _items.IndexOf(original);
             if (index >= 0)
             {
+                var previous = _items[index];
                 _items[index] = replacement;
                 var changeSet = new ChangeSet<T>(1);
-                changeSet.Add(new Change<T>(ListChangeReason.Replace, replacement, index));
+                changeSet.Add(new Change<T>(ListChangeReason.Replace, replacement, previous, index));
                 PublishChanges(changeSet);
             }
         }
@@ -217,9 +209,10 @@ public sealed class SourceList<T> : ISourceList<T>
     {
         lock (_lock)
         {
+            var previous = _items[index];
             _items[index] = item;
             var changeSet = new ChangeSet<T>(1);
-            changeSet.Add(new Change<T>(ListChangeReason.Replace, item, index));
+            changeSet.Add(new Change<T>(ListChangeReason.Replace, item, previous, index));
             PublishChanges(changeSet);
         }
     }
@@ -312,10 +305,7 @@ public sealed class SourceList<T> : ISourceList<T>
 
             var startIndex = _source._items.Count;
             _source._items.AddRange(itemsList);
-            for (int i = 0; i < itemsList.Count; i++)
-            {
-                Changes.Add(new Change<T>(ListChangeReason.AddRange, itemsList[i], startIndex + i));
-            }
+            Changes.Add(new Change<T>(ListChangeReason.AddRange, itemsList, startIndex));
         }
 
         public void Insert(int index, T item)
@@ -333,10 +323,7 @@ public sealed class SourceList<T> : ISourceList<T>
             }
 
             _source._items.InsertRange(index, itemsList);
-            for (int i = 0; i < itemsList.Count; i++)
-            {
-                Changes.Add(new Change<T>(ListChangeReason.AddRange, itemsList[i], index + i));
-            }
+            Changes.Add(new Change<T>(ListChangeReason.AddRange, itemsList, index));
         }
 
         public void Remove(T item)
@@ -365,10 +352,7 @@ public sealed class SourceList<T> : ISourceList<T>
 
             var removed = _source._items.GetRange(index, count);
             _source._items.RemoveRange(index, count);
-            for (int i = 0; i < removed.Count; i++)
-            {
-                Changes.Add(new Change<T>(ListChangeReason.RemoveRange, removed[i], index + i));
-            }
+            Changes.Add(new Change<T>(ListChangeReason.RemoveRange, removed, index));
         }
 
         public void RemoveMany(IEnumerable<T> items)
@@ -389,15 +373,17 @@ public sealed class SourceList<T> : ISourceList<T>
             var index = _source._items.IndexOf(original);
             if (index >= 0)
             {
+                var previous = _source._items[index];
                 _source._items[index] = replacement;
-                Changes.Add(new Change<T>(ListChangeReason.Replace, replacement, index));
+                Changes.Add(new Change<T>(ListChangeReason.Replace, replacement, previous, index));
             }
         }
 
         public void ReplaceAt(int index, T item)
         {
+            var previous = _source._items[index];
             _source._items[index] = item;
-            Changes.Add(new Change<T>(ListChangeReason.Replace, item, index));
+            Changes.Add(new Change<T>(ListChangeReason.Replace, item, previous, index));
         }
 
         public void Move(int originalIndex, int destinationIndex)

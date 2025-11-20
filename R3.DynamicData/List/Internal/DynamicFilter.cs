@@ -11,11 +11,13 @@ internal sealed class DynamicFilter<T>
 
     private sealed class Slot
     {
-        public required T Item;
+        public T Item = default!;
         public bool Passes;
     }
 
-    public DynamicFilter(Observable<IChangeSet<T>> source, Observable<Func<T, bool>> predicateChanged)
+    public DynamicFilter(
+        Observable<IChangeSet<T>> source,
+        Observable<Func<T, bool>> predicateChanged)
     {
         _source = source;
         _predicateChanged = predicateChanged;
@@ -31,78 +33,84 @@ internal sealed class DynamicFilter<T>
             var disp = new CompositeDisposable();
 
             // Subscribe to predicate changes
-            _predicateChanged.Subscribe(p =>
-            {
-                try
+            _predicateChanged.Subscribe(
+                p =>
                 {
-                    var previousPassing = slots.Where(s => s.Passes).Select(s => s.Item).ToList();
-                    _currentPredicate = p;
-                    // Re-evaluate all
-                    for (int i = 0; i < slots.Count; i++)
+                    try
                     {
-                        slots[i].Passes = _currentPredicate(slots[i].Item);
-                    }
-                    var currentPassing = slots.Where(s => s.Passes).Select(s => s.Item).ToList();
+                        var oldFiltered = filtered.ToList();
+                        _currentPredicate = p;
 
-                    // Diff
-                    // Removed items
-                    foreach (var removed in previousPassing.Where(x => !currentPassing.Contains(x)))
-                    {
-                        int oldIndex = previousPassing.IndexOf(removed); // original filtered index
-                        filtered.RemoveAt(oldIndex);
-                        // Adjust previousPassing list indices after removal
-                        previousPassing.RemoveAt(oldIndex);
-                    }
-
-                    // Added items (in order of currentPassing relative to slots)
-                    foreach (var added in currentPassing.Where(x => !previousPassing.Contains(x)))
-                    {
-                        // Determine new index in filtered list by counting passing items before in slots
-                        int sourceIndex = slots.FindIndex(s => ReferenceEquals(s.Item, added) || EqualityComparer<T>.Default.Equals(s.Item, added));
-                        int filteredIndex = CountPassingBefore(slots, sourceIndex, includeSourceIndex: true);
-                        // Adjust for previously existing items already in filtered (some earlier adds might have shifted index)
-                        // Recompute filteredIndex by building current filtered sequence so far
-                        var existingFiltered = filtered.ToList();
-                        // If item already exists skip (shouldn't happen)
-                        if (existingFiltered.Contains(added))
+                        // Re-evaluate pass flags
+                        for (int i = 0; i < slots.Count; i++)
                         {
-                            continue;
+                            slots[i].Passes = _currentPredicate(slots[i].Item);
                         }
-                        // Insert
-                        filtered.Insert(filteredIndex, added);
-                        // Update previousPassing to reflect addition for subsequent index calculations
-                        previousPassing.Insert(filteredIndex, added);
-                    }
 
-                    var output = filtered.CaptureChanges();
-                    if (output.Count > 0)
-                    {
-                        observer.OnNext(output);
+                        var newFiltered = slots.Where(s => s.Passes).Select(s => s.Item).ToList();
+
+                        // Removals (from old that are not in new)
+                        for (int i = oldFiltered.Count - 1; i >= 0; i--)
+                        {
+                            var itm = oldFiltered[i];
+                            if (!newFiltered.Contains(itm))
+                            {
+                                filtered.RemoveAt(i);
+                            }
+                        }
+
+                        // Insert additions maintaining order of newFiltered
+                        for (int i = 0; i < newFiltered.Count; i++)
+                        {
+                            if (i >= filtered.Count || !EqualityComparer<T>.Default.Equals(filtered[i], newFiltered[i]))
+                            {
+                                // If item already exists further in list, remove it first then insert here
+                                int existingIndex = filtered.IndexOf(newFiltered[i]);
+                                if (existingIndex >= 0)
+                                {
+                                    filtered.Move(existingIndex, i);
+                                }
+                                else
+                                {
+                                    filtered.Insert(i, newFiltered[i]);
+                                }
+                            }
+                        }
+
+                        var output = filtered.CaptureChanges();
+                        if (output.Count > 0)
+                        {
+                            observer.OnNext(output);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    observer.OnErrorResume(ex);
-                }
-            }, observer.OnErrorResume).AddTo(disp);
+                    catch (Exception ex)
+                    {
+                        observer.OnErrorResume(ex);
+                    }
+                },
+                observer.OnErrorResume,
+                observer.OnCompleted).AddTo(disp);
 
             // Subscribe to source changes
-            _source.Subscribe(changes =>
-            {
-                try
+            _source.Subscribe(
+                changes =>
                 {
-                    ProcessSourceChanges(slots, filtered, changes);
-                    var output = filtered.CaptureChanges();
-                    if (output.Count > 0)
+                    try
                     {
-                        observer.OnNext(output);
+                        ProcessSourceChanges(slots, filtered, changes);
+                        var output = filtered.CaptureChanges();
+                        if (output.Count > 0)
+                        {
+                            observer.OnNext(output);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    observer.OnErrorResume(ex);
-                }
-            }, observer.OnErrorResume, observer.OnCompleted).AddTo(disp);
+                    catch (Exception ex)
+                    {
+                        observer.OnErrorResume(ex);
+                    }
+                },
+                observer.OnErrorResume,
+                observer.OnCompleted).AddTo(disp);
 
             return disp;
         });
@@ -117,6 +125,7 @@ internal sealed class DynamicFilter<T>
                 case ListChangeReason.Add:
                     HandleAdd(slots, filtered, change.Item, change.CurrentIndex);
                     break;
+
                 case ListChangeReason.AddRange:
                     if (change.Range.Count > 0)
                     {
@@ -130,10 +139,13 @@ internal sealed class DynamicFilter<T>
                     {
                         HandleAdd(slots, filtered, change.Item, change.CurrentIndex);
                     }
+
                     break;
+
                 case ListChangeReason.Remove:
                     HandleRemove(slots, filtered, change.CurrentIndex);
                     break;
+
                 case ListChangeReason.RemoveRange:
                     if (change.Range.Count > 0)
                     {
@@ -146,17 +158,22 @@ internal sealed class DynamicFilter<T>
                     {
                         HandleRemove(slots, filtered, change.CurrentIndex);
                     }
+
                     break;
+
                 case ListChangeReason.Replace:
                     HandleReplace(slots, filtered, change.CurrentIndex, change.Item);
                     break;
+
                 case ListChangeReason.Moved:
                     HandleMove(slots, filtered, change.PreviousIndex, change.CurrentIndex);
                     break;
+
                 case ListChangeReason.Clear:
                     slots.Clear();
                     filtered.Clear();
                     break;
+
                 case ListChangeReason.Refresh:
                     HandleRefresh(slots, filtered, change.CurrentIndex);
                     break;
@@ -174,10 +191,12 @@ internal sealed class DynamicFilter<T>
                 count++;
             }
         }
+
         if (includeSourceIndex && untilIndex >= 0 && untilIndex < slots.Count && slots[untilIndex].Passes)
         {
             count++;
         }
+
         return count;
     }
 
@@ -189,6 +208,7 @@ internal sealed class DynamicFilter<T>
         {
             return;
         }
+
         int filteredIndex = CountPassingBefore(slots, sourceIndex);
         filtered.Insert(filteredIndex, item);
     }
@@ -199,12 +219,14 @@ internal sealed class DynamicFilter<T>
         {
             return;
         }
+
         bool passes = slots[sourceIndex].Passes;
         if (passes)
         {
             int filteredIndex = CountPassingBefore(slots, sourceIndex);
             filtered.RemoveAt(filteredIndex);
         }
+
         slots.RemoveAt(sourceIndex);
     }
 
@@ -214,6 +236,7 @@ internal sealed class DynamicFilter<T>
         {
             return;
         }
+
         var slot = slots[sourceIndex];
         bool newPass = _currentPredicate(newItem);
         if (slot.Passes && newPass)
@@ -223,6 +246,7 @@ internal sealed class DynamicFilter<T>
             slot.Item = newItem;
             return;
         }
+
         if (slot.Passes && !newPass)
         {
             int filteredIndex = CountPassingBefore(slots, sourceIndex);
@@ -231,6 +255,7 @@ internal sealed class DynamicFilter<T>
             slot.Passes = false;
             return;
         }
+
         if (!slot.Passes && newPass)
         {
             slot.Item = newItem;
@@ -239,6 +264,7 @@ internal sealed class DynamicFilter<T>
             filtered.Insert(filteredIndex, newItem);
             return;
         }
+
         slot.Item = newItem; // remains non-passing
     }
 
@@ -248,10 +274,12 @@ internal sealed class DynamicFilter<T>
         {
             return;
         }
+
         if (oldIndex < 0 || oldIndex >= slots.Count || newIndex < 0 || newIndex > slots.Count)
         {
             return;
         }
+
         var slot = slots[oldIndex];
         slots.RemoveAt(oldIndex);
         slots.Insert(newIndex, slot);
@@ -259,12 +287,14 @@ internal sealed class DynamicFilter<T>
         {
             return;
         }
+
         int oldFilteredIndex = CountPassingBefore(slots, oldIndex < newIndex ? newIndex : oldIndex) - (oldIndex < newIndex ? 1 : 0);
         int newFilteredIndex = CountPassingBefore(slots, newIndex);
         if (oldFilteredIndex == newFilteredIndex)
         {
             return;
         }
+
         filtered.Move(oldFilteredIndex, newFilteredIndex);
     }
 
@@ -274,6 +304,7 @@ internal sealed class DynamicFilter<T>
         {
             return;
         }
+
         var slot = slots[sourceIndex];
         bool newPass = _currentPredicate(slot.Item);
         if (slot.Passes && newPass)
@@ -282,6 +313,7 @@ internal sealed class DynamicFilter<T>
             filtered[filteredIndex] = slot.Item; // treat as replace
             return;
         }
+
         if (slot.Passes && !newPass)
         {
             int filteredIndex = CountPassingBefore(slots, sourceIndex);
@@ -289,6 +321,7 @@ internal sealed class DynamicFilter<T>
             slot.Passes = false;
             return;
         }
+
         if (!slot.Passes && newPass)
         {
             slot.Passes = true;

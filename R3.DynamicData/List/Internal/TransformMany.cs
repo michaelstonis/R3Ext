@@ -12,8 +12,8 @@ internal sealed class TransformMany<TSource, TDestination>
 
     private sealed class ParentEntry
     {
-        public required TSource Source;
-        public required List<TDestination> Children;
+        public TSource Source = default!;
+        public List<TDestination> Children = new();
     }
 
     public TransformMany(
@@ -66,6 +66,7 @@ internal sealed class TransformMany<TSource, TDestination>
                 case ListChangeReason.Add:
                     HandleAdd(parents, result, change.Item, change.CurrentIndex);
                     break;
+
                 case ListChangeReason.AddRange:
                     if (change.Range.Count > 0)
                     {
@@ -81,9 +82,11 @@ internal sealed class TransformMany<TSource, TDestination>
                     }
 
                     break;
+
                 case ListChangeReason.Remove:
                     HandleRemove(parents, result, change.CurrentIndex);
                     break;
+
                 case ListChangeReason.RemoveRange:
                     if (change.Range.Count > 0)
                     {
@@ -95,17 +98,21 @@ internal sealed class TransformMany<TSource, TDestination>
                     }
 
                     break;
+
                 case ListChangeReason.Replace:
                     HandleReplace(parents, result, change.CurrentIndex, change.Item, change.PreviousItem);
                     break;
+
                 case ListChangeReason.Moved:
                     // Movement of parent requires moving its children block.
                     HandleMove(parents, result, change.PreviousIndex, change.CurrentIndex);
                     break;
+
                 case ListChangeReason.Clear:
                     parents.Clear();
                     result.Clear();
                     break;
+
                 case ListChangeReason.Refresh:
                     // Re-evaluate children for parent at index; treat diff as replace semantics.
                     HandleRefresh(parents, result, change.CurrentIndex);
@@ -121,6 +128,7 @@ internal sealed class TransformMany<TSource, TDestination>
         {
             idx += parents[i].Children.Count;
         }
+
         return idx;
     }
 
@@ -183,6 +191,7 @@ internal sealed class TransformMany<TSource, TDestination>
         {
             totalChildCount += parents[parentIndex + i].Children.Count;
         }
+
         parents.RemoveRange(parentIndex, parentCount);
         if (totalChildCount == 0)
         {
@@ -272,6 +281,7 @@ internal sealed class TransformMany<TSource, TDestination>
         }
 
         int oldStart = ComputeChildStartIndex(parents, oldParentIndex < newParentIndex ? newParentIndex : oldParentIndex);
+
         // After removal+insert, indices shift; recompute positions.
         oldStart = ComputeChildStartIndex(parents, newParentIndex);
         int newStart = ComputeChildStartIndex(parents, newParentIndex);

@@ -63,6 +63,7 @@ public static class ObservableListEx
                     case ListChangeReason.Add:
                         target.Insert(change.CurrentIndex, change.Item);
                         break;
+
                     case ListChangeReason.AddRange:
                         if (change.Range.Count > 0)
                         {
@@ -78,9 +79,11 @@ public static class ObservableListEx
                         }
 
                         break;
+
                     case ListChangeReason.Remove:
                         target.RemoveAt(change.CurrentIndex);
                         break;
+
                     case ListChangeReason.RemoveRange:
                         if (change.Range.Count > 0)
                         {
@@ -95,20 +98,21 @@ public static class ObservableListEx
                         }
 
                         break;
+
                     case ListChangeReason.Replace:
                         target[change.CurrentIndex] = change.Item;
                         break;
-                    case ListChangeReason.Moved:
-                        {
-                            var item = target[change.PreviousIndex];
-                            target.RemoveAt(change.PreviousIndex);
-                            target.Insert(change.CurrentIndex, item);
-                        }
 
+                    case ListChangeReason.Moved:
+                        var movedItem = target[change.PreviousIndex];
+                        target.RemoveAt(change.PreviousIndex);
+                        target.Insert(change.CurrentIndex, movedItem);
                         break;
+
                     case ListChangeReason.Clear:
                         target.Clear();
                         break;
+
                     case ListChangeReason.Refresh:
                         // No action needed; binding does not need to refresh
                         break;
@@ -156,5 +160,20 @@ public static class ObservableListEx
         Observable<Func<T, bool>> predicateChanged)
     {
         return new Internal.DynamicFilter<T>(source, predicateChanged).Run();
+    }
+
+    public static Observable<IChangeSet<T>> DisposeMany<T>(
+        this Observable<IChangeSet<T>> source)
+        where T : IDisposable
+    {
+        return new Internal.DisposeMany<T>(source).Run();
+    }
+
+    public static Observable<IChangeSet<T>> DisposeMany<T>(
+        this Observable<IChangeSet<T>> source,
+        Action<T> disposeAction)
+        where T : notnull
+    {
+        return new Internal.DisposeMany<T>(source, disposeAction).Run();
     }
 }

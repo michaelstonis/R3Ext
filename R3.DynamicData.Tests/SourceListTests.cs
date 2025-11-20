@@ -65,11 +65,11 @@ public class SourceListTests
         // Assert
         Assert.Single(changesList);
         var changes = changesList[0];
-        Assert.Equal(3, changes.Count);
-        Assert.Equal(3, changes.Adds);
-        Assert.Contains(changes, c => c.Item == 1 && c.CurrentIndex == 0 && c.Reason == ListChangeReason.AddRange);
-        Assert.Contains(changes, c => c.Item == 2 && c.CurrentIndex == 1 && c.Reason == ListChangeReason.AddRange);
-        Assert.Contains(changes, c => c.Item == 3 && c.CurrentIndex == 2 && c.Reason == ListChangeReason.AddRange);
+        Assert.Single(changes);
+        var change = changes.First();
+        Assert.Equal(ListChangeReason.AddRange, change.Reason);
+        Assert.Equal(0, change.CurrentIndex);
+        Assert.Equal(new[] { 1, 2, 3 }, change.Range);
     }
 
     [Fact]
@@ -110,7 +110,11 @@ public class SourceListTests
         // Assert
         Assert.Equal(2, changesList.Count); // snapshot + insert range
         var changes = changesList[1];
-        Assert.Equal(3, changes.Count);
+        Assert.Single(changes);
+        var change = changes.First();
+        Assert.Equal(ListChangeReason.AddRange, change.Reason);
+        Assert.Equal(1, change.CurrentIndex);
+        Assert.Equal(new[] { 2, 3, 4 }, change.Range);
         Assert.Equal(new[] { 1, 2, 3, 4, 5 }, list.Items);
     }
 
@@ -175,7 +179,11 @@ public class SourceListTests
         // Assert
         Assert.Equal(2, changesList.Count); // snapshot + remove range
         var changes = changesList[1];
-        Assert.Equal(3, changes.Count);
+        Assert.Single(changes);
+        var change = changes.First();
+        Assert.Equal(ListChangeReason.RemoveRange, change.Reason);
+        Assert.Equal(1, change.CurrentIndex);
+        Assert.Equal(new[] { 2, 3, 4 }, change.Range);
         Assert.Equal(3, changes.Removes);
         Assert.Equal(new[] { 1, 5 }, list.Items);
     }

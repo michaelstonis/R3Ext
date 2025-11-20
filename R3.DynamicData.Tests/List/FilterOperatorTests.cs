@@ -31,6 +31,7 @@ public class FilterOperatorTests
         var source = new SourceList<int>();
         using var sub = source.Connect().Filter(x => x > 5).Subscribe(_ => { });
         source.AddRange(new[] { 3, 6, 9 });
+
         // Current filtered list: 6,9
         var captured = new List<IChangeSet<int>>();
         sub.Dispose();
@@ -56,6 +57,7 @@ public class FilterOperatorTests
 
         // Replace 12 with 8 (removal)
         source.Replace(12, 8);
+
         // Replace 5 with 11 (addition)
         source.Replace(5, 11);
 

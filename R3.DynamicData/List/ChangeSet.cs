@@ -39,7 +39,8 @@ public class ChangeSet<T> : IChangeSet<T>
 
         if (c.Reason == ListChangeReason.AddRange)
         {
-            return c.Range?.Count ?? 0;
+            // Support both aggregated range (Range set) and per-item AddRange entries (Range null)
+            return c.Range?.Count ?? 1;
         }
 
         return 0;
@@ -54,7 +55,8 @@ public class ChangeSet<T> : IChangeSet<T>
 
         if (c.Reason == ListChangeReason.RemoveRange || c.Reason == ListChangeReason.Clear)
         {
-            return c.Range?.Count ?? 0;
+            // Support both aggregated range (Range set) and per-item RemoveRange entries (Range null)
+            return c.Range?.Count ?? 1;
         }
 
         return 0;

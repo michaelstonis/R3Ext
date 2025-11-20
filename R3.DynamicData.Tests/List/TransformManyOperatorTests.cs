@@ -16,6 +16,7 @@ public class TransformManyOperatorTests
         }
 
         public string Name { get; }
+
         public List<int> Children { get; }
     }
 

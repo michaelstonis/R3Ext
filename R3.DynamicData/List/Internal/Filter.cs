@@ -10,8 +10,8 @@ internal sealed class Filter<T>
 
     private sealed class Slot
     {
-        public required T Item;
-        public required bool Passes;
+        public T Item = default!;
+        public bool Passes;
     }
 
     public Filter(Observable<IChangeSet<T>> source, Func<T, bool> predicate)
@@ -60,6 +60,7 @@ internal sealed class Filter<T>
                 case ListChangeReason.Add:
                     HandleAdd(slots, filtered, change.Item, change.CurrentIndex);
                     break;
+
                 case ListChangeReason.AddRange:
                     if (change.Range.Count > 0)
                     {
@@ -75,9 +76,11 @@ internal sealed class Filter<T>
                     }
 
                     break;
+
                 case ListChangeReason.Remove:
                     HandleRemove(slots, filtered, change.CurrentIndex);
                     break;
+
                 case ListChangeReason.RemoveRange:
                     if (change.Range.Count > 0)
                     {
@@ -92,16 +95,20 @@ internal sealed class Filter<T>
                     }
 
                     break;
+
                 case ListChangeReason.Replace:
                     HandleReplace(slots, filtered, change.CurrentIndex, change.Item);
                     break;
+
                 case ListChangeReason.Moved:
                     HandleMove(slots, filtered, change.PreviousIndex, change.CurrentIndex);
                     break;
+
                 case ListChangeReason.Clear:
                     slots.Clear();
                     filtered.Clear();
                     break;
+
                 case ListChangeReason.Refresh:
                     HandleRefresh(slots, filtered, change.CurrentIndex);
                     break;
@@ -119,6 +126,7 @@ internal sealed class Filter<T>
                 count++;
             }
         }
+
         return count;
     }
 
@@ -148,6 +156,7 @@ internal sealed class Filter<T>
             int filteredIndex = CountPassingBefore(slots, sourceIndex);
             filtered.RemoveAt(filteredIndex);
         }
+
         slots.RemoveAt(sourceIndex);
     }
 
@@ -189,7 +198,6 @@ internal sealed class Filter<T>
             return;
         }
 
-        // remains not passing
         slot.Item = newItem;
     }
 
@@ -213,14 +221,15 @@ internal sealed class Filter<T>
             return;
         }
 
-        // Move in filtered list
         int oldFilteredIndex = CountPassingBefore(slots, oldIndex < newIndex ? newIndex : oldIndex) - (oldIndex < newIndex ? 1 : 0); // approximate original position
+
         // Recompute precise new position
         int newFilteredIndex = CountPassingBefore(slots, newIndex);
         if (oldFilteredIndex == newFilteredIndex)
         {
             return;
         }
+
         filtered.Move(oldFilteredIndex, newFilteredIndex);
     }
 
@@ -240,6 +249,7 @@ internal sealed class Filter<T>
             filtered[filteredIndex] = slot.Item;
             return;
         }
+
         if (slot.Passes && !newPass)
         {
             int filteredIndex = CountPassingBefore(slots, sourceIndex);
@@ -247,6 +257,7 @@ internal sealed class Filter<T>
             slot.Passes = false;
             return;
         }
+
         if (!slot.Passes && newPass)
         {
             slot.Passes = true;
