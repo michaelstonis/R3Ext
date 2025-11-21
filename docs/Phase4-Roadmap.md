@@ -1,4 +1,4 @@
-# Phase 4: Advanced Reactive Features
+# Phase 4: Advanced Operators & Async Support
 
 ## Status
 - Phase 1: ✅ Complete (Core operators, Filter, Transform, Bind)
@@ -7,157 +7,195 @@
 - Phase 4: 🚧 In Progress
 
 ## Objectives
-1. **Property Change Tracking**: WhenValueChanged for reactive property monitoring
-2. **Advanced Change Control**: Throttle, Debounce, Batch operators for change sets
-3. **Time-based Operations**: Expiration, scheduling, time-windowing
-4. **Threading & Concurrency**: Scheduler support, thread-safe operations
-5. **Sample App Enhancements**: Comprehensive demos of all features
+1. **Dynamic Filtering**: FilterOnObservable with per-item reactive predicates
+2. **Async Transforms**: TransformAsync with task/cancel overloads
+3. **ChangeSet Merging**: MergeChangeSets for union of multiple streams
+4. **Size Management**: LimitSizeTo for hard size caps on live lists
+5. **Time-based Eviction**: ExpireAfter for list-level time-based removal
+6. **Advanced Async**: TransformAsyncMany and variants
 
 ## Priority Features
 
-### 1. WhenValueChanged (High Priority)
-**Goal**: Enable reactive property change tracking on cached objects
+### 1. FilterOnObservable (High Priority)
+**Goal**: Dynamic filtering based on per-item observable predicates
 
 **Implementation Plan**:
-- [ ] Create `WhenValueChanged<TObject, TKey, TProperty>` operator
-  - Expression-based property selector: `cache.Connect().WhenValueChanged(x => x.Name)`
-  - Emits `PropertyValue<TObject, TProperty>` with old/new values
-  - Integrates with INotifyPropertyChanged
-  - Supports nested property paths (e.g., `x => x.Address.City`)
-- [ ] Add `WhenPropertyChanged<TObject, TKey>` for generic property changes
-  - Listens to any property change on objects
-  - Returns `PropertyChanged<TObject>` with property name
-- [ ] Tests: single property, multiple properties, nested paths, null handling
+- [ ] Create `FilterOnObservable<T>` for list observables
+  - Accepts `Func<T, Observable<bool>>` per-item predicate factory
+  - Subscribes to each item's boolean observable
+  - Dynamically includes/excludes based on emissions
+  - Handles add/remove of items with proper subscription management
+- [ ] Support buffer/throttle variants if needed
+- [ ] Tests: dynamic inclusion/exclusion, item lifecycle, multiple predicates
 
 **API Example**:
 ```csharp
-var nameChanges = cache.Connect()
-    .WhenValueChanged(person => person.Name)
-    .Subscribe(change => 
-        Console.WriteLine($"{change.Sender.Name}: {change.Previous} → {change.Current}"));
+// Filter items based on their IsActive property changes
+list.Connect()
+    .FilterOnObservable(item => item.IsActiveChanged)
+    .Bind(out var activeItems);
 ```
 
-### 2. Change Set Flow Control (High Priority)
-**Goal**: Control the rate and batching of change set emissions
+### 2. TransformAsync (High Priority)
+**Goal**: Asynchronous transformation with task/cancellation support
 
 **Implementation Plan**:
-- [ ] `Throttle<TObject, TKey>(TimeSpan)` - Emit at most once per interval
-  - Discards intermediate changes
-  - Useful for high-frequency updates
-- [ ] `Debounce<TObject, TKey>(TimeSpan)` - Emit after silence period
-  - Waits for quiet period before emitting
-  - Useful for search-as-you-type scenarios
-- [ ] `Batch<TObject, TKey>(TimeSpan, int?)` - Buffer changes
-  - Accumulates changes, emits merged changeset
-  - Optional max batch size
-- [ ] `Sample<TObject, TKey>(TimeSpan)` - Periodic sampling
-  - Emits most recent state at fixed intervals
+- [ ] `TransformAsync<TSource, TDestination>` for list observables
+  - Accepts `Func<TSource, Task<TDestination>>` or `Func<TSource, CancellationToken, Task<TDestination>>`
+  - Preserves ordering during async operations
+  - Supports replace semantics on completion
+  - Handles cancellation when items are removed
+- [ ] `TransformAsync<TSource, TKey, TDestination>` for cache observables
+- [ ] Parallel vs sequential execution options
+- [ ] Tests: ordering, cancellation, error handling, concurrent transforms
 
 **API Example**:
 ```csharp
-// Throttle: Limit to 1 update per 500ms
+// Transform with async API call
 cache.Connect()
-    .Throttle(TimeSpan.FromMilliseconds(500))
+    .TransformAsync(async (item, ct) => 
+    {
+        var enriched = await api.EnrichAsync(item, ct);
+        return enriched;
+    })
+    .Bind(out var enrichedItems);
+```
+
+### 3. MergeChangeSets (High Priority)
+**Goal**: Union/merge multiple IChangeSet streams without logical semantics
+
+**Implementation Plan**:
+- [ ] `MergeChangeSets<T>` for list observables
+  - Merges multiple `Observable<IChangeSet<T>>` streams
+  - Emits union of all changes (distinct membership)
+  - Different from And/Or/Except/Xor logical operators
+  - Straight union diff emission behavior
+- [ ] `MergeChangeSets<TObject, TKey>` for cache observables
+  - Keyed variant for cache merging
+- [ ] Optional ordering/priority support
+- [ ] Tests: multiple sources, overlapping changes, dynamic sources
+
+**API Example**:
+```csharp
+// Merge multiple change streams
+var merged = Observable.MergeChangeSets(
+    source1.Connect(),
+    source2.Connect(),
+    source3.Connect()
+);
+```
+
+### 4. LimitSizeTo (Medium Priority)
+**Goal**: Hard size cap on live lists with automatic trimming
+
+**Implementation Plan**:
+- [ ] `LimitSizeTo<T>(int)` for list observables
+  - Maintains max list size
+  - Trims excess items on additions
+  - Different from Top (virtual window)
+  - Different from ToObservableChangeSet limitSizeTo (applies to live streams)
+- [ ] Optional eviction strategy (FIFO, LIFO, custom comparer)
+- [ ] Efficient trimming (removes from end by default)
+- [ ] Tests: overflow handling, eviction strategies, edge cases
+
+**API Example**:
+```csharp
+// Keep only most recent 100 items
+list.Connect()
+    .LimitSizeTo(100)
+    .Bind(out var recentItems);
+
+// Custom eviction (remove oldest by timestamp)
+list.Connect()
+    .LimitSizeTo(100, Comparer<Item>.Create((a, b) => a.Timestamp.CompareTo(b.Timestamp)))
     .Bind(out var items);
-
-// Batch: Accumulate changes for 100ms
-cache.Connect()
-    .Batch(TimeSpan.FromMilliseconds(100), maxBatchSize: 50)
-    .Subscribe(batch => ProcessChanges(batch));
 ```
 
-### 3. Time-based Operations (Medium Priority)
-**Goal**: Add temporal operators for cache management
+### 5. ExpireAfter (Medium Priority)
+**Goal**: Time-based eviction for items in live list streams
 
 **Implementation Plan**:
-- [ ] `ExpireAfter<TObject, TKey>(Func<TObject, TimeSpan>)` - Auto-removal
-  - Removes items after specified duration
-  - Per-item expiration policy
-  - Useful for caching scenarios
-- [ ] `LimitSizeTo<TObject, TKey>(int, IComparer<TObject>?)` - Size constraints
-  - Maintains max cache size
-  - Optional eviction policy (LRU, custom comparer)
-- [ ] `SkipInitial<TObject, TKey>()` - Skip initial load
-  - Ignores first emission
-  - Useful for update-only scenarios
+- [ ] `ExpireAfter<T>(Func<T, TimeSpan>)` for list observables
+  - Time-based eviction for items already in stream
+  - Different from ToObservableChangeSet expiry (applies to existing list items)
+  - Per-item timeout policy
+  - Automatic removal after duration
+- [ ] Uses R3's TimeProvider for testability
+- [ ] Efficient timer management (batch expirations)
+- [ ] Tests: expiration timing, cancellation on removal, multiple items
 
 **API Example**:
 ```csharp
-// Expire items 5 minutes after creation
-cache.Connect()
+// Remove items 5 minutes after they're added
+list.Connect()
     .ExpireAfter(item => TimeSpan.FromMinutes(5))
-    .Subscribe();
+    .Bind(out var items);
 
-// Maintain max 1000 items, remove oldest
-cache.Connect()
-    .LimitSizeTo(1000, Comparer<Item>.Create((a, b) => a.Created.CompareTo(b.Created)))
-    .Subscribe();
-```
-
-### 4. Threading & Scheduler Support (Medium Priority)
-**Goal**: Add thread-safe operations and scheduler integration
-
-**Implementation Plan**:
-- [ ] `ObserveOn<TObject, TKey>(TimeProvider)` - Change thread context
-  - Marshal change sets to specific thread
-  - Integration with R3's TimeProvider
-- [ ] `SubscribeOn<TObject, TKey>(TimeProvider)` - Subscribe on scheduler
-  - Control subscription thread
-- [ ] Thread-safe cache operations
-  - Review and ensure `SourceCache` thread safety
-  - Add locks where needed for concurrent access
-- [ ] Tests: concurrent reads/writes, cross-thread notifications
-
-**API Example**:
-```csharp
-// Observe changes on UI thread (MAUI/WPF)
-cache.Connect()
-    .ObserveOn(SynchronizationContext.Current)
+// Variable expiration based on item type
+list.Connect()
+    .ExpireAfter(item => item.IsHighPriority 
+        ? TimeSpan.FromHours(1) 
+        : TimeSpan.FromMinutes(10))
     .Bind(out var items);
 ```
 
-### 5. Sample App Enhancements (Low Priority)
-**Goal**: Comprehensive demonstration of all R3.DynamicData features
+### 6. TransformAsyncMany (Low Priority)
+**Goal**: Async many-to-many transformation with advanced options
 
 **Implementation Plan**:
-- [ ] Add WhenValueChanged demo page
-  - Edit person properties, see reactive updates
-  - Property change history display
-- [ ] Add Throttle/Debounce demo page
-  - Visual indicator of emission rate
-  - Comparison of different timing strategies
-- [ ] Add Expiration demo page
-  - Cache with TTL, countdown timers
-  - Auto-removal visualization
-- [ ] Add Threading demo page
-  - Background data loading
-  - Cross-thread updates
-- [ ] Enhance existing Virtualization demo
-  - Add to DynamicDataOperatorsPage.xaml
-  - Pagination controls
-  - Window size adjustment
+- [ ] `TransformAsyncMany<TSource, TDestination>` for list observables
+  - Async selector returning `Task<IEnumerable<TDestination>>`
+  - Parallel vs sequential execution options
+  - Flattens results like TransformMany
+  - Cancellation support
+- [ ] Tests: ordering, concurrency, cancellation, error handling
 
-### 6. Additional Quality of Life Features
-- [ ] `Clone<TObject, TKey>()` - Deep copy cache
-- [ ] `IgnoreUpdateWhen<TObject, TKey>(Func<TObject, TObject, bool>)` - Conditional updates
-- [ ] `TransformSafe<TObject, TKey, TResult>()` - Transform with error handling
-- [ ] `MergeChangeSets<TObject, TKey>()` - Combine multiple change set streams
-- [ ] `Replay<TObject, TKey>(int)` - Replay last N changes
+**API Example**:
+```csharp
+// Async fetch related items
+list.Connect()
+    .TransformAsyncMany(async (person, ct) => 
+        await api.GetFriendsAsync(person.Id, ct))
+    .Bind(out var allFriends);
+```
+
+### 7. Reverse Optimization (Low Priority)
+**Goal**: Optimize Reverse operator for incremental changes
+
+**Current State**: Reverse emits Clear + AddRange diffs (simplified)
+**Target**: Emit minimal incremental changes for efficiency
+
+**Implementation Plan**:
+- [ ] Track reversed indices
+- [ ] Emit Add/Remove/Replace with correct reversed indices
+  - Add at index i → Add at (count - i - 1)
+  - Remove at index i → Remove at (count - i - 1)
+- [ ] Handle AddRange/RemoveRange efficiently
+- [ ] Tests: verify correctness of reversed indices
 
 ## Success Metrics
-- WhenValueChanged functional with INotifyPropertyChanged integration
-- Throttle/Debounce/Batch operators implemented with tests
-- ExpireAfter working in sample scenarios
-- Threading support verified with concurrent access tests
-- Sample app has demos for all Phase 4 features
-- All tests passing (target: 100+ tests total)
+- FilterOnObservable with dynamic predicate support
+- TransformAsync with proper cancellation and ordering
+- MergeChangeSets for union of multiple streams
+- LimitSizeTo with configurable eviction strategies
+- ExpireAfter for time-based list item removal
+- TransformAsyncMany with parallel/sequential options
+- Reverse optimization for incremental changes
+- All tests passing (target: 120+ tests total)
 - Performance maintained or improved
 
 ## Timeline
-- Week 1: WhenValueChanged + property tracking tests
-- Week 2: Throttle/Debounce/Batch + timing tests
-- Week 3: ExpireAfter/LimitSizeTo + scheduler support
-- Week 4: Sample app enhancements + final polish
+- Week 1: FilterOnObservable + TransformAsync
+- Week 2: MergeChangeSets + LimitSizeTo
+- Week 3: ExpireAfter + TransformAsyncMany
+- Week 4: Reverse optimization + final polish
+
+## Implementation Notes
+- ✅ WhenValueChanged completed (9/9 tests) - bonus feature from previous plan
+- All operators should integrate with R3's Observable<T> and TimeProvider
+- Focus on list operators first (more commonly used)
+- Cache variants can follow list implementations
+- Maintain backward compatibility with existing operators
 
 ## Out of Scope (Future Phases)
 - Persistent cache (disk-backed, SQLite integration)
@@ -166,6 +204,7 @@ cache.Connect()
 - Custom operators SDK
 - Performance profiling dashboard
 - Integration with other reactive frameworks (Rx.NET compatibility)
+- ObserveOn/SubscribeOn threading operators (R3 handles this differently)
 
 ## Notes
 - Focus on most-requested features first (WhenValueChanged, Throttle)
