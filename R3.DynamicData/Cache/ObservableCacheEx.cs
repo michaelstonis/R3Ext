@@ -391,6 +391,39 @@ public static partial class ObservableCacheEx
         return source.Subscribe(changes => adaptor.Adapt(changes));
     }
 
+    // Lifecycle parity operators
+
+    public static Observable<IChangeSet<TObject, TKey>> SubscribeMany<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        Func<TObject, IDisposable> subscriptionFactory)
+        where TObject : notnull
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (subscriptionFactory is null) throw new ArgumentNullException(nameof(subscriptionFactory));
+        return new Cache.Internal.SubscribeMany<TObject, TKey>(source, subscriptionFactory).Run();
+    }
+
+    public static Observable<IChangeSet<TObject, TKey>> DisposeMany<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source)
+        where TObject : notnull
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return new Cache.Internal.DisposeMany<TObject, TKey>(source).Run();
+    }
+
+    public static Observable<IChangeSet<TObject, TKey>> DisposeMany<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        Action<TObject> disposeAction)
+        where TObject : notnull
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (disposeAction is null) throw new ArgumentNullException(nameof(disposeAction));
+        return new Cache.Internal.DisposeMany<TObject, TKey>(source, disposeAction).Run();
+    }
+
     // AutoRefresh variants for cache
 
     public static Observable<IChangeSet<TObject, TKey>> AutoRefresh<TObject, TKey>(
@@ -451,5 +484,17 @@ public static partial class ObservableCacheEx
         return new Cache.Internal.AutoRefresh<TObject, TAny>(castSource, reevaluator, changeSetBuffer, timeProvider)
             .Run()
             .Select(cs => (IChangeSet<TObject, TKey>)new ChangeSet<TObject, TKey>(cs.Select(ch => new Change<TObject, TKey>(ch.Reason, (TKey)ch.Key!, ch.Current, ch.Previous.HasValue ? ch.Previous.Value : default))));
+    }
+
+    // Filtering parity
+    public static Observable<IChangeSet<TObject, TKey>> FilterOnObservable<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        Func<TObject, Observable<bool>> observablePredicate)
+        where TObject : notnull
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (observablePredicate is null) throw new ArgumentNullException(nameof(observablePredicate));
+        return new Cache.Internal.FilterOnObservable<TObject, TKey, bool>(source, observablePredicate).Run();
     }
 }

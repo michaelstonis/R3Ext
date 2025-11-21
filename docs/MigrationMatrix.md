@@ -24,7 +24,7 @@ Legend:
 | Transformation          | AddKey                                               | List               | NotStarted  | None    | Promote list to keyed changeset                      |
 | Filtering               | Filter (static predicate)                            | Cache/List         | Partial     | Passing | Stateful cache FilterOnObservable variant missing    |
 | Filtering               | Filter (observable predicate)                        | Cache/List         | Implemented | Passing | Stateful/property-based cache filter pending         |
-| Filtering               | FilterOnObservable                                   | List               | Implemented | Passing | Cache variant TBD                                    |
+| Filtering               | FilterOnObservable                                   | Cache/List         | Implemented | Passing |                                                     |
 | Filtering               | FilterOnProperty (obsolete)                          | Cache/List         | Deferred    | None    | Replace via AutoRefresh + Filter                     |
 | Logical                 | And / Or / Except / Xor                              | Cache              | Implemented | Passing | Dynamic composite list versions needed               |
 | Logical                 | And / Or / Except / Xor                              | List               | Partial     | Passing | Composite (IObservableList sources) pending          |
@@ -37,7 +37,7 @@ Legend:
 | Refresh                 | AutoRefresh / AutoRefreshOnObservable                | Cache/List         | Partial     | Passing | List implemented & used; cache AutoRefresh added; OnObservable pending |
 | Refresh                 | SuppressRefresh                                      | List               | NotStarted  | None    | Simple filter on reasons                             |
 | Refresh                 | InvokeEvaluate                                       | Cache              | NotStarted  | None    | IEvaluateAware support                               |
-| Lifecycle               | DisposeMany                                          | Cache/List         | Partial     | Passing | List implemented & tested; cache variant pending     |
+| Lifecycle               | DisposeMany                                          | Cache/List         | Implemented | Passing |                                                     |
 | Lifecycle               | ExpireAfter                                          | Cache              | NotStarted  | None    | Time-based eviction                                  |
 | Lifecycle               | LimitSizeTo                                          | List               | Implemented | Passing | Cache size/time combos pending                       |
 | Lifecycle               | EnsureUniqueKeys                                     | Cache              | NotStarted  | None    | Enforce uniqueness externally                        |
@@ -48,7 +48,7 @@ Legend:
 | Query                   | ToCollection / ToSortedCollection                    | Cache/List         | NotStarted  | None    | Provide snapshot projection                          |
 | Merge                   | MergeMany / MergeChangeSets                          | Cache/List         | Partial     | Passing | Advanced comparer/equality overloads missing         |
 | Subscription            | RefCount                                             | List               | Implemented | Passing | Cache counterpart optional                           |
-| Subscription            | SubscribeMany                                        | Cache/List         | Partial     | Passing | List implemented & tested; cache variant pending     |
+| Subscription            | SubscribeMany                                        | Cache/List         | Implemented | Passing |                                                     |
 | Index Ops               | RemoveIndex / Reverse / SkipInitial / StartWithEmpty | List               | NotStarted  | None    | Convenience wrappers                                 |
 | Size / TTL              | ToObservableChangeSet (expire/size)                  | Cache/List         | Partial     | Passing | Cache time+size combined missing                     |
 | Evaluation              | IncludeUpdateWhen                                    | Cache              | NotStarted  | None    | Selective update emission                            |

@@ -1,0 +1,81 @@
+// Port of DynamicData to R3.
+
+namespace R3.DynamicData.Cache.Internal;
+
+internal sealed class SubscribeMany<TObject, TKey>
+    where TKey : notnull
+{
+    private readonly Observable<IChangeSet<TObject, TKey>> _source;
+    private readonly Func<TObject, IDisposable> _subscriptionFactory;
+
+    public SubscribeMany(Observable<IChangeSet<TObject, TKey>> source, Func<TObject, IDisposable> subscriptionFactory)
+    {
+        _source = source;
+        _subscriptionFactory = subscriptionFactory;
+    }
+
+    public Observable<IChangeSet<TObject, TKey>> Run()
+    {
+        return Observable.Create<IChangeSet<TObject, TKey>>(observer =>
+        {
+            var locker = new object();
+            var disposables = new CompositeDisposable();
+            var subscriptions = new Dictionary<TKey, IDisposable>();
+
+            _source.Subscribe(changes =>
+            {
+                lock (locker)
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case Kernel.ChangeReason.Add:
+                                if (!subscriptions.ContainsKey(change.Key))
+                                {
+                                    subscriptions[change.Key] = _subscriptionFactory(change.Current);
+                                }
+                                break;
+                            case Kernel.ChangeReason.Update:
+                                // Dispose previous subscription (object updated) then create new one.
+                                if (subscriptions.TryGetValue(change.Key, out var existing))
+                                {
+                                    existing.Dispose();
+                                }
+                                subscriptions[change.Key] = _subscriptionFactory(change.Current);
+                                break;
+                            case Kernel.ChangeReason.Remove:
+                                if (subscriptions.TryGetValue(change.Key, out var sub))
+                                {
+                                    sub.Dispose();
+                                    subscriptions.Remove(change.Key);
+                                }
+                                break;
+                            case Kernel.ChangeReason.Refresh:
+                                // Refresh keeps same object; ensure subscription exists but do not recreate.
+                                if (!subscriptions.ContainsKey(change.Key))
+                                {
+                                    subscriptions[change.Key] = _subscriptionFactory(change.Current);
+                                }
+                                break;
+                        }
+                    }
+                    observer.OnNext(changes);
+                }
+            }, observer.OnErrorResume, observer.OnCompleted).AddTo(disposables);
+
+            return Disposable.Create(() =>
+            {
+                disposables.Dispose();
+                lock (locker)
+                {
+                    foreach (var sub in subscriptions.Values)
+                    {
+                        sub.Dispose();
+                    }
+                    subscriptions.Clear();
+                }
+            });
+        });
+    }
+}
