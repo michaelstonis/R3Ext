@@ -54,15 +54,14 @@ public static IDisposable SubscribeAsync<T>(this Observable<T> source,
 /// </summary>
 public static Observable<T> FromArray<T>(params T[] items)
 {
-    items ??= Array.Empty<T>();
-    return Observable.Create<T>(observer =>
+    return Observable.Create<T, T[]>(items, static (observer, state) =>
     {
-        for (int i = 0; i < items.Length; i++)
+        for (int i = 0; i < state.Length; i++)
         {
-            observer.OnNext(items[i]);
+            observer.OnNext(state[i]);
         }
         observer.OnCompleted();
-        return Disposable.Create(() => { });
+        return Disposable.Empty;
     });
 }
 
@@ -74,9 +73,9 @@ public static Observable<T> ForEach<T, TEnumerable>(this Observable<TEnumerable>
     where TEnumerable : System.Collections.Generic.IEnumerable<T>
 {
     if (source is null) throw new ArgumentNullException(nameof(source));
-    return Observable.Create<T>(observer =>
+    return Observable.Create<T, Observable<TEnumerable>>(source, static (observer, state) =>
     {
-        return source.Subscribe(seq =>
+        return state.Subscribe(seq =>
         {
             if (seq is null) return;
             // Fast path for arrays
@@ -107,9 +106,9 @@ public static Observable<T> ForEach<T, TEnumerable>(this Observable<TEnumerable>
 public static Observable<T> ForEach<T>(this Observable<T[]> source)
 {
     if (source is null) throw new ArgumentNullException(nameof(source));
-    return Observable.Create<T>(observer =>
+    return Observable.Create<T, Observable<T[]>>(source, static (observer, state) =>
     {
-        return source.Subscribe(arr =>
+        return state.Subscribe(arr =>
         {
             if (arr is null) return;
             for (int i = 0; i < arr.Length; i++) observer.OnNext(arr[i]);
@@ -125,9 +124,9 @@ public static Observable<T> ForEach<T>(this Observable<T[]> source)
 public static Observable<T> ForEach<T>(this Observable<System.Collections.Generic.IList<T>> source)
 {
     if (source is null) throw new ArgumentNullException(nameof(source));
-    return Observable.Create<T>(observer =>
+    return Observable.Create<T, Observable<System.Collections.Generic.IList<T>>>(source, static (observer, state) =>
     {
-        return source.Subscribe(list =>
+        return state.Subscribe(list =>
         {
             if (list is null) return;
             for (int i = 0; i < list.Count; i++) observer.OnNext(list[i]);

@@ -58,9 +58,9 @@ public static class FilteringExtensions
             throw new ArgumentNullException(nameof(source));
         }
 
-        return Observable.Create<T>(observer =>
+        return Observable.Create<T, Observable<T?>>(source, static (observer, state) =>
         {
-            return source.Subscribe(
+            return state.Subscribe(
                 x =>
                 {
                     if (x is not null)
@@ -84,9 +84,9 @@ public static class FilteringExtensions
             throw new ArgumentNullException(nameof(source));
         }
 
-        return Observable.Create<T>(observer =>
+        return Observable.Create<T, Observable<T?>>(source, static (observer, state) =>
         {
-            return source.Subscribe(
+            return state.Subscribe(
                 x =>
                 {
                     if (x.HasValue)
@@ -132,20 +132,22 @@ public static class FilteringExtensions
             throw new ArgumentNullException(nameof(predicate));
         }
 
-        return Observable.Create<T>(observer =>
-        {
-            return source.Subscribe(
-                x =>
-                {
-                    observer.OnNext(x);
-                    if (predicate(x))
+        return Observable.Create<T, (Observable<T> source, Func<T, bool> predicate)>(
+            (source, predicate),
+            static (observer, state) =>
+            {
+                return state.source.Subscribe(
+                    x =>
                     {
-                        observer.OnCompleted();
-                    }
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted);
-        });
+                        observer.OnNext(x);
+                        if (state.predicate(x))
+                        {
+                            observer.OnCompleted();
+                        }
+                    },
+                    observer.OnErrorResume,
+                    observer.OnCompleted);
+            });
     }
 
     /// <summary>
