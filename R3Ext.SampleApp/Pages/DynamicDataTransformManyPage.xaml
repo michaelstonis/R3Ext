@@ -3,74 +3,107 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="R3Ext.SampleApp.DynamicDataTransformManyPage"
              Title="TransformMany">
-    <Grid RowDefinitions="Auto,*" Padding="20" RowSpacing="16">
+    <Grid RowDefinitions="Auto,*"
+          Padding="20"
+          RowSpacing="16">
         <!-- Header and Controls -->
-        <VerticalStackLayout Grid.Row="0" Spacing="16">
+        <VerticalStackLayout Grid.Row="0"
+                             Spacing="16">
             <Label Text="TransformMany with Deduplication"
                    Style="{StaticResource Headline}" />
             <Label Text="Flatten collections from multiple sources with optional dedup"
                    Style="{StaticResource SubHeadline}" />
-
             <!-- Add Person Section -->
-            <Frame BorderColor="LightBlue" Padding="12">
+            <Frame BorderColor="LightBlue"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Add Person with Tags" FontAttributes="Bold" />
-                    <Entry x:Name="NameEntry" Placeholder="Name (e.g., Alice)" />
-                    <Entry x:Name="TagsEntry" Placeholder="Tags (comma-separated, e.g., coding, gaming)" />
-                    <Button Text="Add Person" Clicked="OnAddPerson" />
-                    <Button Text="Add Batch (3 Random)" Clicked="OnAddBatch" BackgroundColor="DarkBlue" />
+                    <Label Text="Add Person with Tags"
+                           FontAttributes="Bold" />
+                    <Entry x:Name="NameEntry"
+                           Placeholder="Name (e.g., Alice)" />
+                    <Entry x:Name="TagsEntry"
+                           Placeholder="Tags (comma-separated, e.g., coding, gaming)" />
+                    <Button Text="Add Person"
+                            Clicked="OnAddPerson" />
+                    <Button Text="Add Batch (3 Random)"
+                            Clicked="OnAddBatch"
+                            BackgroundColor="DarkBlue" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Deduplication Toggle -->
-            <Frame BorderColor="Purple" Padding="12">
+            <Frame BorderColor="Purple"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Deduplication Mode" FontAttributes="Bold" />
+                    <Label Text="Deduplication Mode"
+                           FontAttributes="Bold" />
                     <Label Text="When enabled, duplicate tags across people are suppressed using reference counting"
-                           FontSize="12" TextColor="Gray" />
+                           FontSize="12"
+                           TextColor="Gray" />
                     <HorizontalStackLayout Spacing="12">
-                        <Switch x:Name="DedupSwitch" Toggled="OnDedupToggled" />
+                        <Switch x:Name="DedupSwitch"
+                                Toggled="OnDedupToggled" />
                         <Label Text="Enable Deduplication"
                                VerticalOptions="Center" />
                     </HorizontalStackLayout>
-                    <Label x:Name="DedupStatusLabel" 
+                    <Label x:Name="DedupStatusLabel"
                            Text="Mode: Allow Duplicates"
                            FontSize="12"
                            TextColor="Gray" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Statistics -->
-            <Frame BorderColor="Green" Padding="12">
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Frame BorderColor="Green"
+                   Padding="12">
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="8">
                     <VerticalStackLayout Spacing="4">
-                        <Label Text="People Count" FontSize="12" TextColor="Gray" />
-                        <Label x:Name="PeopleCountLabel" Text="0" FontSize="18" FontAttributes="Bold" />
+                        <Label Text="People Count"
+                               FontSize="12"
+                               TextColor="Gray" />
+                        <Label x:Name="PeopleCountLabel"
+                               Text="0"
+                               FontSize="18"
+                               FontAttributes="Bold" />
                     </VerticalStackLayout>
-                    <VerticalStackLayout Grid.Column="1" Spacing="4">
-                        <Label Text="Flattened Tags" FontSize="12" TextColor="Gray" />
-                        <Label x:Name="TagsCountLabel" Text="0" FontSize="18" FontAttributes="Bold" />
+                    <VerticalStackLayout Grid.Column="1"
+                                         Spacing="4">
+                        <Label Text="Flattened Tags"
+                               FontSize="12"
+                               TextColor="Gray" />
+                        <Label x:Name="TagsCountLabel"
+                               Text="0"
+                               FontSize="18"
+                               FontAttributes="Bold" />
                     </VerticalStackLayout>
                 </Grid>
             </Frame>
         </VerticalStackLayout>
-
         <!-- Split View: People and Tags -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="12">
+        <Grid Grid.Row="1"
+              ColumnDefinitions="*,*"
+              ColumnSpacing="12">
             <!-- People List -->
-            <Frame Grid.Column="0" BorderColor="Orange" Padding="12">
-                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
-                    <Label Text="People" FontAttributes="Bold" />
-                    
+            <Frame Grid.Column="0"
+                   BorderColor="Orange"
+                   Padding="12">
+                <Grid RowDefinitions="Auto,*,Auto"
+                      RowSpacing="8">
+                    <Label Text="People"
+                           FontAttributes="Bold" />
                     <CollectionView Grid.Row="1"
                                     x:Name="PeopleView"
                                     SelectionMode="None">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
-                                <Frame Padding="10" Margin="0,4" HasShadow="False" BorderColor="LightGray">
-                                    <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="4">
-                                        <Label Text="{Binding Name}" FontAttributes="Bold" />
-                                        <Label Grid.Row="1" 
+                                <Frame Padding="10"
+                                       Margin="0,4"
+                                       HasShadow="False"
+                                       BorderColor="LightGray">
+                                    <Grid RowDefinitions="Auto,Auto,Auto"
+                                          RowSpacing="4">
+                                        <Label Text="{Binding Name}"
+                                               FontAttributes="Bold" />
+                                        <Label Grid.Row="1"
                                                Text="{Binding Tags, Converter={StaticResource ListToStringConverter}}"
                                                FontSize="11"
                                                TextColor="Gray" />
@@ -87,26 +120,31 @@
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                     </CollectionView>
-
-                    <Button Grid.Row="2" 
-                            Text="Clear All People" 
-                            Clicked="OnClearAll" 
+                    <Button Grid.Row="2"
+                            Text="Clear All People"
+                            Clicked="OnClearAll"
                             BackgroundColor="DarkRed" />
                 </Grid>
             </Frame>
-
             <!-- Flattened Tags -->
-            <Frame Grid.Column="1" BorderColor="DarkBlue" Padding="12">
-                <Grid RowDefinitions="Auto,*" RowSpacing="8">
-                    <Label Text="All Tags (TransformMany)" FontAttributes="Bold" />
-                    
+            <Frame Grid.Column="1"
+                   BorderColor="DarkBlue"
+                   Padding="12">
+                <Grid RowDefinitions="Auto,*"
+                      RowSpacing="8">
+                    <Label Text="All Tags (TransformMany)"
+                           FontAttributes="Bold" />
                     <CollectionView Grid.Row="1"
                                     x:Name="TagsView"
                                     SelectionMode="None">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
-                                <Frame Padding="8" Margin="2" HasShadow="False" BorderColor="DarkBlue">
-                                    <Label Text="{Binding .}" FontSize="13" />
+                                <Frame Padding="8"
+                                       Margin="2"
+                                       HasShadow="False"
+                                       BorderColor="DarkBlue">
+                                    <Label Text="{Binding .}"
+                                           FontSize="13" />
                                 </Frame>
                             </DataTemplate>
                         </CollectionView.ItemTemplate>

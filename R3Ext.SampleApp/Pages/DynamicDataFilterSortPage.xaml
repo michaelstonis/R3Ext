@@ -8,25 +8,32 @@
                              Spacing="16">
             <Label Text="Filter, Sort, and AutoRefresh with DynamicData"
                    Style="{StaticResource Headline}" />
-            
             <!-- Add Person -->
-            <Frame BorderColor="LightBlue" Padding="12">
+            <Frame BorderColor="LightBlue"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Add Person" FontAttributes="Bold" />
-                    <Entry x:Name="NameEntry" Placeholder="Name" />
-                    <Entry x:Name="AgeEntry" Placeholder="Age" Keyboard="Numeric" />
-                    <Button Text="Add Person" Clicked="OnAddPerson" />
+                    <Label Text="Add Person"
+                           FontAttributes="Bold" />
+                    <Entry x:Name="NameEntry"
+                           Placeholder="Name" />
+                    <Entry x:Name="AgeEntry"
+                           Placeholder="Age"
+                           Keyboard="Numeric" />
+                    <Button Text="Add Person"
+                            Clicked="OnAddPerson" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Filter Controls -->
-            <Frame BorderColor="Purple" Padding="12">
+            <Frame BorderColor="Purple"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Filter" FontAttributes="Bold" />
+                    <Label Text="Filter"
+                           FontAttributes="Bold" />
                     <Entry x:Name="FilterEntry"
                            Placeholder="Filter by name contains..."
                            TextChanged="OnFilterChanged" />
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="8">
                         <Button Text="Age >= 30"
                                 Clicked="OnFilterAge30Plus" />
                         <Button Text="Show All"
@@ -35,19 +42,22 @@
                     </Grid>
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Sort Controls -->
-            <Frame BorderColor="Orange" Padding="12">
+            <Frame BorderColor="Orange"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Sort" FontAttributes="Bold" />
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Label Text="Sort"
+                           FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="8">
                         <Button Text="Name A-Z"
                                 Clicked="OnSortNameAscending" />
                         <Button Text="Name Z-A"
                                 Grid.Column="1"
                                 Clicked="OnSortNameDescending" />
                     </Grid>
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="8">
                         <Button Text="Age Low-High"
                                 Clicked="OnSortAgeLowHigh" />
                         <Button Text="Age High-Low"
@@ -56,18 +66,21 @@
                     </Grid>
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Statistics -->
-            <Frame BorderColor="Green" Padding="12">
+            <Frame BorderColor="Green"
+                   Padding="12">
                 <VerticalStackLayout Spacing="4">
-                    <Label Text="Statistics" FontAttributes="Bold" />
-                    <Label x:Name="CountLabel" Text="Visible: 0 / Total: 0" />
-                    <Label x:Name="AvgAgeLabel" Text="Avg Age (visible): 0" />
+                    <Label Text="Statistics"
+                           FontAttributes="Bold" />
+                    <Label x:Name="CountLabel"
+                           Text="Visible: 0 / Total: 0" />
+                    <Label x:Name="AvgAgeLabel"
+                           Text="Avg Age (visible): 0" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- People Collection -->
-            <Label Text="People (AutoRefresh enabled)" FontAttributes="Bold" />
+            <Label Text="People (AutoRefresh enabled)"
+                   FontAttributes="Bold" />
             <CollectionView x:Name="PeopleView"
                             HeightRequest="300"
                             SelectionMode="None">
@@ -77,7 +90,8 @@
                                Margin="0,4"
                                HasShadow="False"
                                BorderColor="LightGray">
-                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                            <Grid ColumnDefinitions="*,Auto,Auto"
+                                  ColumnSpacing="8">
                                 <VerticalStackLayout Spacing="2">
                                     <Label Text="{Binding Name}"
                                            FontAttributes="Bold" />
@@ -103,8 +117,9 @@
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
-
-            <Button Text="Clear All" Clicked="OnClear" BackgroundColor="DarkRed" />
+            <Button Text="Clear All"
+                    Clicked="OnClear"
+                    BackgroundColor="DarkRed" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>

@@ -3,88 +3,125 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="R3Ext.SampleApp.DynamicDataDistinctValuesPage"
              Title="DistinctValues">
-    <Grid RowDefinitions="Auto,*" Padding="20" RowSpacing="16">
+    <Grid RowDefinitions="Auto,*"
+          Padding="20"
+          RowSpacing="16">
         <!-- Header and Controls -->
-        <VerticalStackLayout Grid.Row="0" Spacing="16">
+        <VerticalStackLayout Grid.Row="0"
+                             Spacing="16">
             <Label Text="DistinctValues with Reference Counting"
                    Style="{StaticResource Headline}" />
             <Label Text="Extract unique values from cache items with automatic add/remove tracking"
                    Style="{StaticResource SubHeadline}" />
-
             <!-- Add Product Section -->
-            <Frame BorderColor="LightBlue" Padding="12">
+            <Frame BorderColor="LightBlue"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Add/Update Product" FontAttributes="Bold" />
-                    <Entry x:Name="ProductIdEntry" Placeholder="ID (number)" Keyboard="Numeric" />
-                    <Entry x:Name="ProductNameEntry" Placeholder="Product Name" />
-                    <Entry x:Name="CategoryEntry" Placeholder="Category (e.g., Electronics)" />
-                    <Entry x:Name="BrandEntry" Placeholder="Brand (e.g., Apple)" />
-                    <Button Text="Add/Update Product" Clicked="OnAddOrUpdateProduct" />
-                    <Button Text="Add Sample Batch" Clicked="OnAddBatch" BackgroundColor="DarkBlue" />
+                    <Label Text="Add/Update Product"
+                           FontAttributes="Bold" />
+                    <Entry x:Name="ProductIdEntry"
+                           Placeholder="ID (number)"
+                           Keyboard="Numeric" />
+                    <Entry x:Name="ProductNameEntry"
+                           Placeholder="Product Name" />
+                    <Entry x:Name="CategoryEntry"
+                           Placeholder="Category (e.g., Electronics)" />
+                    <Entry x:Name="BrandEntry"
+                           Placeholder="Brand (e.g., Apple)" />
+                    <Button Text="Add/Update Product"
+                            Clicked="OnAddOrUpdateProduct" />
+                    <Button Text="Add Sample Batch"
+                            Clicked="OnAddBatch"
+                            BackgroundColor="DarkBlue" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Value Selection -->
-            <Frame BorderColor="Purple" Padding="12">
+            <Frame BorderColor="Purple"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Extract Distinct Values" FontAttributes="Bold" />
+                    <Label Text="Extract Distinct Values"
+                           FontAttributes="Bold" />
                     <Label Text="Choose which property to track for uniqueness"
-                           FontSize="12" TextColor="Gray" />
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button Text="Categories" 
+                           FontSize="12"
+                           TextColor="Gray" />
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="8">
+                        <Button Text="Categories"
                                 Clicked="OnShowCategories"
                                 x:Name="CategoriesButton" />
-                        <Button Text="Brands" 
+                        <Button Text="Brands"
                                 Grid.Column="1"
                                 Clicked="OnShowBrands"
                                 x:Name="BrandsButton" />
                     </Grid>
-                    <Label x:Name="ModeLabel" 
+                    <Label x:Name="ModeLabel"
                            Text="Tracking: Categories"
                            FontSize="12"
                            TextColor="Gray" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Statistics -->
-            <Frame BorderColor="Green" Padding="12">
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+            <Frame BorderColor="Green"
+                   Padding="12">
+                <Grid ColumnDefinitions="*,*"
+                      ColumnSpacing="8">
                     <VerticalStackLayout Spacing="4">
-                        <Label Text="Products Count" FontSize="12" TextColor="Gray" />
-                        <Label x:Name="ProductsCountLabel" Text="0" FontSize="18" FontAttributes="Bold" />
+                        <Label Text="Products Count"
+                               FontSize="12"
+                               TextColor="Gray" />
+                        <Label x:Name="ProductsCountLabel"
+                               Text="0"
+                               FontSize="18"
+                               FontAttributes="Bold" />
                     </VerticalStackLayout>
-                    <VerticalStackLayout Grid.Column="1" Spacing="4">
-                        <Label Text="Distinct Values" FontSize="12" TextColor="Gray" />
-                        <Label x:Name="DistinctCountLabel" Text="0" FontSize="18" FontAttributes="Bold" />
+                    <VerticalStackLayout Grid.Column="1"
+                                         Spacing="4">
+                        <Label Text="Distinct Values"
+                               FontSize="12"
+                               TextColor="Gray" />
+                        <Label x:Name="DistinctCountLabel"
+                               Text="0"
+                               FontSize="18"
+                               FontAttributes="Bold" />
                     </VerticalStackLayout>
                 </Grid>
             </Frame>
         </VerticalStackLayout>
-
         <!-- Split View: Products and Distinct Values -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="12">
+        <Grid Grid.Row="1"
+              ColumnDefinitions="*,*"
+              ColumnSpacing="12">
             <!-- Products List -->
-            <Frame Grid.Column="0" BorderColor="Orange" Padding="12">
-                <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
-                    <Label Text="Products" FontAttributes="Bold" />
-                    
+            <Frame Grid.Column="0"
+                   BorderColor="Orange"
+                   Padding="12">
+                <Grid RowDefinitions="Auto,*,Auto"
+                      RowSpacing="8">
+                    <Label Text="Products"
+                           FontAttributes="Bold" />
                     <CollectionView Grid.Row="1"
                                     x:Name="ProductsView"
                                     SelectionMode="None">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
-                                <Frame Padding="10" Margin="0,4" HasShadow="False" BorderColor="LightGray">
-                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="4">
-                                        <Label Text="{Binding Id, StringFormat='ID: {0}'}" 
-                                               FontSize="10" TextColor="Gray" />
-                                        <Label Grid.Row="1" 
-                                               Text="{Binding Name}" 
+                                <Frame Padding="10"
+                                       Margin="0,4"
+                                       HasShadow="False"
+                                       BorderColor="LightGray">
+                                    <Grid RowDefinitions="Auto,Auto,Auto,Auto"
+                                          RowSpacing="4">
+                                        <Label Text="{Binding Id, StringFormat='ID: {0}'}"
+                                               FontSize="10"
+                                               TextColor="Gray" />
+                                        <Label Grid.Row="1"
+                                               Text="{Binding Name}"
                                                FontAttributes="Bold" />
-                                        <Label Grid.Row="2" 
+                                        <Label Grid.Row="2"
                                                Text="{Binding Category, StringFormat='Category: {0}'}"
                                                FontSize="11"
                                                TextColor="DarkBlue" />
-                                        <HorizontalStackLayout Grid.Row="3" Spacing="8">
+                                        <HorizontalStackLayout Grid.Row="3"
+                                                               Spacing="8">
                                             <Label Text="{Binding Brand, StringFormat='Brand: {0}'}"
                                                    FontSize="11"
                                                    TextColor="DarkGreen"
@@ -102,32 +139,37 @@
                             </DataTemplate>
                         </CollectionView.ItemTemplate>
                     </CollectionView>
-
-                    <Button Grid.Row="2" 
-                            Text="Clear All Products" 
-                            Clicked="OnClearAll" 
+                    <Button Grid.Row="2"
+                            Text="Clear All Products"
+                            Clicked="OnClearAll"
                             BackgroundColor="DarkRed" />
                 </Grid>
             </Frame>
-
             <!-- Distinct Values -->
-            <Frame Grid.Column="1" BorderColor="DarkBlue" Padding="12">
-                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="8">
-                    <Label x:Name="DistinctTitleLabel" 
-                           Text="Unique Categories" 
+            <Frame Grid.Column="1"
+                   BorderColor="DarkBlue"
+                   Padding="12">
+                <Grid RowDefinitions="Auto,Auto,*"
+                      RowSpacing="8">
+                    <Label x:Name="DistinctTitleLabel"
+                           Text="Unique Categories"
                            FontAttributes="Bold" />
                     <Label Grid.Row="1"
                            Text="Values appear when first added, removed when last occurrence deleted"
                            FontSize="11"
                            TextColor="Gray" />
-                    
                     <CollectionView Grid.Row="2"
                                     x:Name="DistinctView"
                                     SelectionMode="None">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>
-                                <Frame Padding="10" Margin="2,4" HasShadow="False" BorderColor="DarkBlue">
-                                    <Label Text="{Binding .}" FontSize="14" FontAttributes="Bold" />
+                                <Frame Padding="10"
+                                       Margin="2,4"
+                                       HasShadow="False"
+                                       BorderColor="DarkBlue">
+                                    <Label Text="{Binding .}"
+                                           FontSize="14"
+                                           FontAttributes="Bold" />
                                 </Frame>
                             </DataTemplate>
                         </CollectionView.ItemTemplate>

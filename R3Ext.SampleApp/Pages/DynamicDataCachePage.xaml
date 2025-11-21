@@ -4,66 +4,96 @@
              x:Class="R3Ext.SampleApp.DynamicDataCachePage"
              Title="SourceCache Demo">
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="16">
+        <VerticalStackLayout Padding="20"
+                             Spacing="16">
             <Label Text="SourceCache with Key-based Operations"
                    Style="{StaticResource Headline}" />
-            
             <!-- Add Person Section -->
-            <Frame BorderColor="LightBlue" Padding="12" Margin="0,8">
+            <Frame BorderColor="LightBlue"
+                   Padding="12"
+                   Margin="0,8">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Add or Update Person" FontAttributes="Bold" />
-                    <Entry x:Name="IdEntry" Placeholder="ID (number)" Keyboard="Numeric" />
-                    <Entry x:Name="NameEntry" Placeholder="Name" />
-                    <Entry x:Name="AgeEntry" Placeholder="Age (number)" Keyboard="Numeric" />
-                    <Entry x:Name="CityEntry" Placeholder="City" />
-                    <Button Text="Add/Update Person" Clicked="OnAddOrUpdatePerson" />
-                    <Button Text="Add Batch (3 Random)" Clicked="OnAddBatch" BackgroundColor="DarkBlue" />
+                    <Label Text="Add or Update Person"
+                           FontAttributes="Bold" />
+                    <Entry x:Name="IdEntry"
+                           Placeholder="ID (number)"
+                           Keyboard="Numeric" />
+                    <Entry x:Name="NameEntry"
+                           Placeholder="Name" />
+                    <Entry x:Name="AgeEntry"
+                           Placeholder="Age (number)"
+                           Keyboard="Numeric" />
+                    <Entry x:Name="CityEntry"
+                           Placeholder="City" />
+                    <Button Text="Add/Update Person"
+                            Clicked="OnAddOrUpdatePerson" />
+                    <Button Text="Add Batch (3 Random)"
+                            Clicked="OnAddBatch"
+                            BackgroundColor="DarkBlue" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Cache Info -->
-            <Frame BorderColor="LightGreen" Padding="12">
+            <Frame BorderColor="LightGreen"
+                   Padding="12">
                 <VerticalStackLayout Spacing="4">
-                    <Label Text="Cache Statistics" FontAttributes="Bold" />
-                    <Label x:Name="CountLabel" Text="Count: 0" />
-                    <Label x:Name="PreviewLabel" Text="Preview: None" />
-                    <Button Text="Refresh Preview" Clicked="OnRefreshPreview" />
+                    <Label Text="Cache Statistics"
+                           FontAttributes="Bold" />
+                    <Label x:Name="CountLabel"
+                           Text="Count: 0" />
+                    <Label x:Name="PreviewLabel"
+                           Text="Preview: None" />
+                    <Button Text="Refresh Preview"
+                            Clicked="OnRefreshPreview" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Watch Specific Key -->
-            <Frame BorderColor="Orange" Padding="12">
+            <Frame BorderColor="Orange"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Watch Specific Person" FontAttributes="Bold" />
-                    <Entry x:Name="WatchIdEntry" Placeholder="Watch ID" Keyboard="Numeric" />
-                    <Button Text="Start Watching" Clicked="OnStartWatching" />
-                    <Label x:Name="WatchLabel" Text="Not watching" TextColor="Gray" />
+                    <Label Text="Watch Specific Person"
+                           FontAttributes="Bold" />
+                    <Entry x:Name="WatchIdEntry"
+                           Placeholder="Watch ID"
+                           Keyboard="Numeric" />
+                    <Button Text="Start Watching"
+                            Clicked="OnStartWatching" />
+                    <Label x:Name="WatchLabel"
+                           Text="Not watching"
+                           TextColor="Gray" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- People Collection -->
-            <Label Text="All People in Cache" FontAttributes="Bold" />
-            <CollectionView x:Name="PeopleView" 
-                            HeightRequest="300" 
+            <Label Text="All People in Cache"
+                   FontAttributes="Bold" />
+            <CollectionView x:Name="PeopleView"
+                            HeightRequest="300"
                             SelectionMode="Single">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Frame Padding="12" Margin="0,4" HasShadow="False" BorderColor="LightGray">
-                            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
-                                <Label Text="{Binding Id}" 
+                        <Frame Padding="12"
+                               Margin="0,4"
+                               HasShadow="False"
+                               BorderColor="LightGray">
+                            <Grid ColumnDefinitions="Auto,*,Auto,Auto"
+                                  ColumnSpacing="8">
+                                <Label Text="{Binding Id}"
                                        VerticalOptions="Center"
                                        FontAttributes="Bold"
                                        WidthRequest="40" />
-                                <VerticalStackLayout Grid.Column="1" Spacing="2">
-                                    <Label Text="{Binding Name}" FontAttributes="Bold" />
-                                    <Label Text="{Binding City}" FontSize="12" TextColor="Gray" />
+                                <VerticalStackLayout Grid.Column="1"
+                                                     Spacing="2">
+                                    <Label Text="{Binding Name}"
+                                           FontAttributes="Bold" />
+                                    <Label Text="{Binding City}"
+                                           FontSize="12"
+                                           TextColor="Gray" />
                                 </VerticalStackLayout>
-                                <Label Grid.Column="2" 
-                                       Text="{Binding Age, StringFormat='Age: {0}'}" 
+                                <Label Grid.Column="2"
+                                       Text="{Binding Age, StringFormat='Age: {0}'}"
                                        VerticalOptions="Center"
                                        FontSize="12" />
-                                <Button Grid.Column="3" 
-                                        Text="Remove" 
+                                <Button Grid.Column="3"
+                                        Text="Remove"
                                         Clicked="OnRemovePerson"
                                         CommandParameter="{Binding Id}"
                                         Padding="8,4"
@@ -74,10 +104,14 @@
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
-
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                <Button Text="Clear All" Clicked="OnClearAll" BackgroundColor="DarkRed" />
-                <Button Text="Reset Demo Data" Grid.Column="1" Clicked="OnResetDemoData" />
+            <Grid ColumnDefinitions="*,*"
+                  ColumnSpacing="8">
+                <Button Text="Clear All"
+                        Clicked="OnClearAll"
+                        BackgroundColor="DarkRed" />
+                <Button Text="Reset Demo Data"
+                        Grid.Column="1"
+                        Clicked="OnResetDemoData" />
             </Grid>
         </VerticalStackLayout>
     </ScrollView>

@@ -1,65 +1,100 @@
-<?xml version="1.0" encoding="utf-8" ?>
-
+<?xml version="1.0" encoding="utf-8"?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:R3Ext.SampleApp"
-    x:Class="R3Ext.SampleApp.DynamicDataBasicsPage"
-    Title="DynamicData Basics">
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:R3Ext.SampleApp"
+             x:Class="R3Ext.SampleApp.DynamicDataBasicsPage"
+             Title="DynamicData Basics">
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="16">
-            <Label Text="SourceList with Multiple Operators" Style="{StaticResource Headline}" />
-
+        <VerticalStackLayout Padding="20"
+                             Spacing="16">
+            <Label Text="SourceList with Multiple Operators"
+                   Style="{StaticResource Headline}" />
             <!-- Add Controls -->
-            <Frame BorderColor="LightBlue" Padding="12">
+            <Frame BorderColor="LightBlue"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Add Numbers" FontAttributes="Bold" />
-                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <Entry x:Name="NewItemEntry" Placeholder="Enter number" Keyboard="Numeric" />
-                        <Button Text="Add" Grid.Column="1" Clicked="OnAddItem" />
+                    <Label Text="Add Numbers"
+                           FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="8">
+                        <Entry x:Name="NewItemEntry"
+                               Placeholder="Enter number"
+                               Keyboard="Numeric" />
+                        <Button Text="Add"
+                                Grid.Column="1"
+                                Clicked="OnAddItem" />
                     </Grid>
-                    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
-                        <Button Text="Add Random" Clicked="OnAddRandom" />
-                        <Button Text="Add Range (1-10)" Grid.Column="1" Clicked="OnAddRange" />
-                        <Button Text="Clear" Grid.Column="2" Clicked="OnClear" BackgroundColor="DarkRed" />
+                    <Grid ColumnDefinitions="*,*,*"
+                          ColumnSpacing="8">
+                        <Button Text="Add Random"
+                                Clicked="OnAddRandom" />
+                        <Button Text="Add Range (1-10)"
+                                Grid.Column="1"
+                                Clicked="OnAddRange" />
+                        <Button Text="Clear"
+                                Grid.Column="2"
+                                Clicked="OnClear"
+                                BackgroundColor="DarkRed" />
                     </Grid>
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Operations -->
-            <Frame BorderColor="Purple" Padding="12">
+            <Frame BorderColor="Purple"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Operations" FontAttributes="Bold" />
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button Text="Sort Ascending" Clicked="OnSortAscending" />
-                        <Button Text="Sort Descending" Grid.Column="1" Clicked="OnSortDescending" />
+                    <Label Text="Operations"
+                           FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="8">
+                        <Button Text="Sort Ascending"
+                                Clicked="OnSortAscending" />
+                        <Button Text="Sort Descending"
+                                Grid.Column="1"
+                                Clicked="OnSortDescending" />
                     </Grid>
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button Text="Show Even Only" Clicked="OnFilterEven" />
-                        <Button Text="Show All" Grid.Column="1" Clicked="OnShowAll" />
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="8">
+                        <Button Text="Show Even Only"
+                                Clicked="OnFilterEven" />
+                        <Button Text="Show All"
+                                Grid.Column="1"
+                                Clicked="OnShowAll" />
                     </Grid>
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Statistics -->
-            <Frame BorderColor="Green" Padding="12">
+            <Frame BorderColor="Green"
+                   Padding="12">
                 <VerticalStackLayout Spacing="4">
-                    <Label Text="Live Statistics" FontAttributes="Bold" />
-                    <Label x:Name="CountLabel" Text="Count: 0" />
-                    <Label x:Name="SumLabel" Text="Sum: 0" />
-                    <Label x:Name="FilterLabel" Text="Filter: None" />
+                    <Label Text="Live Statistics"
+                           FontAttributes="Bold" />
+                    <Label x:Name="CountLabel"
+                           Text="Count: 0" />
+                    <Label x:Name="SumLabel"
+                           Text="Sum: 0" />
+                    <Label x:Name="FilterLabel"
+                           Text="Filter: None" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Items Display -->
-            <Label Text="Current Items" FontAttributes="Bold" />
-            <CollectionView x:Name="ItemsView" HeightRequest="250" SelectionMode="Single">
+            <Label Text="Current Items"
+                   FontAttributes="Bold" />
+            <CollectionView x:Name="ItemsView"
+                            HeightRequest="250"
+                            SelectionMode="Single">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Frame Padding="12" Margin="0,4" HasShadow="False" BorderColor="LightGray">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                <Label Text="{Binding .}" FontSize="18" VerticalOptions="Center" />
-                                <Button Grid.Column="1" 
-                                        Text="Remove" 
+                        <Frame Padding="12"
+                               Margin="0,4"
+                               HasShadow="False"
+                               BorderColor="LightGray">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="8">
+                                <Label Text="{Binding .}"
+                                       FontSize="18"
+                                       VerticalOptions="Center" />
+                                <Button Grid.Column="1"
+                                        Text="Remove"
                                         Clicked="OnRemoveItem"
                                         CommandParameter="{Binding .}"
                                         Padding="8,4"
