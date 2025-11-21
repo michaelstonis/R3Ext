@@ -147,6 +147,7 @@ public static class ObservableListAggregates
                 if (count == 1)
                 {
                     valueCounts.Remove(value);
+
                     // If we removed the current max, recalc.
                     if (hasValue && value.CompareTo(currentMax) == 0)
                     {
@@ -173,6 +174,7 @@ public static class ObservableListAggregates
                     currentMax = default;
                     return;
                 }
+
                 // Linear scan of distinct values.
                 var max = default(TProperty);
                 bool first = true;
