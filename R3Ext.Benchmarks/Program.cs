@@ -27,8 +27,12 @@ public static class Program
     public static void Main(string[] args)
     {
         var config = new FastConfig();
-        BenchmarkSwitcher.FromTypes(new[] { typeof(BindingBenchmarks), typeof(CrossFrameworkBindBenchmarks) })
-            .Run(args, config);
+        BenchmarkSwitcher.FromTypes(new[]
+        {
+            typeof(BindingBenchmarks),
+            typeof(CrossFrameworkBindBenchmarks),
+            typeof(R3Ext.Benchmarks.Phase2CacheOperatorBenchmarks)
+        }).Run(args, config);
     }
 }
 
