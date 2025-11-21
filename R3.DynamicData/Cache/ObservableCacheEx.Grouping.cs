@@ -1,8 +1,17 @@
 // Initial minimal grouping implementation (Partial) for DynamicData port.
 // Emits a full logical reset of group list (Clear + Add for all groups) upon any upstream change.
 // This is intentionally naive and will be optimized to emit diffs only.
+#pragma warning disable SA1503 // Braces should not be omitted
+#pragma warning disable SA1513 // Closing brace should be followed by blank line
+#pragma warning disable SA1515 // Single-line comment should be preceded by blank line
+#pragma warning disable SA1116 // Parameters should begin on new line when spanning multiple lines
+#pragma warning disable SA1501 // Statement should not be on a single line
+#pragma warning disable SA1107 // Multiple statements on one line
+#pragma warning disable SA1210 // Using directives should be ordered alphabetically
 
 using System.Collections.ObjectModel;
+using R3.DynamicData.List;
+using R3.DynamicData.Kernel;
 
 namespace R3.DynamicData.Cache;
 
@@ -19,9 +28,17 @@ public static partial class ObservableCacheEx
     /// <param name="groupSelector">Selector producing a group key.</param>
     /// <returns>Observable change set of groups.</returns>
     public static Observable<IChangeSet<Group<TObject, TGroupKey>>> GroupOn<TObject, TKey, TGroupKey>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        Func<TObject, TGroupKey> groupSelector)
+        where TObject : notnull
+        where TKey : notnull
+        where TGroupKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (groupSelector is null) throw new ArgumentNullException(nameof(groupSelector));
+
         return Observable.Create<IChangeSet<Group<TObject, TGroupKey>>>(observer =>
         {
-            // State: current groups keyed by group key.
             var groups = new Dictionary<TGroupKey, List<TObject>>();
             var previousSnapshot = new List<Group<TObject, TGroupKey>>();
 
@@ -29,7 +46,6 @@ public static partial class ObservableCacheEx
             {
                 try
                 {
-                    // Apply changes to group membership.
                     foreach (var change in changeSet)
                     {
                         switch (change.Reason)
@@ -90,10 +106,7 @@ public static partial class ObservableCacheEx
                         }
                     }
 
-                    // Build current snapshot.
                     var currentSnapshot = groups.Select(kvp => new Group<TObject, TGroupKey>(kvp.Key, new ReadOnlyCollection<TObject>(kvp.Value.ToList()))).ToList();
-
-                    // Emit logical reset: Clear with previous snapshot then Add for each current group.
                     var changes = new List<Change<Group<TObject, TGroupKey>>>();
                     if (previousSnapshot.Count > 0)
                     {
@@ -111,14 +124,6 @@ public static partial class ObservableCacheEx
                     observer.OnErrorResume(ex);
                 }
             }, observer.OnErrorResume, observer.OnCompleted);
-        });
-                    catch (Exception ex)
-                    {
-                        observer.OnErrorResume(ex);
-                    }
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted);
         });
     }
 }

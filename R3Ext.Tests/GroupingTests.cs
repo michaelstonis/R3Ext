@@ -1,6 +1,19 @@
-using R3.DynamicData.Cache;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
+using R3; // R3 observable extensions
+using R3.DynamicData.Cache;
+using R3.DynamicData.Kernel;
+using ListChangeReason = R3.DynamicData.List.ListChangeReason; // Alias only the enum to avoid Group<> ambiguity
+#pragma warning disable SA1208
+#pragma warning disable SA1516
+#pragma warning disable SA1501
+#pragma warning disable SA1107
+#pragma warning disable SA1503
+#pragma warning disable SA1502
+#pragma warning disable SA1513
+#pragma warning disable SA1515
 
 namespace R3Ext.Tests;
 
@@ -28,13 +41,7 @@ public class GroupingTests
             .GroupOn<Person, int, string>(p => p.Department)
             .Subscribe(cs =>
             {
-                // Extract group snapshot after reset
-                var currentGroups = new List<Group<Person, string>>();
-                foreach (var c in cs)
-                {
-                    if (c.Reason == ListChangeReason.Add)
-                        currentGroups.Add(c.Item);
-                }
+                var currentGroups = cs.Where(c => c.Reason == ListChangeReason.Add).Select(c => c.Item).ToList();
                 groupsObserved.Add(currentGroups);
             });
 
@@ -61,19 +68,14 @@ public class GroupingTests
             .GroupOn<Person, int, string>(p => p.Department)
             .Subscribe(cs =>
             {
-                var currentGroups = new List<Group<Person, string>>();
-                foreach (var c in cs)
-                {
-                    if (c.Reason == ListChangeReason.Add)
-                        currentGroups.Add(c.Item);
-                }
+                var currentGroups = cs.Where(c => c.Reason == ListChangeReason.Add).Select(c => c.Item).ToList();
                 groupsObserved.Add(currentGroups);
             });
 
         var p1 = new Person(1, "HR");
         cache.AddOrUpdate(p1);
-        p1.Department = "Finance"; // triggers refresh path via INotifyPropertyChanged
-        cache.Refresh(p1);
+        p1.Department = "Finance"; // change department
+        cache.Edit(u => u.Refresh(p1.Id));
 
         var last = groupsObserved[^1];
         Assert.Contains(last, g => g.Key == "Finance");
