@@ -99,13 +99,13 @@ public static partial class ObservableListEx
 
                             if (completedItems.Count > 0)
                             {
-                                var itemsToRemove = completedItems.Select(x => x.Destination).ToList();
+                                var clearedItems = completedItems.Select(x => x.Destination).ToList();
                                 completedItems.Clear();
                                 observer.OnNext(
                                     new ChangeSet<TDestination>(
                                         new[]
                                         {
-                                            new Change<TDestination>(ListChangeReason.Clear, itemsToRemove, 0),
+                                            new Change<TDestination>(ListChangeReason.Clear, clearedItems, 0),
                                         }));
                             }
 
@@ -153,6 +153,7 @@ public static partial class ObservableListEx
         where TDestination : notnull
     {
         var item = change.Item;
+        var isReplace = change.Reason == ListChangeReason.Replace;
 
         // Cancel existing transformation if this is a replace
         if (transformations.TryGetValue(item, out var existingTransformation))
@@ -160,6 +161,20 @@ public static partial class ObservableListEx
             existingTransformation.Cts.Cancel();
             existingTransformation.Cts.Dispose();
             transformations.Remove(item);
+        }
+
+        // Check if item already exists in completed items (for Replace)
+        var existingCompletedIndex = -1;
+        TDestination? previousDestination = default;
+
+        if (isReplace)
+        {
+            // For Replace, look up by index in the original change
+            if (change.CurrentIndex >= 0 && change.CurrentIndex < completedItems.Count)
+            {
+                existingCompletedIndex = change.CurrentIndex;
+                previousDestination = completedItems[existingCompletedIndex].Destination;
+            }
         }
 
         // Start new transformation
@@ -177,14 +192,10 @@ public static partial class ObservableListEx
                 // Check if still valid (not cancelled)
                 if (!cts.Token.IsCancellationRequested)
                 {
-                    // Find if we're replacing an existing item
-                    var existingItem = completedItems.FirstOrDefault(x => EqualityComparer<TSource>.Default.Equals(x.Source, item));
-
-                    if (existingItem != null)
+                    if (isReplace && existingCompletedIndex >= 0)
                     {
-                        // Replace
-                        var index = completedItems.IndexOf(existingItem);
-                        completedItems[index] = new TransformedItem<TSource, TDestination>(item, result);
+                        // Replace at specific index
+                        completedItems[existingCompletedIndex] = new TransformedItem<TSource, TDestination>(item, result);
 
                         observer.OnNext(
                             new ChangeSet<TDestination>(
@@ -193,8 +204,8 @@ public static partial class ObservableListEx
                                     new Change<TDestination>(
                                         ListChangeReason.Replace,
                                         result,
-                                        existingItem.Destination,
-                                        index),
+                                        previousDestination,
+                                        existingCompletedIndex),
                                 }));
                     }
                     else
