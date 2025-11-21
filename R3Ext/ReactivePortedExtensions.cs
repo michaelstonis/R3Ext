@@ -699,11 +699,13 @@ public static Observable<T> Conflate<T>(this Observable<T> source, TimeSpan peri
 public static Observable<Unit> Start(Action action, bool configureAwait = true)
 {
     if (action is null) throw new ArgumentNullException(nameof(action));
-    return Observable.FromAsync(async ct =>
-    {
-        action();
-        await ValueTask.CompletedTask;
-    }, configureAwait);
+    return Observable.FromAsync(
+        _ =>
+        {
+            action();
+            return default(ValueTask);
+        },
+        configureAwait);
 }
 
 /// <summary>
