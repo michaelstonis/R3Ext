@@ -115,13 +115,88 @@ public static class ObservableListAggregates
         if (selector == null) throw new ArgumentNullException(nameof(selector));
         return Observable.Create<TProperty>(observer =>
         {
-            var values = new List<TProperty>();
+            // Track per-item value to support Refresh.
+            var itemValues = new Dictionary<TSource, TProperty>();
+            var valueCounts = new Dictionary<TProperty, int>();
+            bool hasValue = false;
+            TProperty currentMax = default;
+
+            void Increment(TSource item)
+            {
+                var value = selector(item);
+                itemValues[item] = value;
+                if (valueCounts.TryGetValue(value, out var count))
+                {
+                    valueCounts[value] = count + 1;
+                }
+                else
+                {
+                    valueCounts[value] = 1;
+                }
+
+                if (!hasValue || value.CompareTo(currentMax) > 0)
+                {
+                    currentMax = value;
+                    hasValue = true;
+                }
+            }
+
+            void Decrement(TSource item, TProperty value)
+            {
+                if (!valueCounts.TryGetValue(value, out var count)) return;
+                if (count == 1)
+                {
+                    valueCounts.Remove(value);
+                    // If we removed the current max, recalc.
+                    if (hasValue && value.CompareTo(currentMax) == 0)
+                    {
+                        RecalculateMax();
+                    }
+                }
+                else
+                {
+                    valueCounts[value] = count - 1;
+                }
+                itemValues.Remove(item);
+                if (valueCounts.Count == 0)
+                {
+                    hasValue = false;
+                    currentMax = default;
+                }
+            }
+
+            void RecalculateMax()
+            {
+                if (valueCounts.Count == 0)
+                {
+                    hasValue = false;
+                    currentMax = default;
+                    return;
+                }
+                // Linear scan of distinct values.
+                var max = default(TProperty);
+                bool first = true;
+                foreach (var kvp in valueCounts.Keys)
+                {
+                    if (first)
+                    {
+                        max = kvp;
+                        first = false;
+                    }
+                    else if (kvp.CompareTo(max) > 0)
+                    {
+                        max = kvp;
+                    }
+                }
+                currentMax = max;
+                hasValue = true;
+            }
+
             void Publish()
             {
                 try
                 {
-                    var result = values.Count == 0 ? default : values.Max();
-                    observer.OnNext(result);
+                    observer.OnNext(hasValue ? currentMax : default);
                 }
                 catch (Exception ex)
                 {
@@ -136,46 +211,66 @@ public static class ObservableListAggregates
                     switch (change.Reason)
                     {
                         case ListChangeReason.Add:
-                            values.Add(selector(change.Item));
+                            Increment(change.Item);
                             break;
                         case ListChangeReason.AddRange:
                             if (change.Range.Count > 0)
                             {
-                                values.AddRange(change.Range.Select(selector));
-                            }
-                            else
-                            {
-                                values.Add(selector(change.Item));
-                            }
-                            break;
-                        case ListChangeReason.Remove:
-                            values.Remove(selector(change.Item));
-                            break;
-                        case ListChangeReason.RemoveRange:
-                            if (change.Range.Count > 0)
-                            {
-                                foreach (var v in change.Range.Select(selector))
+                                foreach (var i in change.Range)
                                 {
-                                    values.Remove(v);
+                                    Increment(i);
                                 }
                             }
                             else
                             {
-                                values.Remove(selector(change.Item));
+                                Increment(change.Item);
+                            }
+                            break;
+                        case ListChangeReason.Remove:
+                            if (itemValues.TryGetValue(change.Item, out var vRemove))
+                            {
+                                Decrement(change.Item, vRemove);
+                            }
+                            break;
+                        case ListChangeReason.RemoveRange:
+                            if (change.Range.Count > 0)
+                            {
+                                foreach (var i in change.Range)
+                                {
+                                    if (itemValues.TryGetValue(i, out var vR))
+                                    {
+                                        Decrement(i, vR);
+                                    }
+                                }
+                            }
+                            else if (itemValues.TryGetValue(change.Item, out var vR2))
+                            {
+                                Decrement(change.Item, vR2);
                             }
                             break;
                         case ListChangeReason.Replace:
-                            if (change.PreviousItem != null)
+                            if (change.PreviousItem != null && itemValues.TryGetValue(change.PreviousItem, out var vPrev))
                             {
-                                values.Remove(selector(change.PreviousItem));
+                                Decrement(change.PreviousItem, vPrev);
                             }
-                            values.Add(selector(change.Item));
-                            break;
-                        case ListChangeReason.Clear:
-                            values.Clear();
+                            Increment(change.Item);
                             break;
                         case ListChangeReason.Refresh:
-                            // Refresh does not carry item payload in this port; recompute entire list not possible without underlying list.
+                            if (itemValues.TryGetValue(change.Item, out var oldVal))
+                            {
+                                var newVal = selector(change.Item);
+                                if (!EqualityComparer<TProperty>.Default.Equals(oldVal, newVal))
+                                {
+                                    Decrement(change.Item, oldVal);
+                                    Increment(change.Item);
+                                }
+                            }
+                            break;
+                        case ListChangeReason.Clear:
+                            itemValues.Clear();
+                            valueCounts.Clear();
+                            hasValue = false;
+                            currentMax = default;
                             break;
                     }
                 }
@@ -192,13 +287,84 @@ public static class ObservableListAggregates
         if (selector == null) throw new ArgumentNullException(nameof(selector));
         return Observable.Create<TProperty>(observer =>
         {
-            var values = new List<TProperty>();
+            var itemValues = new Dictionary<TSource, TProperty>();
+            var valueCounts = new Dictionary<TProperty, int>();
+            bool hasValue = false;
+            TProperty currentMin = default;
+
+            void Increment(TSource item)
+            {
+                var value = selector(item);
+                itemValues[item] = value;
+                if (valueCounts.TryGetValue(value, out var count))
+                {
+                    valueCounts[value] = count + 1;
+                }
+                else
+                {
+                    valueCounts[value] = 1;
+                }
+                if (!hasValue || value.CompareTo(currentMin) < 0)
+                {
+                    currentMin = value;
+                    hasValue = true;
+                }
+            }
+
+            void Decrement(TSource item, TProperty value)
+            {
+                if (!valueCounts.TryGetValue(value, out var count)) return;
+                if (count == 1)
+                {
+                    valueCounts.Remove(value);
+                    if (hasValue && value.CompareTo(currentMin) == 0)
+                    {
+                        RecalculateMin();
+                    }
+                }
+                else
+                {
+                    valueCounts[value] = count - 1;
+                }
+                itemValues.Remove(item);
+                if (valueCounts.Count == 0)
+                {
+                    hasValue = false;
+                    currentMin = default;
+                }
+            }
+
+            void RecalculateMin()
+            {
+                if (valueCounts.Count == 0)
+                {
+                    hasValue = false;
+                    currentMin = default;
+                    return;
+                }
+                var min = default(TProperty);
+                bool first = true;
+                foreach (var kvp in valueCounts.Keys)
+                {
+                    if (first)
+                    {
+                        min = kvp;
+                        first = false;
+                    }
+                    else if (kvp.CompareTo(min) < 0)
+                    {
+                        min = kvp;
+                    }
+                }
+                currentMin = min;
+                hasValue = true;
+            }
+
             void Publish()
             {
                 try
                 {
-                    var result = values.Count == 0 ? default : values.Min();
-                    observer.OnNext(result);
+                    observer.OnNext(hasValue ? currentMin : default);
                 }
                 catch (Exception ex)
                 {
@@ -213,45 +379,66 @@ public static class ObservableListAggregates
                     switch (change.Reason)
                     {
                         case ListChangeReason.Add:
-                            values.Add(selector(change.Item));
+                            Increment(change.Item);
                             break;
                         case ListChangeReason.AddRange:
                             if (change.Range.Count > 0)
                             {
-                                values.AddRange(change.Range.Select(selector));
-                            }
-                            else
-                            {
-                                values.Add(selector(change.Item));
-                            }
-                            break;
-                        case ListChangeReason.Remove:
-                            values.Remove(selector(change.Item));
-                            break;
-                        case ListChangeReason.RemoveRange:
-                            if (change.Range.Count > 0)
-                            {
-                                foreach (var v in change.Range.Select(selector))
+                                foreach (var i in change.Range)
                                 {
-                                    values.Remove(v);
+                                    Increment(i);
                                 }
                             }
                             else
                             {
-                                values.Remove(selector(change.Item));
+                                Increment(change.Item);
+                            }
+                            break;
+                        case ListChangeReason.Remove:
+                            if (itemValues.TryGetValue(change.Item, out var vRemove))
+                            {
+                                Decrement(change.Item, vRemove);
+                            }
+                            break;
+                        case ListChangeReason.RemoveRange:
+                            if (change.Range.Count > 0)
+                            {
+                                foreach (var i in change.Range)
+                                {
+                                    if (itemValues.TryGetValue(i, out var vR))
+                                    {
+                                        Decrement(i, vR);
+                                    }
+                                }
+                            }
+                            else if (itemValues.TryGetValue(change.Item, out var vR2))
+                            {
+                                Decrement(change.Item, vR2);
                             }
                             break;
                         case ListChangeReason.Replace:
-                            if (change.PreviousItem != null)
+                            if (change.PreviousItem != null && itemValues.TryGetValue(change.PreviousItem, out var vPrev))
                             {
-                                values.Remove(selector(change.PreviousItem));
+                                Decrement(change.PreviousItem, vPrev);
                             }
-                            values.Add(selector(change.Item));
-                            break;
-                        case ListChangeReason.Clear:
-                            values.Clear();
+                            Increment(change.Item);
                             break;
                         case ListChangeReason.Refresh:
+                            if (itemValues.TryGetValue(change.Item, out var oldVal))
+                            {
+                                var newVal = selector(change.Item);
+                                if (!EqualityComparer<TProperty>.Default.Equals(oldVal, newVal))
+                                {
+                                    Decrement(change.Item, oldVal);
+                                    Increment(change.Item);
+                                }
+                            }
+                            break;
+                        case ListChangeReason.Clear:
+                            itemValues.Clear();
+                            valueCounts.Clear();
+                            hasValue = false;
+                            currentMin = default;
                             break;
                     }
                 }
@@ -268,13 +455,33 @@ public static class ObservableListAggregates
         if (selector == null) throw new ArgumentNullException(nameof(selector));
         return Observable.Create<double>(observer =>
         {
-            var values = new List<double>();
+            var itemValues = new Dictionary<TSource, double>();
+            double sum = 0.0;
+            int count = 0;
+
+            void AddValue(TSource item)
+            {
+                var v = Convert.ToDouble(selector(item));
+                itemValues[item] = v;
+                sum += v;
+                count += 1;
+            }
+
+            void RemoveValue(TSource item)
+            {
+                if (itemValues.TryGetValue(item, out var v))
+                {
+                    sum -= v;
+                    count -= 1;
+                    itemValues.Remove(item);
+                }
+            }
+
             void Publish()
             {
                 try
                 {
-                    double result = values.Count == 0 ? 0.0 : values.Average();
-                    observer.OnNext(result);
+                    observer.OnNext(count == 0 ? 0.0 : sum / count);
                 }
                 catch (Exception ex)
                 {
@@ -289,45 +496,50 @@ public static class ObservableListAggregates
                     switch (change.Reason)
                     {
                         case ListChangeReason.Add:
-                            values.Add(Convert.ToDouble(selector(change.Item)));
+                            AddValue(change.Item);
                             break;
                         case ListChangeReason.AddRange:
                             if (change.Range.Count > 0)
                             {
-                                values.AddRange(change.Range.Select(x => Convert.ToDouble(selector(x))));
+                                foreach (var i in change.Range) AddValue(i);
                             }
                             else
                             {
-                                values.Add(Convert.ToDouble(selector(change.Item)));
+                                AddValue(change.Item);
                             }
                             break;
                         case ListChangeReason.Remove:
-                            values.Remove(Convert.ToDouble(selector(change.Item)));
+                            RemoveValue(change.Item);
                             break;
                         case ListChangeReason.RemoveRange:
                             if (change.Range.Count > 0)
                             {
-                                foreach (var v in change.Range.Select(x => Convert.ToDouble(selector(x))))
-                                {
-                                    values.Remove(v);
-                                }
+                                foreach (var i in change.Range) RemoveValue(i);
                             }
                             else
                             {
-                                values.Remove(Convert.ToDouble(selector(change.Item)));
+                                RemoveValue(change.Item);
                             }
                             break;
                         case ListChangeReason.Replace:
-                            if (change.PreviousItem != null)
-                            {
-                                values.Remove(Convert.ToDouble(selector(change.PreviousItem)));
-                            }
-                            values.Add(Convert.ToDouble(selector(change.Item)));
-                            break;
-                        case ListChangeReason.Clear:
-                            values.Clear();
+                            if (change.PreviousItem != null) RemoveValue(change.PreviousItem);
+                            AddValue(change.Item);
                             break;
                         case ListChangeReason.Refresh:
+                            if (itemValues.TryGetValue(change.Item, out var oldVal))
+                            {
+                                var newVal = Convert.ToDouble(selector(change.Item));
+                                if (Math.Abs(newVal - oldVal) > double.Epsilon)
+                                {
+                                    sum += newVal - oldVal;
+                                    itemValues[change.Item] = newVal;
+                                }
+                            }
+                            break;
+                        case ListChangeReason.Clear:
+                            itemValues.Clear();
+                            sum = 0.0;
+                            count = 0;
                             break;
                     }
                 }
@@ -344,19 +556,43 @@ public static class ObservableListAggregates
         if (selector == null) throw new ArgumentNullException(nameof(selector));
         return Observable.Create<double>(observer =>
         {
-            var values = new List<double>();
+            var itemValues = new Dictionary<TSource, double>();
+            double sum = 0.0;
+            double sumSquares = 0.0;
+            int count = 0;
+
+            void AddValue(TSource item)
+            {
+                var v = Convert.ToDouble(selector(item));
+                itemValues[item] = v;
+                sum += v;
+                sumSquares += v * v;
+                count += 1;
+            }
+
+            void RemoveValue(TSource item)
+            {
+                if (itemValues.TryGetValue(item, out var v))
+                {
+                    sum -= v;
+                    sumSquares -= v * v;
+                    count -= 1;
+                    itemValues.Remove(item);
+                }
+            }
+
             void Publish()
             {
                 try
                 {
-                    if (values.Count == 0)
+                    if (count == 0)
                     {
                         observer.OnNext(0.0);
                         return;
                     }
-
-                    double mean = values.Average();
-                    double variance = values.Sum(v => (v - mean) * (v - mean)) / values.Count; // population variance
+                    double mean = sum / count;
+                    double variance = (sumSquares / count) - (mean * mean); // population variance
+                    if (variance < 0) variance = 0; // guard against negative due to precision
                     observer.OnNext(Math.Sqrt(variance));
                 }
                 catch (Exception ex)
@@ -372,45 +608,52 @@ public static class ObservableListAggregates
                     switch (change.Reason)
                     {
                         case ListChangeReason.Add:
-                            values.Add(Convert.ToDouble(selector(change.Item)));
+                            AddValue(change.Item);
                             break;
                         case ListChangeReason.AddRange:
                             if (change.Range.Count > 0)
                             {
-                                values.AddRange(change.Range.Select(x => Convert.ToDouble(selector(x))));
+                                foreach (var i in change.Range) AddValue(i);
                             }
                             else
                             {
-                                values.Add(Convert.ToDouble(selector(change.Item)));
+                                AddValue(change.Item);
                             }
                             break;
                         case ListChangeReason.Remove:
-                            values.Remove(Convert.ToDouble(selector(change.Item)));
+                            RemoveValue(change.Item);
                             break;
                         case ListChangeReason.RemoveRange:
                             if (change.Range.Count > 0)
                             {
-                                foreach (var v in change.Range.Select(x => Convert.ToDouble(selector(x))))
-                                {
-                                    values.Remove(v);
-                                }
+                                foreach (var i in change.Range) RemoveValue(i);
                             }
                             else
                             {
-                                values.Remove(Convert.ToDouble(selector(change.Item)));
+                                RemoveValue(change.Item);
                             }
                             break;
                         case ListChangeReason.Replace:
-                            if (change.PreviousItem != null)
-                            {
-                                values.Remove(Convert.ToDouble(selector(change.PreviousItem)));
-                            }
-                            values.Add(Convert.ToDouble(selector(change.Item)));
-                            break;
-                        case ListChangeReason.Clear:
-                            values.Clear();
+                            if (change.PreviousItem != null) RemoveValue(change.PreviousItem);
+                            AddValue(change.Item);
                             break;
                         case ListChangeReason.Refresh:
+                            if (itemValues.TryGetValue(change.Item, out var oldVal))
+                            {
+                                var newVal = Convert.ToDouble(selector(change.Item));
+                                if (Math.Abs(newVal - oldVal) > double.Epsilon)
+                                {
+                                    sum += newVal - oldVal;
+                                    sumSquares += (newVal * newVal) - (oldVal * oldVal);
+                                    itemValues[change.Item] = newVal;
+                                }
+                            }
+                            break;
+                        case ListChangeReason.Clear:
+                            itemValues.Clear();
+                            sum = 0.0;
+                            sumSquares = 0.0;
+                            count = 0;
                             break;
                     }
                 }

@@ -1,5 +1,6 @@
 // Port of DynamicData to R3.
 
+using System.ComponentModel;
 using R3.DynamicData.List;
 using Xunit;
 
@@ -7,9 +8,24 @@ namespace R3.DynamicData.Tests;
 
 public class ListAggregateOperatorTests
 {
-    private class Person
+    private class Person : INotifyPropertyChanged
     {
-        public int Age { get; set; }
+        private int age;
+
+        public int Age
+        {
+            get => age;
+            set
+            {
+                if (age != value)
+                {
+                    age = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Age)));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 
     [Fact]
@@ -66,5 +82,60 @@ public class ListAggregateOperatorTests
         Assert.Equal(10.0, stdValues[3]);
         Assert.Equal(12.5, stdValues[4]);
         Assert.Equal(0.0, stdValues[5]);
+    }
+
+    [Fact]
+    public void Max_Min_Duplicates()
+    {
+        var list = new SourceList<Person>();
+        var maxValues = new List<int>();
+        var minValues = new List<int>();
+
+        list.Connect().Max(p => p.Age).Subscribe(v => maxValues.Add(v));
+        list.Connect().Min(p => p.Age).Subscribe(v => minValues.Add(v));
+
+        var a = new Person { Age = 10 };
+        var b = new Person { Age = 10 }; // duplicate
+        var c = new Person { Age = 5 };
+
+        list.Add(a);              // max=10 min=10
+        list.Add(b);              // max=10 min=10 (unchanged)
+        list.Add(c);              // max=10 min=5
+        list.Remove(a);           // remove one 10 -> max still 10 min=5
+        list.Remove(b);           // remove second 10 -> remaining {5} max=5 min=5
+        list.Clear();             // empty -> 0,0
+
+        Assert.Equal(new[] { 10, 10, 10, 10, 5, 0 }, maxValues);
+        Assert.Equal(new[] { 10, 10, 5, 5, 5, 0 }, minValues);
+    }
+
+    [Fact]
+    public void Max_Min_Refresh()
+    {
+        var list = new SourceList<Person>();
+        var maxValues = new List<int>();
+        var minValues = new List<int>();
+
+        // Use AutoRefresh on Age to produce Refresh events.
+        list.Connect().AutoRefresh(p => p.Age).Max(p => p.Age).Subscribe(v => maxValues.Add(v));
+        list.Connect().AutoRefresh(p => p.Age).Min(p => p.Age).Subscribe(v => minValues.Add(v));
+
+        var p1 = new Person { Age = 10 };
+        var p2 = new Person { Age = 5 };
+        var p3 = new Person { Age = 20 };
+
+        list.Add(p1); // max=10 min=10
+        list.Add(p2); // max=10 min=5
+        list.Add(p3); // max=20 min=5
+
+        p2.Age = 25; // refresh -> max=25 min=10? Wait min remains 10 because p1=10
+        p1.Age = 30; // refresh -> max=30 min=25? min becomes 25 since p2=25 and p3=20
+        p3.Age = 15; // refresh -> max=30 min=15? (lowest now 15)
+        p1.Age = 2;  // refresh -> max=25 min=2 (p1 dropped below all, max from p2=25)
+        list.Clear(); // max=0 min=0
+
+        // Expected evolution captured manually (emission each refresh, even if unchanged).
+        Assert.Equal(new[] { 10, 10, 20, 25, 30, 30, 25, 0 }, maxValues);
+        Assert.Equal(new[] { 10, 5, 5, 10, 20, 15, 2, 0 }, minValues);
     }
 }
