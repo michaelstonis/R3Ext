@@ -14,7 +14,7 @@ Legend:
 | Aggregation             | Avg                                                  | List               | Optimized   | Passing | Running sum; add nullable handling later             |
 | Aggregation             | StdDev (population)                                  | List               | Optimized   | Passing | Consider sample stddev overload                      |
 | Transformation          | TransformMany (dedup)                                | Cache              | Implemented | Passing | Add list variant / observable child list overload    |
-| Transformation          | Transform (core overloads)                           | Cache/List         | NotStarted  | None    | Multiple overload families needed                    |
+| Transformation          | Transform (core overloads)                           | Cache/List         | Implemented | Passing | Key-aware and simple overloads present               |
 | Transformation          | TransformAsync                                       | Cache/List         | NotStarted  | None    | Async versions + scheduling                          |
 | Transformation          | TransformImmutable                                   | Cache/List         | NotStarted  | None    | Optional performance feature                         |
 | Transformation          | TransformSafe                                        | Cache/List         | NotStarted  | None    | Error handling path                                  |
