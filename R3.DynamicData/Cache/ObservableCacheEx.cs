@@ -15,7 +15,7 @@ namespace R3.DynamicData.Cache;
 /// <summary>
 /// Observable cache extension methods.
 /// </summary>
-public static class ObservableCacheEx
+public static partial class ObservableCacheEx
 {
     // Cache Transform moved to Operators.TransformOperator to avoid duplication.
 
@@ -27,6 +27,7 @@ public static class ObservableCacheEx
         Func<TObject, TValue> valueSelector,
         IEqualityComparer<TValue>? comparer = null)
         where TKey : notnull
+        where TValue : notnull
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (valueSelector is null) throw new ArgumentNullException(nameof(valueSelector));
@@ -138,6 +139,7 @@ public static class ObservableCacheEx
         Func<TObject, IEnumerable<TDestination>> manySelector,
         IEqualityComparer<TDestination>? comparer = null)
         where TKey : notnull
+        where TDestination : notnull
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (manySelector is null) throw new ArgumentNullException(nameof(manySelector));
