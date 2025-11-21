@@ -41,6 +41,7 @@ public static partial class ObservableListEx
         {
             var transformations = new Dictionary<TSource, PendingTransformation<TSource, TDestination>>();
             var completedItems = new List<TransformedItem<TSource, TDestination>>();
+            var gate = new object();
 
             return source.Subscribe(changeSet =>
             {
@@ -55,7 +56,8 @@ public static partial class ObservableListEx
                                 transformFactory,
                                 transformations,
                                 completedItems,
-                                observer);
+                                observer,
+                                gate);
                             break;
 
                         case ListChangeReason.Remove:
@@ -63,7 +65,8 @@ public static partial class ObservableListEx
                                 change.Item,
                                 transformations,
                                 completedItems,
-                                observer);
+                                observer,
+                                gate);
                             break;
 
                         case ListChangeReason.AddRange:
@@ -75,7 +78,8 @@ public static partial class ObservableListEx
                                     transformFactory,
                                     transformations,
                                     completedItems,
-                                    observer);
+                                    observer,
+                                    gate);
                             }
 
                             break;
@@ -83,7 +87,7 @@ public static partial class ObservableListEx
                         case ListChangeReason.RemoveRange:
                             foreach (var item in change.Range)
                             {
-                                HandleRemove(item, transformations, completedItems, observer);
+                                HandleRemove(item, transformations, completedItems, observer, gate);
                             }
 
                             break;
@@ -148,7 +152,8 @@ public static partial class ObservableListEx
         Func<TSource, CancellationToken, Task<TDestination>> transformFactory,
         Dictionary<TSource, PendingTransformation<TSource, TDestination>> transformations,
         List<TransformedItem<TSource, TDestination>> completedItems,
-        Observer<IChangeSet<TDestination>> observer)
+        Observer<IChangeSet<TDestination>> observer,
+        object gate)
         where TSource : notnull
         where TDestination : notnull
     {
@@ -192,41 +197,44 @@ public static partial class ObservableListEx
                 // Check if still valid (not cancelled)
                 if (!cts.Token.IsCancellationRequested)
                 {
-                    if (isReplace && existingCompletedIndex >= 0)
+                    lock (gate)
                     {
-                        // Replace at specific index
-                        completedItems[existingCompletedIndex] = new TransformedItem<TSource, TDestination>(item, result);
+                        if (isReplace && existingCompletedIndex >= 0)
+                        {
+                            // Replace at specific index
+                            completedItems[existingCompletedIndex] = new TransformedItem<TSource, TDestination>(item, result);
 
-                        observer.OnNext(
-                            new ChangeSet<TDestination>(
-                                new[]
-                                {
-                                    new Change<TDestination>(
-                                        ListChangeReason.Replace,
-                                        result,
-                                        previousDestination,
-                                        existingCompletedIndex),
-                                }));
+                            observer.OnNext(
+                                new ChangeSet<TDestination>(
+                                    new[]
+                                    {
+                                        new Change<TDestination>(
+                                            ListChangeReason.Replace,
+                                            result,
+                                            previousDestination,
+                                            existingCompletedIndex),
+                                    }));
+                        }
+                        else
+                        {
+                            // Add
+                            var transformedItem = new TransformedItem<TSource, TDestination>(item, result);
+                            completedItems.Add(transformedItem);
+
+                            observer.OnNext(
+                                new ChangeSet<TDestination>(
+                                    new[]
+                                    {
+                                        new Change<TDestination>(
+                                            ListChangeReason.Add,
+                                            result,
+                                            completedItems.Count - 1),
+                                    }));
+                        }
+
+                        // Clean up from pending
+                        transformations.Remove(item);
                     }
-                    else
-                    {
-                        // Add
-                        var transformedItem = new TransformedItem<TSource, TDestination>(item, result);
-                        completedItems.Add(transformedItem);
-
-                        observer.OnNext(
-                            new ChangeSet<TDestination>(
-                                new[]
-                                {
-                                    new Change<TDestination>(
-                                        ListChangeReason.Add,
-                                        result,
-                                        completedItems.Count - 1),
-                                }));
-                    }
-
-                    // Clean up from pending
-                    transformations.Remove(item);
                 }
             }
             catch (OperationCanceledException)
@@ -250,34 +258,38 @@ public static partial class ObservableListEx
         TSource item,
         Dictionary<TSource, PendingTransformation<TSource, TDestination>> transformations,
         List<TransformedItem<TSource, TDestination>> completedItems,
-        Observer<IChangeSet<TDestination>> observer)
+        Observer<IChangeSet<TDestination>> observer,
+        object gate)
         where TSource : notnull
         where TDestination : notnull
     {
-        // Cancel pending transformation
-        if (transformations.TryGetValue(item, out var transformation))
+        lock (gate)
         {
-            transformation.Cts.Cancel();
-            transformation.Cts.Dispose();
-            transformations.Remove(item);
-        }
+            // Cancel pending transformation
+            if (transformations.TryGetValue(item, out var transformation))
+            {
+                transformation.Cts.Cancel();
+                transformation.Cts.Dispose();
+                transformations.Remove(item);
+            }
 
-        // Remove from completed items
-        var completedItem = completedItems.FirstOrDefault(x => EqualityComparer<TSource>.Default.Equals(x.Source, item));
-        if (completedItem != null)
-        {
-            var index = completedItems.IndexOf(completedItem);
-            completedItems.RemoveAt(index);
+            // Remove from completed items - only if transformation was complete
+            var completedItem = completedItems.FirstOrDefault(x => x != null && EqualityComparer<TSource>.Default.Equals(x.Source, item));
+            if (completedItem != null)
+            {
+                var index = completedItems.IndexOf(completedItem);
+                completedItems.RemoveAt(index);
 
-            observer.OnNext(
-                new ChangeSet<TDestination>(
-                    new[]
-                    {
-                        new Change<TDestination>(
-                            ListChangeReason.Remove,
-                            completedItem.Destination,
-                            index),
-                    }));
+                observer.OnNext(
+                    new ChangeSet<TDestination>(
+                        new[]
+                        {
+                            new Change<TDestination>(
+                                ListChangeReason.Remove,
+                                completedItem.Destination,
+                                index),
+                        }));
+            }
         }
     }
 

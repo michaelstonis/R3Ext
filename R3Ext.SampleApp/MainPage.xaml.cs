@@ -22,6 +22,16 @@ public partial class MainPage : ContentPage
         await Shell.Current.GoToAsync("//DynamicDataFilterSortPage");
     }
 
+    private async void OnGoDynamicDataTransformMany(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//DynamicDataTransformManyPage");
+    }
+
+    private async void OnGoDynamicDataDistinctValues(object? sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("//DynamicDataDistinctValuesPage");
+    }
+
     private async void OnGoDeep(object? sender, EventArgs e)
     {
         await Shell.Current.GoToAsync("//DeepBindingPage");

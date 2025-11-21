@@ -2,6 +2,7 @@
 
 using R3;
 using R3.DynamicData.Cache;
+using R3.DynamicData.Kernel; // for ChangeReason
 using R3.DynamicData.List;
 using R3.DynamicData.Operators; // for Transform & Filter
 
@@ -26,10 +27,22 @@ public class CacheOperatorsPhase2Tests
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
         var names = new List<string>();
-        using var sub = cache.Connect().Transform<Person, int, string>(p => p.Name).Select(cs => cs.Select(c => c.Current)).Subscribe(list =>
-        {
-            names = list.ToList();
-        });
+        using var sub = cache.Connect()
+            .Transform<Person, int, string>(p => p.Name)
+            .Subscribe(changeSet =>
+            {
+                foreach (var change in changeSet)
+                {
+                    if (change.Reason == ChangeReason.Add || change.Reason == ChangeReason.Update)
+                    {
+                        if (!names.Contains(change.Current))
+                        {
+                            names.Add(change.Current);
+                        }
+                    }
+                }
+            });
+
         cache.AddOrUpdate(new Person { Id = 1, Name = "Alice" });
         cache.AddOrUpdate(new Person { Id = 2, Name = "Bob" });
         Assert.Contains("Alice", names);
@@ -40,8 +53,8 @@ public class CacheOperatorsPhase2Tests
     public void DistinctValues_Tracks_Unique_Cities()
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
-        var distinct = new List<string>();
-        using var sub = cache.Connect().DistinctValues<Person, int, string>(p => p.City).Bind(distinct);
+        IList<string> distinct = new List<string>();
+        using var sub = cache.Connect().DistinctValues<Person, int, string>(p => p.City).RemoveIndex().Bind(distinct);
         cache.AddOrUpdate(new Person { Id = 1, Name = "A", City = "NY" });
         cache.AddOrUpdate(new Person { Id = 2, Name = "B", City = "LA" });
         cache.AddOrUpdate(new Person { Id = 3, Name = "C", City = "NY" }); // duplicate city
@@ -58,8 +71,8 @@ public class CacheOperatorsPhase2Tests
     public void TransformMany_Flattens_Hobbies()
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
-        var hobbies = new List<string>();
-        using var sub = cache.Connect().TransformMany<Person, int, string>(p => p.Hobbies).Bind(hobbies);
+        IList<string> hobbies = new List<string>();
+        using var sub = cache.Connect().TransformMany<Person, int, string>(p => p.Hobbies).RemoveIndex().Bind(hobbies);
         cache.AddOrUpdate(new Person { Id = 1, Name = "A", Hobbies = new() { "golf", "chess" } });
         cache.AddOrUpdate(new Person { Id = 2, Name = "B", Hobbies = new() { "chess", "swim" } });
         Assert.Equal(4, hobbies.Count); // duplicates allowed
@@ -74,17 +87,16 @@ public class CacheOperatorsPhase2Tests
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
         var predicate = new BehaviorSubject<Func<Person, bool>>(_ => true);
-        var filtered = new List<Person>();
-        using var sub = cache.Connect().Filter(predicate).Select(cs => cs.Select(c => c.Current)).Subscribe(list =>
-        {
-            filtered = list.ToList();
-        });
+        IList<Person> filtered = new List<Person>();
+        using var sub = cache.Connect().Filter(predicate).Bind(filtered);
         cache.AddOrUpdate(new Person { Id = 1, Name = "A", Age = 25 });
         cache.AddOrUpdate(new Person { Id = 2, Name = "B", Age = 40 });
         Assert.Equal(2, filtered.Count);
+
         predicate.OnNext(p => p.Age >= 30);
         Assert.Single(filtered);
         Assert.Equal(40, filtered[0].Age);
+
         predicate.OnNext(p => p.Age < 30);
         Assert.Single(filtered);
         Assert.Equal(25, filtered[0].Age);

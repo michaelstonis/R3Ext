@@ -133,6 +133,9 @@ public static partial class ObservableCacheEx
 
     /// <summary>
     /// Flattens a collection returned for each cache item into a single list change set.
+    /// If a comparer is provided, duplicates (as defined by the comparer) are suppressed globally and
+    /// reference counted so that an item is only removed when the last source occurrence disappears.
+    /// If no comparer is provided, all duplicates are emitted (previous behavior).
     /// </summary>
     public static Observable<IChangeSet<TDestination>> TransformMany<TObject, TKey, TDestination>(
         this Observable<IChangeSet<TObject, TKey>> source,
@@ -144,9 +147,13 @@ public static partial class ObservableCacheEx
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (manySelector is null) throw new ArgumentNullException(nameof(manySelector));
         var cmp = comparer ?? EqualityComparer<TDestination>.Default;
+        var useDedup = comparer != null; // Only dedup when user supplied a comparer.
+
         return Observable.Create<IChangeSet<TDestination>>(observer =>
         {
-            var refCounts = new Dictionary<TDestination, int>(cmp);
+            // Only used when deduplication requested.
+            var refCounts = useDedup ? new Dictionary<TDestination, int>(cmp) : null;
+
             return source.Subscribe(changes =>
             {
                 var changeSet = new ChangeSet<TDestination>();
@@ -163,76 +170,120 @@ public static partial class ObservableCacheEx
                         if (change.Previous.HasValue)
                             prev = manySelector(change.Previous.Value) ?? Enumerable.Empty<TDestination>();
                     }
+
                     switch (change.Reason)
                     {
                         case ChangeReason.Add:
-                            foreach (var item in curr)
+                            if (!useDedup)
                             {
-                                if (!refCounts.TryGetValue(item, out var c))
+                                foreach (var item in curr)
                                 {
-                                    refCounts[item] = 1;
                                     changeSet.Add(new Change<TDestination>(ListChangeReason.Add, item, -1));
                                 }
-                                else
+                            }
+                            else
+                            {
+                                foreach (var item in curr)
                                 {
-                                    refCounts[item] = c + 1;
+                                    if (!refCounts!.TryGetValue(item, out var count))
+                                    {
+                                        refCounts[item] = 1;
+                                        changeSet.Add(new Change<TDestination>(ListChangeReason.Add, item, -1));
+                                    }
+                                    else
+                                    {
+                                        refCounts[item] = count + 1;
+                                    }
                                 }
                             }
                             break;
+
                         case ChangeReason.Update:
-                            // decrement previous
-                            foreach (var item in prev)
+                            if (!useDedup)
                             {
-                                if (refCounts.TryGetValue(item, out var c))
+                                foreach (var item in prev)
                                 {
-                                    c--;
-                                    if (c <= 0)
-                                    {
-                                        refCounts.Remove(item);
-                                        changeSet.Add(new Change<TDestination>(ListChangeReason.Remove, item, -1));
-                                    }
-                                    else
-                                    {
-                                        refCounts[item] = c;
-                                    }
+                                    changeSet.Add(new Change<TDestination>(ListChangeReason.Remove, item, -1));
                                 }
-                            }
-                            // increment new
-                            foreach (var item in curr)
-                            {
-                                if (!refCounts.TryGetValue(item, out var c))
+                                foreach (var item in curr)
                                 {
-                                    refCounts[item] = 1;
                                     changeSet.Add(new Change<TDestination>(ListChangeReason.Add, item, -1));
                                 }
-                                else
-                                {
-                                    refCounts[item] = c + 1;
-                                }
                             }
-                            break;
-                        case ChangeReason.Remove:
-                            foreach (var item in prev)
+                            else
                             {
-                                if (refCounts.TryGetValue(item, out var c))
+                                // Avoid remove+add thrash for items present in both prev and curr collections.
+                                var prevSet = new HashSet<TDestination>(prev, cmp);
+                                var currSet = new HashSet<TDestination>(curr, cmp);
+
+                                // Items removed from this source entry
+                                foreach (var removed in prevSet.Except(currSet))
                                 {
-                                    c--;
-                                    if (c <= 0)
+                                    if (refCounts!.TryGetValue(removed, out var pc))
                                     {
-                                        refCounts.Remove(item);
-                                        changeSet.Add(new Change<TDestination>(ListChangeReason.Remove, item, -1));
+                                        pc--;
+                                        if (pc <= 0)
+                                        {
+                                            refCounts.Remove(removed);
+                                            changeSet.Add(new Change<TDestination>(ListChangeReason.Remove, removed, -1));
+                                        }
+                                        else
+                                        {
+                                            refCounts[removed] = pc;
+                                        }
+                                    }
+                                }
+
+                                // Items newly added in this source entry
+                                foreach (var added in currSet.Except(prevSet))
+                                {
+                                    if (!refCounts!.TryGetValue(added, out var nc))
+                                    {
+                                        refCounts[added] = 1;
+                                        changeSet.Add(new Change<TDestination>(ListChangeReason.Add, added, -1));
                                     }
                                     else
                                     {
-                                        refCounts[item] = c;
+                                        refCounts[added] = nc + 1;
                                     }
                                 }
                             }
                             break;
+
+                        case ChangeReason.Remove:
+                            if (!useDedup)
+                            {
+                                foreach (var item in prev)
+                                {
+                                    changeSet.Add(new Change<TDestination>(ListChangeReason.Remove, item, -1));
+                                }
+                            }
+                            else
+                            {
+                                foreach (var item in prev)
+                                {
+                                    if (refCounts!.TryGetValue(item, out var rc))
+                                    {
+                                        rc--;
+                                        if (rc <= 0)
+                                        {
+                                            refCounts.Remove(item);
+                                            changeSet.Add(new Change<TDestination>(ListChangeReason.Remove, item, -1));
+                                        }
+                                        else
+                                        {
+                                            refCounts[item] = rc;
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+
                         case ChangeReason.Refresh:
-                            // treat refresh as potential update: nothing unless underlying collection changed (we can't know cheaply) -> skip
+                            // No structural changes.
                             break;
                         case ChangeReason.Moved:
+                            // Position not tracked for flattened list (-1 indices); ignore.
                             break;
                     }
                 }

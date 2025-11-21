@@ -17,6 +17,12 @@
     <ShellContent Title="DD Filter &amp; Sort"
                   ContentTemplate="{DataTemplate local:DynamicDataFilterSortPage}"
                   Route="DynamicDataFilterSortPage" />
+    <ShellContent Title="DD TransformMany"
+                  ContentTemplate="{DataTemplate local:DynamicDataTransformManyPage}"
+                  Route="DynamicDataTransformManyPage" />
+    <ShellContent Title="DD DistinctValues"
+                  ContentTemplate="{DataTemplate local:DynamicDataDistinctValuesPage}"
+                  Route="DynamicDataDistinctValuesPage" />
     <ShellContent Title="DD SourceCache"
                   ContentTemplate="{DataTemplate local:DynamicDataCachePage}"
                   Route="DynamicDataCachePage" />

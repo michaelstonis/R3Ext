@@ -40,56 +40,51 @@ public partial class DynamicDataOperatorsPage : ContentPage
         this.InitializeComponent();
 
         // Transform operator: Person -> Display String
-        _transformSub = _source
+        var transformedObservable = _source
             .Connect()
-            .Transform(p => $"{p.Name} from {p.City} ({p.Age})")
-            .Bind(out _transformedPeople);
+            .Transform(p => $"{p.Name} from {p.City} ({p.Age})");
+        _transformSub = transformedObservable.Bind(out _transformedPeople);
         this.TransformView.ItemsSource = _transformedPeople;
 
         // Group operator: Group by City
-        _groupSub = _source
+        var groupedObservable = _source
             .Connect()
-            .Group(p => p.City)
-            .Bind(out _groupedPeople);
+            .Group(p => p.City);
+        _groupSub = groupedObservable.Bind(out _groupedPeople);
         this.GroupView.ItemsSource = _groupedPeople;
 
         // DistinctValues operator: Get unique cities
-        _distinctSub = _source
+        var distinctObservable = _source
             .Connect()
-            .DistinctValues(p => p.City)
-            .Bind(out _distinctCities);
-
-        // Subscribe to update the FlexLayout with badge-style labels
-        _distinctSub = _distinctCities
-            .ToObservable()
-            .Subscribe(_ => this.UpdateDistinctCitiesDisplay());
+            .DistinctValues(p => p.City);
+        _distinctSub = distinctObservable.Bind(out _distinctCities);
 
         // TransformMany operator: Flatten all hobbies
-        _hobbiesSub = _source
+        var hobbiesObservable = _source
             .Connect()
-            .TransformMany(p => p.Hobbies)
-            .Bind(out _allHobbies);
+            .TransformMany(p => p.Hobbies);
+        _hobbiesSub = hobbiesObservable.Bind(out _allHobbies);
         this.HobbiesView.ItemsSource = _allHobbies;
 
         // Subscribe to counts
         _sourceCountSub = _source.CountChanged
             .Subscribe(count => this.SourceCountLabel.Text = $"Source: {count} people");
 
-        _transformCountSub = _transformedPeople
-            .ToObservable()
-            .Subscribe(_ => this.TransformCountLabel.Text = $"Transformed: {_transformedPeople.Count}");
+        _transformCountSub = transformedObservable
+            .Subscribe(changes => this.TransformCountLabel.Text = $"Transformed: {_transformedPeople.Count}");
 
-        _groupCountSub = _groupedPeople
-            .ToObservable()
-            .Subscribe(_ => this.GroupCountLabel.Text = $"Groups: {_groupedPeople.Count}");
+        _groupCountSub = groupedObservable
+            .Subscribe(changes => this.GroupCountLabel.Text = $"Groups: {_groupedPeople.Count}");
 
-        _distinctCountSub = _distinctCities
-            .ToObservable()
-            .Subscribe(_ => this.DistinctCountLabel.Text = $"Unique Cities: {_distinctCities.Count}");
+        _distinctCountSub = distinctObservable
+            .Subscribe(changes =>
+            {
+                this.DistinctCountLabel.Text = $"Unique Cities: {_distinctCities.Count}";
+                this.UpdateDistinctCitiesDisplay();
+            });
 
-        _hobbiesCountSub = _allHobbies
-            .ToObservable()
-            .Subscribe(_ => this.HobbiesCountLabel.Text = $"Total Hobbies: {_allHobbies.Count}");
+        _hobbiesCountSub = hobbiesObservable
+            .Subscribe(changes => this.HobbiesCountLabel.Text = $"Total Hobbies: {_allHobbies.Count}");
 
         // Add initial data
         this.OnAddMultiple(this, EventArgs.Empty);

@@ -73,17 +73,9 @@ public static partial class ObservableListEx
                 switch (change.Reason)
                 {
                     case ListChangeReason.Add:
-                        target.Insert(change.CurrentIndex, change.Item);
-                        break;
-
-                    case ListChangeReason.AddRange:
-                        if (change.Range.Count > 0)
+                        if (change.CurrentIndex < 0 || change.CurrentIndex > target.Count)
                         {
-                            int idx = change.CurrentIndex;
-                            foreach (var item in change.Range)
-                            {
-                                target.Insert(idx++, item);
-                            }
+                            target.Add(change.Item);
                         }
                         else
                         {
@@ -92,21 +84,81 @@ public static partial class ObservableListEx
 
                         break;
 
+                    case ListChangeReason.AddRange:
+                        if (change.Range.Count > 0)
+                        {
+                            if (change.CurrentIndex < 0 || change.CurrentIndex > target.Count)
+                            {
+                                foreach (var item in change.Range)
+                                {
+                                    target.Add(item);
+                                }
+                            }
+                            else
+                            {
+                                int idx = change.CurrentIndex;
+                                foreach (var item in change.Range)
+                                {
+                                    target.Insert(idx++, item);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (change.CurrentIndex < 0 || change.CurrentIndex > target.Count)
+                            {
+                                target.Add(change.Item);
+                            }
+                            else
+                            {
+                                target.Insert(change.CurrentIndex, change.Item);
+                            }
+                        }
+
+                        break;
+
                     case ListChangeReason.Remove:
-                        target.RemoveAt(change.CurrentIndex);
+                        if (change.CurrentIndex < 0 || change.CurrentIndex >= target.Count)
+                        {
+                            target.Remove(change.Item);
+                        }
+                        else
+                        {
+                            target.RemoveAt(change.CurrentIndex);
+                        }
+
                         break;
 
                     case ListChangeReason.RemoveRange:
                         if (change.Range.Count > 0)
                         {
-                            for (int i = 0; i < change.Range.Count; i++)
+                            if (change.CurrentIndex < 0 || change.CurrentIndex >= target.Count)
                             {
-                                target.RemoveAt(change.CurrentIndex);
+                                // Remove by value
+                                foreach (var item in change.Range)
+                                {
+                                    target.Remove(item);
+                                }
+                            }
+                            else
+                            {
+                                // Remove by index
+                                for (int i = 0; i < change.Range.Count; i++)
+                                {
+                                    target.RemoveAt(change.CurrentIndex);
+                                }
                             }
                         }
                         else
                         {
-                            target.RemoveAt(change.CurrentIndex);
+                            if (change.CurrentIndex < 0 || change.CurrentIndex >= target.Count)
+                            {
+                                target.Remove(change.Item);
+                            }
+                            else
+                            {
+                                target.RemoveAt(change.CurrentIndex);
+                            }
                         }
 
                         break;

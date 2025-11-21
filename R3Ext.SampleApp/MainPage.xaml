@@ -16,6 +16,10 @@
                     Clicked="OnGoDynamicDataBasics" />
             <Button Text="DynamicData Filter &amp; Sort"
                     Clicked="OnGoDynamicDataFilterSort" />
+            <Button Text="DynamicData TransformMany"
+                    Clicked="OnGoDynamicDataTransformMany" />
+            <Button Text="DynamicData DistinctValues"
+                    Clicked="OnGoDynamicDataDistinctValues" />
             <Button Text="Deep Binding"
                     Clicked="OnGoDeep" />
             <Button Text="Converter Playground"
