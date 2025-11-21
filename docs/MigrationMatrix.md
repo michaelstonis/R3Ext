@@ -28,7 +28,7 @@ Legend:
 | Logical | And / Or / Except / Xor | Cache | Implemented | Passing | Dynamic composite list versions needed |
 | Logical | And / Or / Except / Xor | List | Partial | Passing | Composite (IObservableList sources) pending |
 | Logical | Combine dynamic collections | Cache/List | NotStarted | None | Implement DynamicCombiner equivalents |
-| Grouping | Group / GroupOn / GroupOnProperty | Cache/List | InProgress | None | Initial minimal implementation pending |
+| Grouping | Group / GroupOn / GroupOnProperty | Cache/List | Partial | Passing | Optimize diff emission; add property-based overloads |
 | Joins | Inner / Left / Right / Full (+ Many) | Cache | NotStarted | None | Requires join state models |
 | Property Observation | WhenValueChanged | Cache | Implemented | Passing | Add list parity |
 | Property Observation | WhenValueChangedWithPrevious | Cache | Implemented | Passing | Add list parity |
