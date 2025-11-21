@@ -22,8 +22,8 @@ Legend:
 | Transformation          | Cast / Convert                                       | Cache/List         | NotStarted  | None    | Lightweight transform parity                         |
 | Transformation          | ChangeKey                                            | Cache              | NotStarted  | None    | Key remap semantics                                  |
 | Transformation          | AddKey                                               | List               | NotStarted  | None    | Promote list to keyed changeset                      |
-| Filtering               | Filter (static predicate)                            | Cache/List         | Partial     | Passing | Dynamic predicate & stateful filter missing          |
-| Filtering               | Filter (observable predicate)                        | Cache/List         | NotStarted  | None    | Overload with diff policy                            |
+| Filtering               | Filter (static predicate)                            | Cache/List         | Partial     | Passing | Stateful cache FilterOnObservable variant missing    |
+| Filtering               | Filter (observable predicate)                        | Cache/List         | Implemented | Passing | Stateful/property-based cache filter pending         |
 | Filtering               | FilterOnObservable                                   | List               | Implemented | Passing | Cache variant TBD                                    |
 | Filtering               | FilterOnProperty (obsolete)                          | Cache/List         | Deferred    | None    | Replace via AutoRefresh + Filter                     |
 | Logical                 | And / Or / Except / Xor                              | Cache              | Implemented | Passing | Dynamic composite list versions needed               |
@@ -34,10 +34,10 @@ Legend:
 | Property Observation    | WhenValueChanged                                     | Cache              | Implemented | Passing | Add list parity                                      |
 | Property Observation    | WhenValueChangedWithPrevious                         | Cache              | Implemented | Passing | Add list parity                                      |
 | Property Observation    | WhenPropertyChanged / WhenAnyPropertyChanged         | Cache/List         | NotStarted  | None    | Need unified API                                     |
-| Refresh                 | AutoRefresh / AutoRefreshOnObservable                | Cache/List         | NotStarted  | None    | Drives property-based recompute                      |
+| Refresh                 | AutoRefresh / AutoRefreshOnObservable                | Cache/List         | Partial     | Passing | List implemented & used; cache AutoRefresh added; OnObservable pending |
 | Refresh                 | SuppressRefresh                                      | List               | NotStarted  | None    | Simple filter on reasons                             |
 | Refresh                 | InvokeEvaluate                                       | Cache              | NotStarted  | None    | IEvaluateAware support                               |
-| Lifecycle               | DisposeMany                                          | Cache/List         | NotStarted  | None    | Resource disposal for transformed disposables        |
+| Lifecycle               | DisposeMany                                          | Cache/List         | Partial     | Passing | List implemented & tested; cache variant pending     |
 | Lifecycle               | ExpireAfter                                          | Cache              | NotStarted  | None    | Time-based eviction                                  |
 | Lifecycle               | LimitSizeTo                                          | List               | Implemented | Passing | Cache size/time combos pending                       |
 | Lifecycle               | EnsureUniqueKeys                                     | Cache              | NotStarted  | None    | Enforce uniqueness externally                        |
@@ -48,7 +48,7 @@ Legend:
 | Query                   | ToCollection / ToSortedCollection                    | Cache/List         | NotStarted  | None    | Provide snapshot projection                          |
 | Merge                   | MergeMany / MergeChangeSets                          | Cache/List         | Partial     | Passing | Advanced comparer/equality overloads missing         |
 | Subscription            | RefCount                                             | List               | Implemented | Passing | Cache counterpart optional                           |
-| Subscription            | SubscribeMany                                        | Cache/List         | NotStarted  | None    | Wiring child observables                             |
+| Subscription            | SubscribeMany                                        | Cache/List         | Partial     | Passing | List implemented & tested; cache variant pending     |
 | Index Ops               | RemoveIndex / Reverse / SkipInitial / StartWithEmpty | List               | NotStarted  | None    | Convenience wrappers                                 |
 | Size / TTL              | ToObservableChangeSet (expire/size)                  | Cache/List         | Partial     | Passing | Cache time+size combined missing                     |
 | Evaluation              | IncludeUpdateWhen                                    | Cache              | NotStarted  | None    | Selective update emission                            |

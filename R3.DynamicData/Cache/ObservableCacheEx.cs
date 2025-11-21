@@ -390,4 +390,66 @@ public static partial class ObservableCacheEx
         var adaptor = new ObservableCollectionCacheAdaptor<TObject, TKey>(target, options);
         return source.Subscribe(changes => adaptor.Adapt(changes));
     }
+
+    // AutoRefresh variants for cache
+
+    public static Observable<IChangeSet<TObject, TKey>> AutoRefresh<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        TimeSpan? changeSetBuffer = null,
+        TimeSpan? propertyChangeThrottle = null,
+        TimeProvider? timeProvider = null)
+        where TObject : INotifyPropertyChanged
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return source.AutoRefreshOnObservable(
+            t =>
+            {
+                if (propertyChangeThrottle is null)
+                    return t.WhenAnyPropertyChanged();
+                return t.WhenAnyPropertyChanged().Debounce(propertyChangeThrottle.Value, timeProvider ?? ObservableSystem.DefaultTimeProvider);
+            },
+            changeSetBuffer,
+            timeProvider);
+    }
+
+    public static Observable<IChangeSet<TObject, TKey>> AutoRefresh<TObject, TKey, TProperty>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        Expression<Func<TObject, TProperty>> propertyAccessor,
+        TimeSpan? changeSetBuffer = null,
+        TimeSpan? propertyChangeThrottle = null,
+        TimeProvider? timeProvider = null)
+        where TObject : INotifyPropertyChanged
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (propertyAccessor is null) throw new ArgumentNullException(nameof(propertyAccessor));
+        return source.AutoRefreshOnObservable(
+            t =>
+            {
+                if (propertyChangeThrottle is null)
+                    return t.WhenPropertyChanged(propertyAccessor, false);
+                return t.WhenPropertyChanged(propertyAccessor, false).Debounce(propertyChangeThrottle.Value, timeProvider ?? ObservableSystem.DefaultTimeProvider);
+            },
+            changeSetBuffer,
+            timeProvider);
+    }
+
+    public static Observable<IChangeSet<TObject, TKey>> AutoRefreshOnObservable<TObject, TKey, TAny>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        Func<TObject, Observable<TAny>> reevaluator,
+        TimeSpan? changeSetBuffer = null,
+        TimeProvider? timeProvider = null)
+        where TObject : notnull
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (reevaluator is null) throw new ArgumentNullException(nameof(reevaluator));
+
+        // Adapt underlying generic AutoRefresh implementation which operates on object keys.
+        var castSource = source.Select(cs => (IChangeSet<TObject, object>)new ChangeSet<TObject, object>(cs.Select(ch => new Change<TObject, object>(ch.Reason, ch.Key!, ch.Current, ch.Previous.HasValue ? ch.Previous.Value : default))).WithCopy());
+        return new Cache.Internal.AutoRefresh<TObject, TAny>(castSource, reevaluator, changeSetBuffer, timeProvider)
+            .Run()
+            .Select(cs => (IChangeSet<TObject, TKey>)new ChangeSet<TObject, TKey>(cs.Select(ch => new Change<TObject, TKey>(ch.Reason, (TKey)ch.Key!, ch.Current, ch.Previous.HasValue ? ch.Previous.Value : default))));
+    }
 }
