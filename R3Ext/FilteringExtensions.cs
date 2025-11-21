@@ -18,7 +18,7 @@ public static class FilteringExtensions
             throw new ArgumentNullException(nameof(source));
         }
 
-        return source.Select(x => !x);
+        return source.Select(static x => !x);
     }
 
     /// <summary>
@@ -31,7 +31,7 @@ public static class FilteringExtensions
             throw new ArgumentNullException(nameof(source));
         }
 
-        return source.Where(x => x);
+        return source.Where(static x => x);
     }
 
     /// <summary>
@@ -44,7 +44,7 @@ public static class FilteringExtensions
             throw new ArgumentNullException(nameof(source));
         }
 
-        return source.Where(x => !x);
+        return source.Where(static x => !x);
     }
 
     /// <summary>
