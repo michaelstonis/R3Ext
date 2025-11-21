@@ -9,7 +9,7 @@ using R3.DynamicData.List.Internal;
 
 namespace R3.DynamicData.List;
 
-public static class ObservableListEx
+public static partial class ObservableListEx
 {
     public static Observable<IChangeSet<TResult>> Transform<T, TResult>(
         this Observable<IChangeSet<T>> source,
