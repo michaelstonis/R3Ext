@@ -1,3 +1,10 @@
+#pragma warning disable SA1413 // Use trailing comma in multi-line initializers
+#pragma warning disable SA1516 // Elements should be separated by blank line
+#pragma warning disable SA1629 // Documentation text should end with a period
+#pragma warning disable CS8602 // Dereference of a possibly null reference
+#pragma warning disable CS8618 // Non-nullable property must contain a non-null value when exiting constructor
+#pragma warning disable CS9264 // Non-nullable property must contain a non-null value
+
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace R3Ext.SampleApp.ViewModels;
@@ -44,29 +51,53 @@ public class SampleViewModel : ObservableObject
     private string _editableName = string.Empty;
     private string _status = string.Empty;
 
-    // Deep chain demo: DeepRoot -> A -> B -> C -> D -> Leaf.Name
+    // ==================== Deep Binding Demo Models ====================
+    // Showcase all binding features: deep chains, null handling, mixed INPC/Plain, rewiring, etc.
+
+    /// <summary>Leaf node with value properties (string and int)</summary>
     public sealed class DeepLeaf : ObservableObject
     {
-        private string _name = string.Empty;
+        private string _name = "Default Leaf";
+        private int _value = 0;
 
         public string Name
         {
             get => _name;
             set => this.SetProperty(ref _name, value);
         }
+
+        public int Value
+        {
+            get => _value;
+            set => this.SetProperty(ref _value, value);
+        }
     }
 
-    public sealed class DeepD : ObservableObject
+    /// <summary>Level 5 - Contains nullable leaf to demo null handling</summary>
+    public sealed class DeepE : ObservableObject
     {
-        private DeepLeaf _leaf = new();
+        private DeepLeaf? _leaf;
 
-        public DeepLeaf Leaf
+        public DeepLeaf? Leaf
         {
             get => _leaf;
             set => this.SetProperty(ref _leaf, value);
         }
     }
 
+    /// <summary>Level 4 - Contains nullable E to demo null propagation</summary>
+    public sealed class DeepD : ObservableObject
+    {
+        private DeepE? _e;
+
+        public DeepE? E
+        {
+            get => _e;
+            set => this.SetProperty(ref _e, value);
+        }
+    }
+
+    /// <summary>Level 3</summary>
     public sealed class DeepC : ObservableObject
     {
         private DeepD _d = new();
@@ -78,6 +109,7 @@ public class SampleViewModel : ObservableObject
         }
     }
 
+    /// <summary>Level 2</summary>
     public sealed class DeepB : ObservableObject
     {
         private DeepC _c = new();
@@ -89,6 +121,7 @@ public class SampleViewModel : ObservableObject
         }
     }
 
+    /// <summary>Level 1</summary>
     public sealed class DeepA : ObservableObject
     {
         private DeepB _b = new();
@@ -100,6 +133,7 @@ public class SampleViewModel : ObservableObject
         }
     }
 
+    /// <summary>Root of deep INPC chain (6 levels deep)</summary>
     public sealed class DeepRoot : ObservableObject
     {
         private DeepA _a = new();
@@ -111,25 +145,88 @@ public class SampleViewModel : ObservableObject
         }
     }
 
-    // Mixed notify demo: NonNotifyParent (no INPC) -> Child(Person) -> Name
-    public sealed class NonNotifyParent // deliberately NOT ObservableObject
+    // ==================== Mixed Chain Demo: INPC -> Plain -> INPC ====================
+
+    /// <summary>Plain (non-INPC) intermediate node - tests fallback to polling</summary>
+    public sealed class PlainIntermediate
     {
-        public Person? Child { get; set; }
+        public Person? NotifyChild { get; set; }
+        public int PlainValue { get; set; }
     }
 
+    /// <summary>Root of mixed chain demonstrating INPC -> Plain -> INPC</summary>
     public sealed class MixedRoot : ObservableObject
     {
-        private NonNotifyParent _nonNotify = new();
+        private PlainIntermediate _plainNode = new();
 
-        public NonNotifyParent NonNotify
+        public PlainIntermediate PlainNode
         {
-            get => _nonNotify;
-            set => this.SetProperty(ref _nonNotify, value);
+            get => _plainNode;
+            set => this.SetProperty(ref _plainNode, value);
         }
     }
 
-    private DeepRoot _deep = new();
-    private MixedRoot _mixed = new() { NonNotify = new NonNotifyParent { Child = new Person { Name = "Start", }, }, };
+    // ==================== Null Handling Demo ====================
+
+    /// <summary>Chain specifically designed to test null intermediate handling</summary>
+    public sealed class NullableChainRoot : ObservableObject
+    {
+        private NullableIntermediate? _intermediate;
+
+        public NullableIntermediate? Intermediate
+        {
+            get => _intermediate;
+            set => this.SetProperty(ref _intermediate, value);
+        }
+    }
+
+    public sealed class NullableIntermediate : ObservableObject
+    {
+        private Person? _target;
+
+        public Person? Target
+        {
+            get => _target;
+            set => this.SetProperty(ref _target, value);
+        }
+    }
+
+    private DeepRoot _deep = new()
+    {
+        A = new DeepA
+        {
+            B = new DeepB
+            {
+                C = new DeepC
+                {
+                    D = new DeepD
+                    {
+                        E = new DeepE
+                        {
+                            Leaf = new DeepLeaf { Name = "Initial Leaf", Value = 42 }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    private MixedRoot _mixed = new()
+    {
+        PlainNode = new PlainIntermediate
+        {
+            NotifyChild = new Person { Name = "Mixed Start" },
+            PlainValue = 100
+        }
+    };
+
+    private NullableChainRoot _nullableChain = new()
+    {
+        Intermediate = new NullableIntermediate
+        {
+            Target = new Person { Name = "Nullable Start" }
+        }
+    };
 
     public int Counter
     {
@@ -176,6 +273,12 @@ public class SampleViewModel : ObservableObject
         set => this.SetProperty(ref _mixed, value);
     }
 
+    public NullableChainRoot NullableChain
+    {
+        get => _nullableChain;
+        set => this.SetProperty(ref _nullableChain, value);
+    }
+
     public void Increment()
     {
         Counter++;
@@ -189,12 +292,22 @@ public class SampleViewModel : ObservableObject
         };
 
         // mutate deep chain a bit for demo
-        Deep.A.B.C.D.Leaf.Name = $"Deep {Counter}";
+        if (Deep.A.B.C.D.E?.Leaf != null)
+        {
+            Deep.A.B.C.D.E.Leaf.Name = $"Deep {Counter}";
+            Deep.A.B.C.D.E.Leaf.Value = Counter * 10;
+        }
 
         // Toggle mixed child occasionally
-        if (Counter % 2 == 0)
+        if (Counter % 2 == 0 && Mixed.PlainNode.NotifyChild != null)
         {
-            Mixed.NonNotify.Child = new Person { Name = $"Mixed {Counter}", };
+            Mixed.PlainNode.NotifyChild.Name = $"Mixed {Counter}";
+        }
+
+        // Demonstrate null handling
+        if (Counter % 3 == 0 && NullableChain.Intermediate?.Target != null)
+        {
+            NullableChain.Intermediate.Target.Name = $"Nullable {Counter}";
         }
     }
 }

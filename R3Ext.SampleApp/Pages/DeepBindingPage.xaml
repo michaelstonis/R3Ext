@@ -1,51 +1,162 @@
-<?xml version="1.0"
-    encoding="utf-8" ?>
-
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" x:Class="R3Ext.SampleApp.DeepBindingPage"
-    Title="Deep Binding">
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    x:Class="R3Ext.SampleApp.DeepBindingPage"
+    Title="Deep Binding Showcase">
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="18">
-            <Label Text="Deep Chain Diagnostics" Style="{StaticResource SubHeadline}" />
-            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
-                <Label Text="Root" Grid.Row="0" />
-                <Label x:Name="DeepRootLabel" Text="(waiting)" Grid.Row="0" Grid.Column="1" />
-                <Label Text="A" Grid.Row="1" />
-                <Label x:Name="DeepALabel" Text="(waiting)" Grid.Row="1" Grid.Column="1" />
-                <Label Text="B" Grid.Row="2" />
-                <Label x:Name="DeepBLabel" Text="(waiting)" Grid.Row="2" Grid.Column="1" />
-                <Label Text="C" Grid.Row="3" />
-                <Label x:Name="DeepCLabel" Text="(waiting)" Grid.Row="3" Grid.Column="1" />
-                <Label Text="D" Grid.Row="4" />
-                <Label x:Name="DeepDLabel" Text="(waiting)" Grid.Row="4" Grid.Column="1" />
-                <Label Text="Leaf" Grid.Row="5" />
-                <Label x:Name="DeepLeafLabel" Text="(waiting)" Grid.Row="5" Grid.Column="1" />
-                <Label Text="Leaf.Name" Grid.Row="6" />
-                <Label x:Name="DeepLeafNameLabel" Text="(waiting)" Grid.Row="6" Grid.Column="1" />
+        <VerticalStackLayout Padding="20" Spacing="20">
+            
+            <!-- Header -->
+            <Label Text="R3Ext Binding Features Showcase" Style="{StaticResource Headline}" />
+            <Label Text="Comprehensive demonstration of compile-time INPC optimization, deep chains, null handling, mixed INPC/Plain, automatic rewiring, and more." 
+                   LineBreakMode="WordWrap" />
+
+            <!-- Feature 1: Deep INPC Chain (6 levels) -->
+            <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+            <Label Text="🔗 Feature 1: Deep INPC Chain (6 Levels)" Style="{StaticResource SubHeadline}" />
+            <Label Text="Chain: Root → A → B → C → D → E → Leaf (all INPC)" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+            
+            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+                <Label Text="Root.A" Grid.Row="0" VerticalOptions="Center" />
+                <Label x:Name="DeepALabel" Grid.Row="0" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="A.B" Grid.Row="1" VerticalOptions="Center" />
+                <Label x:Name="DeepBLabel" Grid.Row="1" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="B.C" Grid.Row="2" VerticalOptions="Center" />
+                <Label x:Name="DeepCLabel" Grid.Row="2" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="C.D" Grid.Row="3" VerticalOptions="Center" />
+                <Label x:Name="DeepDLabel" Grid.Row="3" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="D.E" Grid.Row="4" VerticalOptions="Center" />
+                <Label x:Name="DeepELabel" Grid.Row="4" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="E.Leaf" Grid.Row="5" VerticalOptions="Center" />
+                <Label x:Name="DeepLeafLabel" Grid.Row="5" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="Leaf.Name" Grid.Row="6" VerticalOptions="Center" />
+                <Label x:Name="DeepLeafNameLabel" Grid.Row="6" Grid.Column="1" TextColor="{StaticResource Primary}" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="Leaf.Value" Grid.Row="7" VerticalOptions="Center" />
+                <Label x:Name="DeepLeafValueLabel" Grid.Row="7" Grid.Column="1" TextColor="{StaticResource Primary}" FontFamily="OpenSansSemibold" />
             </Grid>
-            <Label Text="Mixed Chain Diagnostics" Style="{StaticResource SubHeadline}" />
-            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
-                <Label Text="Root" Grid.Row="0" />
-                <Label x:Name="MixedRootLabel" Text="(waiting)" Grid.Row="0" Grid.Column="1" />
-                <Label Text="NonNotify" Grid.Row="1" />
-                <Label x:Name="MixedParentLabel" Text="(waiting)" Grid.Row="1" Grid.Column="1" />
-                <Label Text="Child" Grid.Row="2" />
-                <Label x:Name="MixedChildLabel" Text="(waiting)" Grid.Row="2" Grid.Column="1" />
-                <Label Text="Child.Name" Grid.Row="3" />
-                <Label x:Name="MixedChildNameLabel" Text="(waiting)" Grid.Row="3" Grid.Column="1" />
+
+            <!-- Feature 2: Two-Way Binding Through Deep Chain -->
+            <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+            <Label Text="↔️ Feature 2: Two-Way Deep Binding" Style="{StaticResource SubHeadline}" />
+            <Label Text="Edit the text below - it binds two-way through 6 levels to Root.A.B.C.D.E.Leaf.Name" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" LineBreakMode="WordWrap" />
+            
+            <Entry x:Name="DeepLeafNameEntry" Placeholder="Edit deep leaf name (6 levels deep)" />
+            <Label x:Name="DeepLeafNameMirror" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+
+            <Label Text="Edit integer value through deep chain:" FontSize="12" Margin="0,10,0,0" />
+            <Entry x:Name="DeepLeafValueEntry" Keyboard="Numeric" Placeholder="Edit deep leaf value" />
+            <Label x:Name="DeepLeafValueMirror" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+
+            <!-- Feature 3: Mixed INPC/Plain Chain -->
+            <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+            <Label Text="🔀 Feature 3: Mixed INPC/Plain Chain" Style="{StaticResource SubHeadline}" />
+            <Label Text="Chain: INPC Root → Plain Node → INPC Child (tests fallback to polling for plain types)" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" LineBreakMode="WordWrap" />
+            
+            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+                <Label Text="Root (INPC)" Grid.Row="0" VerticalOptions="Center" />
+                <Label x:Name="MixedRootLabel" Grid.Row="0" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="PlainNode" Grid.Row="1" VerticalOptions="Center" />
+                <Label x:Name="MixedPlainLabel" Grid.Row="1" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="Child (INPC)" Grid.Row="2" VerticalOptions="Center" />
+                <Label x:Name="MixedChildLabel" Grid.Row="2" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="Child.Name" Grid.Row="3" VerticalOptions="Center" />
+                <Label x:Name="MixedChildNameLabel" Grid.Row="3" Grid.Column="1" TextColor="{StaticResource Primary}" FontFamily="OpenSansSemibold" />
             </Grid>
-            <Label Text="Binding Playground" Style="{StaticResource SubHeadline}" />
-            <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
-                <Label Text="Deep Leaf (two-way)" Grid.Row="0" />
-                <Entry x:Name="DeepLeafEntry" Grid.Row="0" Grid.Column="1" Placeholder="Edit deep leaf name" />
-                <Label Text="Deep Leaf Mirror" Grid.Row="1" />
-                <Label x:Name="DeepLeafMirrorLabel" Text="(waiting)" Grid.Row="1" Grid.Column="1" />
-                <Label Text="Mixed Child (two-way)" Grid.Row="2" />
-                <Entry x:Name="MixedChildEntry" Grid.Row="2" Grid.Column="1" Placeholder="Edit mixed child name" />
-                <Label Text="Mixed Child Mirror" Grid.Row="3" />
-                <Label x:Name="MixedChildMirrorLabel" Text="(waiting)" Grid.Row="3" Grid.Column="1" />
+
+            <Entry x:Name="MixedChildEntry" Placeholder="Edit mixed chain child name" Margin="0,10,0,0" />
+            <Label x:Name="MixedChildMirror" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+
+            <!-- Feature 4: Null Handling -->
+            <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+            <Label Text="⚠️ Feature 4: Null Handling" Style="{StaticResource SubHeadline}" />
+            <Label Text="Chain with nullable intermediates - bindings gracefully handle null without crashing" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" LineBreakMode="WordWrap" />
+            
+            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                <Label Text="Root" Grid.Row="0" VerticalOptions="Center" />
+                <Label x:Name="NullableRootLabel" Grid.Row="0" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="Intermediate?" Grid.Row="1" VerticalOptions="Center" />
+                <Label x:Name="NullableIntermediateLabel" Grid.Row="1" Grid.Column="1" FontFamily="OpenSansSemibold" />
+                
+                <Label Text="Target?.Name" Grid.Row="2" VerticalOptions="Center" />
+                <Label x:Name="NullableTargetNameLabel" Grid.Row="2" Grid.Column="1" TextColor="{StaticResource Primary}" FontFamily="OpenSansSemibold" />
             </Grid>
-            <Button Text="Mutate Chain" Clicked="OnMutate" />
+
+            <Entry x:Name="NullableTargetEntry" Placeholder="Edit nullable target name" Margin="0,10,0,0" />
+            <Label x:Name="NullableTargetMirror" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+
+            <!-- Feature 5: Chain Replacement and Rewiring -->
+            <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+            <Label Text="🔄 Feature 5: Chain Replacement and Auto-Rewiring" Style="{StaticResource SubHeadline}" />
+            <Label Text="Test automatic subscription rewiring when chain segments are replaced" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" LineBreakMode="WordWrap" />
+            
+            <HorizontalStackLayout Spacing="10">
+                <Button Text="Replace Deep B" Clicked="OnReplaceDeepB" />
+                <Button Text="Replace Deep D" Clicked="OnReplaceDeepD" />
+                <Button Text="Replace Leaf" Clicked="OnReplaceLeaf" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="10">
+                <Button Text="Replace Mixed Root" Clicked="OnReplaceMixedRoot" />
+                <Button Text="Replace Plain Node" Clicked="OnReplacePlainNode" />
+            </HorizontalStackLayout>
+
+            <!-- Feature 6: Null Injection & Recovery -->
+            <HorizontalStackLayout Spacing="10">
+                <Button Text="Set Nullable → null" Clicked="OnSetNullableNull" />
+                <Button Text="Restore Nullable" Clicked="OnRestoreNullable" />
+            </HorizontalStackLayout>
+
+            <!-- Feature 7: Converters -->
+            <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+            <Label Text="🔧 Feature 6: OneWay with Converter" Style="{StaticResource SubHeadline}" />
+            <Label Text="Converter transforms int → formatted string" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+            
+            <Label x:Name="ConvertedValueLabel" FontFamily="OpenSansSemibold" TextColor="{StaticResource Primary}" />
+
+            <!-- Feature 8: Instrumentation -->
+            <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+            <Label Text="📊 Feature 7: Instrumentation Tracking" Style="{StaticResource SubHeadline}" />
+            <Label Text="Live counters showing compile-time optimization in action" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+            
+            <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto" RowSpacing="8">
+                <Label Text="NotifyWires (INPC subs)" Grid.Row="0" VerticalOptions="Center" />
+                <Label x:Name="NotifyWiresLabel" Grid.Row="0" Grid.Column="1" FontFamily="OpenSansSemibold" TextColor="{StaticResource Primary}" />
+                
+                <Label Text="BindUpdates (TwoWay)" Grid.Row="1" VerticalOptions="Center" />
+                <Label x:Name="BindUpdatesLabel" Grid.Row="1" Grid.Column="1" FontFamily="OpenSansSemibold" TextColor="{StaticResource Primary}" />
+            </Grid>
+
+            <Button Text="🔄 Reset Counters" Clicked="OnResetCounters" />
+
+            <!-- Feature 9: Stress Test -->
+            <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+            <Label Text="⚡ Feature 8: Rapid Updates (Stress Test)" Style="{StaticResource SubHeadline}" />
+            <Label Text="Trigger 100 rapid updates to test performance and stability" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+            
+            <HorizontalStackLayout Spacing="10">
+                <Button Text="🚀 Run Stress Test" Clicked="OnStressTest" />
+                <Label x:Name="StressTestLabel" VerticalOptions="Center" FontFamily="OpenSansSemibold" />
+            </HorizontalStackLayout>
+
+            <!-- Summary -->
+            <BoxView HeightRequest="1" BackgroundColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+            <Label Text="✨ All features demonstrated above use compile-time generated code - zero reflection at runtime!" 
+                   FontSize="12" 
+                   FontAttributes="Italic"
+                   TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" 
+                   LineBreakMode="WordWrap" />
+
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
