@@ -1702,73 +1702,14 @@ internal sealed class CodeEmitter
         }
         else
         {
-            // Multi-segment: use Observable.Create with dynamic rewiring
+            // Multi-segment: use Observable.Create with closure-free sealed class pattern
+            string stateClassName = $"OneWayState_{m.FromSegments.Count}_{id}";
+
             sb.AppendLine("        __builder.Add(Observable.Create<" + m.FromLeafTypeName + ">(observer =>");
             sb.AppendLine("        {");
-            sb.AppendLine($"            var subscriptions = new IDisposable?[{m.FromSegments.Count}];");
-
-            for (int i = 0; i < m.FromSegments.Count; i++)
-            {
-                PropertySegment seg = m.FromSegments[i];
-                sb.AppendLine($"            {seg.TypeName} __seg_{i} = default!;");
-            }
-
-            sb.AppendLine("            void UpdateChain()");
-            sb.AppendLine("            {");
-            for (int i = 0; i < m.FromSegments.Count; i++)
-            {
-                string access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                try {{ __seg_{i} = {access}; }} catch {{ __seg_{i} = default!; }}");
-            }
-
-            sb.AppendLine("            }");
-
-            sb.AppendLine("            void EmitValue()");
-            sb.AppendLine("            {");
-            sb.AppendLine("                try { observer.OnNext((" + m.FromLeafTypeName + ")(object?)" + fullChainAccess + "!); } catch { }");
-            sb.AppendLine("            }");
-
-            sb.AppendLine("            void Rewire(int fromIndex)");
-            sb.AppendLine("            {");
-            sb.AppendLine("                for (int i = fromIndex; i < subscriptions.Length; i++)");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    subscriptions[i]?.Dispose();");
-            sb.AppendLine("                    subscriptions[i] = null;");
-            sb.AppendLine("                }");
-            sb.AppendLine("                UpdateChain();");
-
-            for (int i = 0; i < m.FromSegments.Count; i++)
-            {
-                PropertySegment seg = m.FromSegments[i];
-                string parentRef = i == 0 ? "fromObject" : $"__seg_{i - 1}";
-                string parentType = i == 0 ? m.RootFromTypeName! : m.FromSegments[i - 1].TypeName;
-                sb.AppendLine($"                if (fromIndex <= {i})");
-                sb.AppendLine("                {");
-                sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_{i})");
-                sb.AppendLine("                    {");
-                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-                sb.AppendLine($"                        subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine($"                            .Subscribe(_ => {{ Rewire({i + 1}); EmitValue(); }});");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                    else");
-                sb.AppendLine("                    {");
-                string segAccess = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(fromObject, x => {segAccess.Replace("fromObject", "x")})");
-                sb.AppendLine($"                            .Subscribe(_ => {{ Rewire({i + 1}); EmitValue(); }});");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                }");
-            }
-
-            sb.AppendLine("            }");
-
-            sb.AppendLine("            Rewire(0);");
-            sb.AppendLine("            EmitValue();");
-            sb.AppendLine("            return Disposable.Create(() => {");
-            sb.AppendLine("                for (int i = 0; i < subscriptions.Length; i++)");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    subscriptions[i]?.Dispose();");
-            sb.AppendLine("                }");
-            sb.AppendLine("            });");
+            sb.AppendLine($"            var state = new {stateClassName}(observer, fromObject);");
+            sb.AppendLine("            state.Initialize();");
+            sb.AppendLine("            return state;");
             sb.AppendLine("        })");
             sb.AppendLine("        .Subscribe((fromObject, targetObject, convert), static (val, state) =>");
             sb.AppendLine("        {");
@@ -1793,6 +1734,112 @@ internal sealed class CodeEmitter
 
         sb.AppendLine("        return __builder.Build();");
         sb.AppendLine("    }");
+
+        // Generate state class if multi-segment OneWay binding was used
+        if (m.FromSegments.Count > 1)
+        {
+            string stateClassName = $"OneWayState_{m.FromSegments.Count}_{id}";
+            sb.AppendLine(string.Empty);
+            sb.AppendLine($"    sealed class {stateClassName} : IDisposable");
+            sb.AppendLine("    {");
+            sb.AppendLine($"        private readonly Observer<{m.FromLeafTypeName}> observer;");
+            sb.AppendLine($"        private readonly {m.RootFromTypeName} root;");
+            sb.AppendLine($"        private readonly IDisposable?[] subscriptions = new IDisposable?[{m.FromSegments.Count}];");
+            sb.AppendLine("        private bool rewiring;");
+
+            for (int i = 0; i < m.FromSegments.Count; i++)
+            {
+                PropertySegment seg = m.FromSegments[i];
+                sb.AppendLine($"        private {seg.TypeName} seg_{i};");
+            }
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine($"        public {stateClassName}(Observer<{m.FromLeafTypeName}> observer, {m.RootFromTypeName} root)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            this.observer = observer;");
+            sb.AppendLine("            this.root = root;");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        public void Initialize()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            UpdateChain();");
+            sb.AppendLine("            Rewire(0);");
+            sb.AppendLine("            EmitValue();");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        private void UpdateChain()");
+            sb.AppendLine("        {");
+            for (int i = 0; i < m.FromSegments.Count; i++)
+            {
+                string access = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"            try {{ seg_{i} = {access}; }} catch {{ seg_{i} = default!; }}");
+            }
+
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        private void EmitValue()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (rewiring) return;");
+            string fullChainAccessWithRoot = BuildChainAccess("root", m.FromSegments);
+            sb.AppendLine("            try { observer.OnNext((" + m.FromLeafTypeName + ")(object?)" + fullChainAccessWithRoot + "!); } catch { observer.OnNext(default!); }");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        private void Rewire(int fromIndex)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (rewiring) return;");
+            sb.AppendLine("            rewiring = true;");
+            sb.AppendLine("            try");
+            sb.AppendLine("            {");
+            sb.AppendLine("                for (int i = fromIndex; i < subscriptions.Length; i++)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    subscriptions[i]?.Dispose();");
+            sb.AppendLine("                    subscriptions[i] = null;");
+            sb.AppendLine("                }");
+            sb.AppendLine("                UpdateChain();");
+
+            for (int i = 0; i < m.FromSegments.Count; i++)
+            {
+                PropertySegment seg = m.FromSegments[i];
+                string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
+                string parentType = i == 0 ? m.RootFromTypeName! : m.FromSegments[i - 1].TypeName;
+                sb.AppendLine($"                if (fromIndex <= {i})");
+                sb.AppendLine("                {");
+                sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_{i})");
+                sb.AppendLine("                    {");
+                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
+                sb.AppendLine($"                        subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    else");
+                sb.AppendLine("                    {");
+                string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
+                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                }");
+            }
+
+            sb.AppendLine("            }");
+            sb.AppendLine("            finally { rewiring = false; }");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        public void Dispose()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (subscriptions != null)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                for (int i = 0; i < subscriptions.Length; i++)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    subscriptions[i]?.Dispose();");
+            sb.AppendLine("                }");
+            sb.AppendLine("            }");
+            sb.AppendLine("        }");
+            sb.AppendLine("    }");
+        }
     }
 
     private void EmitTwoWayRegistrationBody(string id, InvocationModel m, StringBuilder sb)
@@ -1863,72 +1910,13 @@ internal sealed class CodeEmitter
         }
         else
         {
-            // Multi-segment from chain with dynamic rewiring
+            // Multi-segment from chain with dynamic rewiring (closure-free)
+            string fromStateClassName = $"TwoWayFromState_{m.FromSegments.Count}_{id}";
             sb.AppendLine("        __builder.Add(Observable.Create<" + m.FromLeafTypeName + ">(observer =>");
             sb.AppendLine("        {");
-            sb.AppendLine($"            var subscriptions = new IDisposable?[{m.FromSegments.Count}];");
-            for (int i = 0; i < m.FromSegments.Count; i++)
-            {
-                PropertySegment seg = m.FromSegments[i];
-                sb.AppendLine($"            {seg.TypeName} __seg_from_{i} = default!;");
-            }
-
-            sb.AppendLine("            void UpdateFromChain()");
-            sb.AppendLine("            {");
-            for (int i = 0; i < m.FromSegments.Count; i++)
-            {
-                string access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                try {{ __seg_from_{i} = {access}; }} catch {{ __seg_from_{i} = default!; }}");
-            }
-
-            sb.AppendLine("            }");
-
-            sb.AppendLine("            void EmitFromValue()");
-            sb.AppendLine("            {");
-            sb.AppendLine("                try { observer.OnNext((" + m.FromLeafTypeName + ")(object?)" + fromFullChainAccess + "!); } catch { }");
-            sb.AppendLine("            }");
-
-            sb.AppendLine("            void RewireFrom(int fromIndex)");
-            sb.AppendLine("            {");
-            sb.AppendLine("                for (int i = fromIndex; i < subscriptions.Length; i++)");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    subscriptions[i]?.Dispose();");
-            sb.AppendLine("                    subscriptions[i] = null;");
-            sb.AppendLine("                }");
-            sb.AppendLine("                UpdateFromChain();");
-
-            for (int i = 0; i < m.FromSegments.Count; i++)
-            {
-                PropertySegment seg = m.FromSegments[i];
-                string parentRef = i == 0 ? "fromObject" : $"__seg_from_{i - 1}";
-                string parentType = i == 0 ? m.RootFromTypeName! : m.FromSegments[i - 1].TypeName;
-                sb.AppendLine($"                if (fromIndex <= {i})");
-                sb.AppendLine("                {");
-                sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_from_{i})");
-                sb.AppendLine("                    {");
-                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-                sb.AppendLine($"                        subscriptions[{i}] = inpc_from_{i}.ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine($"                            .Subscribe(_ => {{ RewireFrom({i + 1}); EmitFromValue(); }});");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                    else");
-                sb.AppendLine("                    {");
-                string segAccess = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(fromObject, x => {segAccess.Replace("fromObject", "x")})");
-                sb.AppendLine($"                            .Subscribe(_ => {{ RewireFrom({i + 1}); EmitFromValue(); }});");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                }");
-            }
-
-            sb.AppendLine("            }");
-
-            sb.AppendLine("            RewireFrom(0);");
-            sb.AppendLine("            EmitFromValue();");
-            sb.AppendLine("            return Disposable.Create(() => {");
-            sb.AppendLine("                for (int i = 0; i < subscriptions.Length; i++)");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    subscriptions[i]?.Dispose();");
-            sb.AppendLine("                }");
-            sb.AppendLine("            });");
+            sb.AppendLine($"            var state = new {fromStateClassName}(observer, fromObject);");
+            sb.AppendLine("            state.Initialize();");
+            sb.AppendLine("            return state;");
             sb.AppendLine("        })");
             sb.AppendLine("        .Subscribe((__updating, targetObject, hostToTargetConv), static (val, state) =>");
             sb.AppendLine("        {");
@@ -1990,72 +1978,13 @@ internal sealed class CodeEmitter
         }
         else
         {
-            // Multi-segment to chain with dynamic rewiring
+            // Multi-segment to chain with dynamic rewiring (closure-free)
+            string toStateClassName = $"TwoWayToState_{m.ToSegments.Count}_{id}";
             sb.AppendLine("        __builder.Add(Observable.Create<" + m.TargetLeafTypeName + ">(observer =>");
             sb.AppendLine("        {");
-            sb.AppendLine($"            var subscriptionsTo = new IDisposable?[{m.ToSegments.Count}];");
-            for (int i = 0; i < m.ToSegments.Count; i++)
-            {
-                PropertySegment seg = m.ToSegments[i];
-                sb.AppendLine($"            {seg.TypeName} __seg_to_{i} = default!;");
-            }
-
-            sb.AppendLine("            void UpdateToChain()");
-            sb.AppendLine("            {");
-            for (int i = 0; i < m.ToSegments.Count; i++)
-            {
-                string access = BuildChainAccess("targetObject", m.ToSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                try {{ __seg_to_{i} = {access}; }} catch {{ __seg_to_{i} = default!; }}");
-            }
-
-            sb.AppendLine("            }");
-
-            sb.AppendLine("            void EmitToValue()");
-            sb.AppendLine("            {");
-            sb.AppendLine("                try { observer.OnNext((" + m.TargetLeafTypeName + ")(object?)" + toFullChainAccess + "!); } catch { }");
-            sb.AppendLine("            }");
-
-            sb.AppendLine("            void RewireTo(int fromIndex)");
-            sb.AppendLine("            {");
-            sb.AppendLine("                for (int i = fromIndex; i < subscriptionsTo.Length; i++)");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    subscriptionsTo[i]?.Dispose();");
-            sb.AppendLine("                    subscriptionsTo[i] = null;");
-            sb.AppendLine("                }");
-            sb.AppendLine("                UpdateToChain();");
-
-            for (int i = 0; i < m.ToSegments.Count; i++)
-            {
-                PropertySegment seg = m.ToSegments[i];
-                string parentRef = i == 0 ? "targetObject" : $"__seg_to_{i - 1}";
-                string parentType = i == 0 ? m.RootTargetTypeName! : m.ToSegments[i - 1].TypeName;
-                sb.AppendLine($"                if (fromIndex <= {i})");
-                sb.AppendLine("                {");
-                sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_to_{i})");
-                sb.AppendLine("                    {");
-                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-                sb.AppendLine($"                        subscriptionsTo[{i}] = inpc_to_{i}.ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine($"                            .Subscribe(_ => {{ RewireTo({i + 1}); EmitToValue(); }});");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                    else");
-                sb.AppendLine("                    {");
-                string segAccess = BuildChainAccess("targetObject", m.ToSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                        subscriptionsTo[{i}] = Observable.EveryValueChanged(targetObject, x => {segAccess.Replace("targetObject", "x")})");
-                sb.AppendLine($"                            .Subscribe(_ => {{ RewireTo({i + 1}); EmitToValue(); }});");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                }");
-            }
-
-            sb.AppendLine("            }");
-
-            sb.AppendLine("            RewireTo(0);");
-            sb.AppendLine("            EmitToValue();");
-            sb.AppendLine("            return Disposable.Create(() => {");
-            sb.AppendLine("                for (int i = 0; i < subscriptionsTo.Length; i++)");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    subscriptionsTo[i]?.Dispose();");
-            sb.AppendLine("                }");
-            sb.AppendLine("            });");
+            sb.AppendLine($"            var state = new {toStateClassName}(observer, targetObject);");
+            sb.AppendLine("            state.Initialize();");
+            sb.AppendLine("            return state;");
             sb.AppendLine("        })");
             sb.AppendLine("        .Subscribe((__updating, fromObject, targetToHostConv), static (val, state) =>");
             sb.AppendLine("        {");
@@ -2085,6 +2014,217 @@ internal sealed class CodeEmitter
 
         sb.AppendLine("        return __builder.Build();");
         sb.AppendLine("    }");
+
+        // Generate state classes for multi-segment TwoWay chains
+        if (m.FromSegments.Count > 1)
+        {
+            string fromStateClassName = $"TwoWayFromState_{m.FromSegments.Count}_{id}";
+            sb.AppendLine(string.Empty);
+            sb.AppendLine($"    sealed class {fromStateClassName} : IDisposable");
+            sb.AppendLine("    {");
+            sb.AppendLine($"        private readonly Observer<{m.FromLeafTypeName}> observer;");
+            sb.AppendLine($"        private readonly {m.RootFromTypeName} root;");
+            sb.AppendLine($"        private readonly IDisposable?[] subscriptions = new IDisposable?[{m.FromSegments.Count}];");
+            sb.AppendLine("        private bool rewiring;");
+
+            for (int i = 0; i < m.FromSegments.Count; i++)
+            {
+                PropertySegment seg = m.FromSegments[i];
+                sb.AppendLine($"        private {seg.TypeName} seg_{i};");
+            }
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine($"        public {fromStateClassName}(Observer<{m.FromLeafTypeName}> observer, {m.RootFromTypeName} root)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            this.observer = observer;");
+            sb.AppendLine("            this.root = root;");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        public void Initialize()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            UpdateChain();");
+            sb.AppendLine("            Rewire(0);");
+            sb.AppendLine("            EmitValue();");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        private void UpdateChain()");
+            sb.AppendLine("        {");
+            for (int i = 0; i < m.FromSegments.Count; i++)
+            {
+                string access = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"            try {{ seg_{i} = {access}; }} catch {{ seg_{i} = default!; }}");
+            }
+
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        private void EmitValue()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (rewiring) return;");
+            string fromFullChainAccessWithRoot = BuildChainAccess("root", m.FromSegments);
+            sb.AppendLine("            try { observer.OnNext((" + m.FromLeafTypeName + ")(object?)" + fromFullChainAccessWithRoot + "!); } catch { observer.OnNext(default!); }");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        private void Rewire(int fromIndex)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (rewiring) return;");
+            sb.AppendLine("            rewiring = true;");
+            sb.AppendLine("            try");
+            sb.AppendLine("            {");
+            sb.AppendLine("                for (int i = fromIndex; i < subscriptions.Length; i++)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    subscriptions[i]?.Dispose();");
+            sb.AppendLine("                    subscriptions[i] = null;");
+            sb.AppendLine("                }");
+            sb.AppendLine("                UpdateChain();");
+
+            for (int i = 0; i < m.FromSegments.Count; i++)
+            {
+                PropertySegment seg = m.FromSegments[i];
+                string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
+                string parentType = i == 0 ? m.RootFromTypeName! : m.FromSegments[i - 1].TypeName;
+                sb.AppendLine($"                if (fromIndex <= {i})");
+                sb.AppendLine("                {");
+                sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_{i})");
+                sb.AppendLine("                    {");
+                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
+                sb.AppendLine($"                        subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    else");
+                sb.AppendLine("                    {");
+                string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
+                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                }");
+            }
+
+            sb.AppendLine("            }");
+            sb.AppendLine("            finally { rewiring = false; }");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        public void Dispose()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (subscriptions != null)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                for (int i = 0; i < subscriptions.Length; i++)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    subscriptions[i]?.Dispose();");
+            sb.AppendLine("                }");
+            sb.AppendLine("            }");
+            sb.AppendLine("        }");
+            sb.AppendLine("    }");
+        }
+
+        if (m.ToSegments.Count > 1)
+        {
+            string toStateClassName = $"TwoWayToState_{m.ToSegments.Count}_{id}";
+            sb.AppendLine(string.Empty);
+            sb.AppendLine($"    sealed class {toStateClassName} : IDisposable");
+            sb.AppendLine("    {");
+            sb.AppendLine($"        private readonly Observer<{m.TargetLeafTypeName}> observer;");
+            sb.AppendLine($"        private readonly {m.RootTargetTypeName} root;");
+            sb.AppendLine($"        private readonly IDisposable?[] subscriptions = new IDisposable?[{m.ToSegments.Count}];");
+            sb.AppendLine("        private bool rewiring;");
+
+            for (int i = 0; i < m.ToSegments.Count; i++)
+            {
+                PropertySegment seg = m.ToSegments[i];
+                sb.AppendLine($"        private {seg.TypeName} seg_{i};");
+            }
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine($"        public {toStateClassName}(Observer<{m.TargetLeafTypeName}> observer, {m.RootTargetTypeName} root)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            this.observer = observer;");
+            sb.AppendLine("            this.root = root;");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        public void Initialize()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            UpdateChain();");
+            sb.AppendLine("            Rewire(0);");
+            sb.AppendLine("            EmitValue();");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        private void UpdateChain()");
+            sb.AppendLine("        {");
+            for (int i = 0; i < m.ToSegments.Count; i++)
+            {
+                string access = BuildChainAccess("root", m.ToSegments.Take(i + 1).ToList());
+                sb.AppendLine($"            try {{ seg_{i} = {access}; }} catch {{ seg_{i} = default!; }}");
+            }
+
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        private void EmitValue()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (rewiring) return;");
+            string toFullChainAccessWithRoot = BuildChainAccess("root", m.ToSegments);
+            sb.AppendLine("            try { observer.OnNext((" + m.TargetLeafTypeName + ")(object?)" + toFullChainAccessWithRoot + "!); } catch { observer.OnNext(default!); }");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        private void Rewire(int fromIndex)");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (rewiring) return;");
+            sb.AppendLine("            rewiring = true;");
+            sb.AppendLine("            try");
+            sb.AppendLine("            {");
+            sb.AppendLine("                for (int i = fromIndex; i < subscriptions.Length; i++)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    subscriptions[i]?.Dispose();");
+            sb.AppendLine("                    subscriptions[i] = null;");
+            sb.AppendLine("                }");
+            sb.AppendLine("                UpdateChain();");
+
+            for (int i = 0; i < m.ToSegments.Count; i++)
+            {
+                PropertySegment seg = m.ToSegments[i];
+                string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
+                string parentType = i == 0 ? m.RootTargetTypeName! : m.ToSegments[i - 1].TypeName;
+                sb.AppendLine($"                if (fromIndex <= {i})");
+                sb.AppendLine("                {");
+                sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_{i})");
+                sb.AppendLine("                    {");
+                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
+                sb.AppendLine($"                        subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    else");
+                sb.AppendLine("                    {");
+                string segAccess = BuildChainAccess("root", m.ToSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
+                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                }");
+            }
+
+            sb.AppendLine("            }");
+            sb.AppendLine("            finally { rewiring = false; }");
+            sb.AppendLine("        }");
+
+            sb.AppendLine(string.Empty);
+            sb.AppendLine("        public void Dispose()");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (subscriptions != null)");
+            sb.AppendLine("            {");
+            sb.AppendLine("                for (int i = 0; i < subscriptions.Length; i++)");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    subscriptions[i]?.Dispose();");
+            sb.AppendLine("                }");
+            sb.AppendLine("            }");
+            sb.AppendLine("        }");
+            sb.AppendLine("    }");
+        }
     }
 
     private void EmitWhenRegistrationBody(string id, InvocationModel m, StringBuilder sb)
@@ -2128,82 +2268,114 @@ internal sealed class CodeEmitter
             return;
         }
 
-        // Multi-segment: use Observable.Create with dynamic rewiring (closure-free)
+        // Multi-segment: use Observable.Create with dynamic rewiring (closure-free via class state)
+        string stateType = $"WhenState_{m.FromSegments.Count}_{id}";
         sb.AppendLine("        return Observable.Create<" + m.WhenLeafTypeName + ">(observer => {");
-        sb.AppendLine($"            var subscriptions = new IDisposable?[{m.FromSegments.Count}];");
-        sb.AppendLine("            var rewiring = new System.Threading.ThreadLocal<bool>(() => false);");
+        sb.AppendLine($"            var state = new {stateType}(observer, root);");
+        sb.AppendLine("            state.Initialize();");
+        sb.AppendLine("            return state;");
+        sb.AppendLine("        }).DistinctUntilChanged();");
+        sb.AppendLine("    }");
+        sb.AppendLine(string.Empty);
 
+        // Generate state class for this specific chain
+        sb.AppendLine($"    sealed class {stateType} : IDisposable");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        private readonly Observer<{m.WhenLeafTypeName}> observer;");
+        sb.AppendLine($"        private readonly {m.WhenRootTypeName} root;");
+        sb.AppendLine($"        private readonly IDisposable?[] subscriptions = new IDisposable?[{m.FromSegments.Count}];");
+        sb.AppendLine("        private bool rewiring;");
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             PropertySegment seg = m.FromSegments[i];
-            sb.AppendLine($"            {seg.TypeName} __seg_{i} = default!;");
+            sb.AppendLine($"        private {seg.TypeName} seg_{i};");
         }
 
-        sb.AppendLine("            void UpdateChain()");
-        sb.AppendLine("            {");
+        sb.AppendLine(string.Empty);
+        sb.AppendLine($"        public {stateType}(Observer<{m.WhenLeafTypeName}> observer, {m.WhenRootTypeName} root)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            this.observer = observer;");
+        sb.AppendLine("            this.root = root;");
+        sb.AppendLine("        }");
+
+        sb.AppendLine(string.Empty);
+        sb.AppendLine("        public void Initialize()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            UpdateChain();");
+        sb.AppendLine("            Rewire(0);");
+        sb.AppendLine("            EmitValue();");
+        sb.AppendLine("        }");
+
+        sb.AppendLine(string.Empty);
+        sb.AppendLine("        private void UpdateChain()");
+        sb.AppendLine("        {");
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             string access = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
-            sb.AppendLine($"                try {{ __seg_{i} = {access}; }} catch {{ __seg_{i} = default!; }}");
+            sb.AppendLine($"            try {{ seg_{i} = {access}; }} catch {{ seg_{i} = default!; }}");
         }
 
-        sb.AppendLine("            }");
+        sb.AppendLine("        }");
 
-        sb.AppendLine("            void EmitValue()");
-        sb.AppendLine("            {");
-        sb.AppendLine("                if (rewiring.Value) return;");
-        sb.AppendLine("                try { observer.OnNext((" + m.WhenLeafTypeName + ")(object?)" + leafAccess + "!); } catch { observer.OnNext(default!); }");
-        sb.AppendLine("            }");
+        sb.AppendLine(string.Empty);
+        sb.AppendLine("        private void EmitValue()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (rewiring) return;");
+        string emitAccess = leafAccess.Replace("__seg_", "seg_");
+        sb.AppendLine("            try { observer.OnNext((" + m.WhenLeafTypeName + ")(object?)" + emitAccess + "!); } catch { observer.OnNext(default!); }");
+        sb.AppendLine("        }");
 
-        sb.AppendLine("            void Rewire(int fromIndex)");
+        sb.AppendLine(string.Empty);
+        sb.AppendLine("        private void Rewire(int fromIndex)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (rewiring) return;");
+        sb.AppendLine("            rewiring = true;");
+        sb.AppendLine("            try");
         sb.AppendLine("            {");
-        sb.AppendLine("                if (rewiring.Value) return;");
-        sb.AppendLine("                rewiring.Value = true;");
-        sb.AppendLine("                try");
+        sb.AppendLine("                for (int i = fromIndex; i < subscriptions.Length; i++)");
         sb.AppendLine("                {");
-        sb.AppendLine("                    for (int i = fromIndex; i < subscriptions.Length; i++)");
-        sb.AppendLine("                    {");
-        sb.AppendLine("                        subscriptions[i]?.Dispose();");
-        sb.AppendLine("                        subscriptions[i] = null;");
-        sb.AppendLine("                    }");
-        sb.AppendLine("                    UpdateChain();");
+        sb.AppendLine("                    subscriptions[i]?.Dispose();");
+        sb.AppendLine("                    subscriptions[i] = null;");
+        sb.AppendLine("                }");
+        sb.AppendLine("                UpdateChain();");
 
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             PropertySegment seg = m.FromSegments[i];
-            string parentRef = i == 0 ? "root" : $"__seg_{i - 1}";
+            string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
             string parentType = i == 0 ? m.WhenRootTypeName! : m.FromSegments[i - 1].TypeName;
-            sb.AppendLine($"                    if (fromIndex <= {i})");
+            sb.AppendLine($"                if (fromIndex <= {i})");
+            sb.AppendLine("                {");
+            sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_{i})");
             sb.AppendLine("                    {");
-            sb.AppendLine($"                        if ((object){parentRef} is INotifyPropertyChanged inpc_{i})");
-            sb.AppendLine("                        {");
             string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-            sb.AppendLine($"                            subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
-            sb.AppendLine($"                                .Subscribe(_ => {{ Rewire({i + 1}); EmitValue(); }});");
-            sb.AppendLine("                        }");
-            sb.AppendLine("                        else");
-            sb.AppendLine("                        {");
-            string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
-            sb.AppendLine($"                            subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
-            sb.AppendLine($"                                .Subscribe(_ => {{ Rewire({i + 1}); EmitValue(); }});");
-            sb.AppendLine("                        }");
+            sb.AppendLine($"                        subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
+            sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
             sb.AppendLine("                    }");
+            sb.AppendLine("                    else");
+            sb.AppendLine("                    {");
+            string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+            sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
+            sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                }");
         }
 
-        sb.AppendLine("                }");
-        sb.AppendLine("                finally { rewiring.Value = false; }");
         sb.AppendLine("            }");
+        sb.AppendLine("            finally { rewiring = false; }");
+        sb.AppendLine("        }");
 
-        sb.AppendLine("            Rewire(0);");
-        sb.AppendLine("            EmitValue();");
-        sb.AppendLine("            return Disposable.Create(() => {");
-        sb.AppendLine("                rewiring.Dispose();");
+        sb.AppendLine(string.Empty);
+        sb.AppendLine("        public void Dispose()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (subscriptions != null)");
+        sb.AppendLine("            {");
         sb.AppendLine("                for (int i = 0; i < subscriptions.Length; i++)");
         sb.AppendLine("                {");
         sb.AppendLine("                    subscriptions[i]?.Dispose();");
         sb.AppendLine("                }");
-        sb.AppendLine("            });");
-        sb.AppendLine("        }).DistinctUntilChanged();");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
         sb.AppendLine("    }");
     }
 
