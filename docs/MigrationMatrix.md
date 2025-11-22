@@ -17,7 +17,7 @@ Legend:
 | Transformation          | Transform (core overloads)                           | Cache/List         | Implemented | Passing | Key-aware and simple overloads present                                 |
 | Transformation          | TransformAsync                                       | Cache/List         | Implemented | Passing | Cache and list variants with cancellation support                      |
 | Transformation          | TransformImmutable                                   | Cache/List         | NotStarted  | None    | Optional performance feature                                           |
-| Transformation          | TransformSafe                                        | Cache/List         | NotStarted  | None    | Error handling path                                                    |
+| Transformation          | TransformSafe                                        | Cache              | Implemented | Passing | Error handling with callback; list variant not found in DynamicData    |
 | Transformation          | TransformToTree                                      | Cache              | NotStarted  | None    | Hierarchical build logic                                               |
 | Transformation          | Cast / Convert                                       | Cache/List         | Implemented | Passing | Alias of Transform; list tests added                                   |
 | Transformation          | ChangeKey                                            | Cache              | Implemented | Passing | Projects to new key space; emits Remove+Add on key change              |
