@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+#pragma warning disable SA1516, SA1515, SA1503, SA1502, SA1107
 using System.Linq;
 using R3;
 using R3.DynamicData.Cache;

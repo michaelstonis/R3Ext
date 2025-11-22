@@ -1,17 +1,23 @@
 // Port of DynamicData to R3.
-
+#pragma warning disable SA1116, SA1513, SA1516, SA1503, SA1127, SA1210
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq.Expressions;
 using R3.DynamicData.Binding;
+using R3.DynamicData.Cache;
 using R3.DynamicData.List.Internal;
 
 namespace R3.DynamicData.List;
 
+// Style suppression pragmas for list extensions additions.
+#pragma warning disable SA1116, SA1513, SA1516, SA1503, SA1127, SA1210
 public static partial class ObservableListEx
 {
-    public static Observable<IChangeSet<TResult>> Transform<T, TResult>(
+    /// <summary>
+    /// Adds a key to a list changeset, promoting it to a cache-style keyed changeset.
+    /// </summary>
+    public static Observable<R3.DynamicData.List.IChangeSet<TResult>> Transform<T, TResult>(
         this Observable<IChangeSet<T>> source,
         Func<T, TResult> selector)
     {

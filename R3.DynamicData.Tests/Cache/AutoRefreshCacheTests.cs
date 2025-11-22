@@ -1,4 +1,5 @@
 // Port of DynamicData to R3.
+#pragma warning disable SA1516, SA1515, SA1503, SA1502, SA1107
 
 using System.ComponentModel;
 using R3.DynamicData.Cache;

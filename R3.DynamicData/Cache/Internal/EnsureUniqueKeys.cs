@@ -1,9 +1,10 @@
 // Port of DynamicData EnsureUniqueKeys (UniquenessEnforcer) to R3.
-#pragma warning disable SA1503 // Braces should not be omitted
-#pragma warning disable SA1513 // Closing brace should be followed by blank line
-#pragma warning disable SA1116 // Parameters should begin on the line after the declaration
-#pragma warning disable SA1515 // Single-line comment should be preceded by blank line
-using System.Reactive.Linq;
+// Style suppression pragmas for internal operator.
+#pragma warning disable SA1503, SA1513, SA1116, SA1515, SA1516, SA1127, SA1210
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using R3.DynamicData.Kernel;
 
 namespace R3.DynamicData.Cache.Internal;
 
@@ -44,17 +45,9 @@ internal sealed class EnsureUniqueKeys<TObject, TKey>
                     var existedBeforeBatch = state.ContainsKey(key);
 
                     // Determine candidate change (last non-refresh if any, else first refresh)
-                    Change<TObject, TKey>? candidate = null;
-                    for (int i = all.Count - 1; i >= 0; i--)
-                    {
-                        var change = all[i];
-                        if (change.Reason != Kernel.ChangeReason.Refresh)
-                        {
-                            candidate = change;
-                            break;
-                        }
-                    }
-                    candidate ??= all[0]; // all refresh case
+                    Change<TObject, TKey> candidate;
+                    var idx = all.FindLastIndex(c => c.Reason != Kernel.ChangeReason.Refresh);
+                    candidate = idx >= 0 ? all[idx] : all[0]; // all refresh case
 
                     bool hadAddOrUpdateInBatch = all.Any(c => c.Reason == Kernel.ChangeReason.Add || c.Reason == Kernel.ChangeReason.Update);
                     bool hadRemoveInBatch = all.Any(c => c.Reason == Kernel.ChangeReason.Remove);
@@ -80,9 +73,10 @@ internal sealed class EnsureUniqueKeys<TObject, TKey>
                     if (finalReason == Kernel.ChangeReason.Refresh && hadAddOrUpdateInBatch)
                     {
                         // Determine last non-refresh add/update value
-                        var lastNonRefresh = all.LastOrDefault(c => c.Reason == Kernel.ChangeReason.Add || c.Reason == Kernel.ChangeReason.Update);
-                        if (lastNonRefresh is not null)
+                        var hasLastNonRefresh = all.Any(c => c.Reason == Kernel.ChangeReason.Add || c.Reason == Kernel.ChangeReason.Update);
+                        if (hasLastNonRefresh)
                         {
+                            var lastNonRefresh = all.Last(c => c.Reason == Kernel.ChangeReason.Add || c.Reason == Kernel.ChangeReason.Update);
                             finalReason = !existedBeforeBatch && lastNonRefresh.Reason == Kernel.ChangeReason.Update
                                 ? Kernel.ChangeReason.Add
                                 : lastNonRefresh.Reason;

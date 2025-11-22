@@ -1,6 +1,8 @@
 // Port of DynamicData to R3.
 
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq.Expressions;
 using R3.DynamicData.Binding;
 using R3.DynamicData.Kernel;
 using R3.DynamicData.List;
@@ -480,10 +482,30 @@ public static partial class ObservableCacheEx
         if (reevaluator is null) throw new ArgumentNullException(nameof(reevaluator));
 
         // Adapt underlying generic AutoRefresh implementation which operates on object keys.
-        var castSource = source.Select(cs => (IChangeSet<TObject, object>)new ChangeSet<TObject, object>(cs.Select(ch => new Change<TObject, object>(ch.Reason, ch.Key!, ch.Current, ch.Previous.HasValue ? ch.Previous.Value : default))).WithCopy());
+        var castSource = source.Select(cs =>
+        {
+            var converted = new ChangeSet<TObject, object>(cs.Count);
+            foreach (var ch in cs)
+            {
+                converted.Add(ch.Previous.HasValue
+                    ? new Change<TObject, object>(ch.Reason, ch.Key!, ch.Current, ch.Previous.Value)
+                    : new Change<TObject, object>(ch.Reason, ch.Key!, ch.Current));
+            }
+            return (IChangeSet<TObject, object>)converted;
+        });
         return new Cache.Internal.AutoRefresh<TObject, TAny>(castSource, reevaluator, changeSetBuffer, timeProvider)
             .Run()
-            .Select(cs => (IChangeSet<TObject, TKey>)new ChangeSet<TObject, TKey>(cs.Select(ch => new Change<TObject, TKey>(ch.Reason, (TKey)ch.Key!, ch.Current, ch.Previous.HasValue ? ch.Previous.Value : default))));
+            .Select(cs =>
+            {
+                var converted = new ChangeSet<TObject, TKey>(cs.Count);
+                foreach (var ch in cs)
+                {
+                    converted.Add(ch.Previous.HasValue
+                        ? new Change<TObject, TKey>(ch.Reason, (TKey)ch.Key!, ch.Current, ch.Previous.Value)
+                        : new Change<TObject, TKey>(ch.Reason, (TKey)ch.Key!, ch.Current));
+                }
+                return (IChangeSet<TObject, TKey>)converted;
+            });
     }
 
     // Filtering parity
@@ -519,5 +541,48 @@ public static partial class ObservableCacheEx
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
         return new Cache.Internal.EnsureUniqueKeys<TObject, TKey>(source).Run();
+    }
+
+    // SuppressRefresh
+    public static Observable<IChangeSet<TObject, TKey>> SuppressRefresh<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source)
+        where TObject : notnull
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return new Cache.Internal.SuppressRefresh<TObject, TKey>(source).Run();
+    }
+
+    // IncludeUpdateWhen
+    public static Observable<IChangeSet<TObject, TKey>> IncludeUpdateWhen<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        Func<TObject, TObject?, bool> predicate)
+        where TObject : notnull
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        return new Cache.Internal.IncludeUpdateWhen<TObject, TKey>(source, predicate).Run();
+    }
+
+    // WatchValue convenience (single key stream)
+    public static Observable<Change<TObject, TKey>> WatchValue<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        TKey key)
+        where TObject : notnull
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return Observable.Create<Change<TObject, TKey>>(observer =>
+        {
+            return source.Subscribe(changes =>
+            {
+                foreach (var c in changes)
+                {
+                    if (EqualityComparer<TKey>.Default.Equals(c.Key, key))
+                        observer.OnNext(c);
+                }
+            }, observer.OnErrorResume, observer.OnCompleted);
+        });
     }
 }
