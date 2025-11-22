@@ -1193,34 +1193,39 @@ internal sealed class CodeEmitter
         if (m.FromSegments.Count == 1)
         {
             PropertySegment seg = m.FromSegments[0];
+            bool rootImplementsNotify = seg.DeclaringTypeImplementsNotify;
+
             sb.AppendLine($"        // Single property observation: {seg.Name}");
-            sb.AppendLine("        if (fromObject is INotifyPropertyChanged inpc_0)");
-            sb.AppendLine("        {");
-            string propAccess = BuildObservePropertyAccess(seg, $"(({seg.TypeName})x)");
-            sb.AppendLine($"            __builder.Add(inpc_0.ObservePropertyChanged(static x => {propAccess})");
-            sb.AppendLine("                .Subscribe((fromObject, targetObject, convert), static (val, state) =>");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    try");
-            sb.AppendLine("                    {");
-            sb.AppendLine("                        var converted = state.convert((TFromProperty)(object?)val!);");
-            sb.AppendLine($"                        {targetLeafAssign}");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                    catch { }");
-            sb.AppendLine("                }));");
-            sb.AppendLine("        }");
-            sb.AppendLine("        else");
-            sb.AppendLine("        {");
-            sb.AppendLine($"            __builder.Add(Observable.EveryValueChanged(fromObject, static x => {fullChainAccess.Replace("fromObject", "x")})");
-            sb.AppendLine("                .Subscribe((fromObject, targetObject, convert), static (val, state) =>");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    try");
-            sb.AppendLine("                    {");
-            sb.AppendLine("                        var converted = state.convert((TFromProperty)(object?)val!);");
-            sb.AppendLine($"                        {targetLeafAssign}");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                    catch { }");
-            sb.AppendLine("                }));");
-            sb.AppendLine("        }");
+
+            if (rootImplementsNotify)
+            {
+                // Root implements INPC - use ObservePropertyChanged
+                string propAccess = BuildObservePropertyAccess(seg, $"(({seg.TypeName})x)");
+                sb.AppendLine($"            __builder.Add(fromObject.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine("                .Subscribe((fromObject, targetObject, convert), static (val, state) =>");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    try");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        var converted = state.convert((TFromProperty)(object?)val!);");
+                sb.AppendLine($"                        {targetLeafAssign}");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    catch { }");
+                sb.AppendLine("                }));");
+            }
+            else
+            {
+                // Root doesn't implement INPC - use EveryValueChanged
+                sb.AppendLine($"            __builder.Add(Observable.EveryValueChanged(fromObject, static x => {fullChainAccess.Replace("fromObject", "x")})");
+                sb.AppendLine("                .Subscribe((fromObject, targetObject, convert), static (val, state) =>");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    try");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        var converted = state.convert((TFromProperty)(object?)val!);");
+                sb.AppendLine($"                        {targetLeafAssign}");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    catch { }");
+                sb.AppendLine("                }));");
+            }
         }
         else
         {
@@ -1265,21 +1270,26 @@ internal sealed class CodeEmitter
                 PropertySegment seg = m.FromSegments[i];
                 string parentRef = i == 0 ? "fromObject" : $"__seg_{i - 1}";
                 string parentType = i == 0 ? "TFrom" : m.FromSegments[i - 1].TypeName;
-                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})x)");
+                bool parentImplementsNotify = i == 0 ? seg.DeclaringTypeImplementsNotify : m.FromSegments[i - 1].IsNotify;
 
                 sb.AppendLine($"                if (fromIndex <= {i})");
                 sb.AppendLine("                {");
-                sb.AppendLine($"                    if ({parentRef} is INotifyPropertyChanged inpc_{i})");
-                sb.AppendLine("                    {");
-                sb.AppendLine($"                        subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine($"                            .Subscribe(_ => {{ Rewire({i + 1}); EmitValue(); }});");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                    else");
-                sb.AppendLine("                    {");
-                string segAccess = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(fromObject, static x => {segAccess.Replace("fromObject", "x")})");
-                sb.AppendLine($"                            .Subscribe(_ => {{ Rewire({i + 1}); EmitValue(); }});");
-                sb.AppendLine("                    }");
+
+                if (parentImplementsNotify)
+                {
+                    // Parent implements INPC - use ObservePropertyChanged
+                    string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})x)");
+                    sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                    sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); EmitValue(); }});");
+                }
+                else
+                {
+                    // Parent doesn't implement INPC - use EveryValueChanged
+                    string segAccess = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
+                    sb.AppendLine($"                    subscriptions[{i}] = Observable.EveryValueChanged(fromObject, static x => {segAccess.Replace("fromObject", "x")})");
+                    sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); EmitValue(); }});");
+                }
+
                 sb.AppendLine("                }");
             }
 
@@ -1351,39 +1361,43 @@ internal sealed class CodeEmitter
         if (m.FromSegments.Count == 1)
         {
             PropertySegment seg = m.FromSegments[0];
-            sb.AppendLine("        if (fromObject is INotifyPropertyChanged inpc_from)");
-            sb.AppendLine("        {");
-            string propAccess = BuildObservePropertyAccess(seg, $"(({seg.TypeName})x)");
-            sb.AppendLine($"            __builder.Add(inpc_from.ObservePropertyChanged(static x => {propAccess})");
-            sb.AppendLine("                .Subscribe((__updating, targetObject, hostToTarget), static (val, state) =>");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    if (state.__updating.Value) return;");
-            sb.AppendLine("                    state.__updating.Value = true;");
-            sb.AppendLine("                    try");
-            sb.AppendLine("                    {");
-            sb.AppendLine("                        var convertedTo = state.hostToTarget((TFromProperty)(object?)val!);");
-            sb.AppendLine($"                        {toLeafAssign}");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                    catch { }");
-            sb.AppendLine("                    finally { state.__updating.Value = false; }");
-            sb.AppendLine("                }));");
-            sb.AppendLine("        }");
-            sb.AppendLine("        else");
-            sb.AppendLine("        {");
-            sb.AppendLine($"            __builder.Add(Observable.EveryValueChanged(fromObject, static x => {fromFullChainAccess.Replace("fromObject", "x")})");
-            sb.AppendLine("                .Subscribe((__updating, targetObject, hostToTarget), static (val, state) =>");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    if (state.__updating.Value) return;");
-            sb.AppendLine("                    state.__updating.Value = true;");
-            sb.AppendLine("                    try");
-            sb.AppendLine("                    {");
-            sb.AppendLine("                        var convertedTo = state.hostToTarget((TFromProperty)(object?)val!);");
-            sb.AppendLine($"                        {toLeafAssign}");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                    catch { }");
-            sb.AppendLine("                    finally { state.__updating.Value = false; }");
-            sb.AppendLine("                }));");
-            sb.AppendLine("        }");
+            bool fromRootImplementsNotify = seg.DeclaringTypeImplementsNotify;
+
+            if (fromRootImplementsNotify)
+            {
+                // From root implements INPC - use ObservePropertyChanged
+                string propAccess = BuildObservePropertyAccess(seg, $"(({seg.TypeName})x)");
+                sb.AppendLine($"            __builder.Add(fromObject.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine("                .Subscribe((__updating, targetObject, hostToTarget), static (val, state) =>");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    if (state.__updating.Value) return;");
+                sb.AppendLine("                    state.__updating.Value = true;");
+                sb.AppendLine("                    try");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        var convertedTo = state.hostToTarget((TFromProperty)(object?)val!);");
+                sb.AppendLine($"                        {toLeafAssign}");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    catch { }");
+                sb.AppendLine("                    finally { state.__updating.Value = false; }");
+                sb.AppendLine("                }));");
+            }
+            else
+            {
+                // From root doesn't implement INPC - use EveryValueChanged
+                sb.AppendLine($"            __builder.Add(Observable.EveryValueChanged(fromObject, static x => {fromFullChainAccess.Replace("fromObject", "x")})");
+                sb.AppendLine("                .Subscribe((__updating, targetObject, hostToTarget), static (val, state) =>");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    if (state.__updating.Value) return;");
+                sb.AppendLine("                    state.__updating.Value = true;");
+                sb.AppendLine("                    try");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        var convertedTo = state.hostToTarget((TFromProperty)(object?)val!);");
+                sb.AppendLine($"                        {toLeafAssign}");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    catch { }");
+                sb.AppendLine("                    finally { state.__updating.Value = false; }");
+                sb.AppendLine("                }));");
+            }
         }
         else
         {
@@ -1442,39 +1456,43 @@ internal sealed class CodeEmitter
         if (m.ToSegments.Count == 1)
         {
             PropertySegment seg = m.ToSegments[0];
-            sb.AppendLine("        if (targetObject is INotifyPropertyChanged inpc_to)");
-            sb.AppendLine("        {");
-            string propAccess = BuildObservePropertyAccess(seg, $"(({seg.TypeName})x)");
-            sb.AppendLine($"            __builder.Add(inpc_to.ObservePropertyChanged(static x => {propAccess})");
-            sb.AppendLine("                .Subscribe((__updating, fromObject, targetToHost), static (val, state) =>");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    if (state.__updating.Value) return;");
-            sb.AppendLine("                    state.__updating.Value = true;");
-            sb.AppendLine("                    try");
-            sb.AppendLine("                    {");
-            sb.AppendLine("                        var convertedBack = state.targetToHost((TTargetProperty)(object?)val!);");
-            sb.AppendLine($"                        {fromLeafAssign}");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                    catch { }");
-            sb.AppendLine("                    finally { state.__updating.Value = false; }");
-            sb.AppendLine("                }));");
-            sb.AppendLine("        }");
-            sb.AppendLine("        else");
-            sb.AppendLine("        {");
-            sb.AppendLine($"            __builder.Add(Observable.EveryValueChanged(targetObject, static x => {toFullChainAccess.Replace("targetObject", "x")})");
-            sb.AppendLine("                .Subscribe((__updating, fromObject, targetToHost), static (val, state) =>");
-            sb.AppendLine("                {");
-            sb.AppendLine("                    if (state.__updating.Value) return;");
-            sb.AppendLine("                    state.__updating.Value = true;");
-            sb.AppendLine("                    try");
-            sb.AppendLine("                    {");
-            sb.AppendLine("                        var convertedBack = state.targetToHost((TTargetProperty)(object?)val!);");
-            sb.AppendLine($"                        {fromLeafAssign}");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                    catch { }");
-            sb.AppendLine("                    finally { state.__updating.Value = false; }");
-            sb.AppendLine("                }));");
-            sb.AppendLine("        }");
+            bool toRootImplementsNotify = seg.DeclaringTypeImplementsNotify;
+
+            if (toRootImplementsNotify)
+            {
+                // Target root implements INPC - use ObservePropertyChanged
+                string propAccess = BuildObservePropertyAccess(seg, $"(({seg.TypeName})x)");
+                sb.AppendLine($"            __builder.Add(targetObject.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine("                .Subscribe((__updating, fromObject, targetToHost), static (val, state) =>");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    if (state.__updating.Value) return;");
+                sb.AppendLine("                    state.__updating.Value = true;");
+                sb.AppendLine("                    try");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        var convertedBack = state.targetToHost((TTargetProperty)(object?)val!);");
+                sb.AppendLine($"                        {fromLeafAssign}");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    catch { }");
+                sb.AppendLine("                    finally { state.__updating.Value = false; }");
+                sb.AppendLine("                }));");
+            }
+            else
+            {
+                // Target root doesn't implement INPC - use EveryValueChanged
+                sb.AppendLine($"            __builder.Add(Observable.EveryValueChanged(targetObject, static x => {toFullChainAccess.Replace("targetObject", "x")})");
+                sb.AppendLine("                .Subscribe((__updating, fromObject, targetToHost), static (val, state) =>");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    if (state.__updating.Value) return;");
+                sb.AppendLine("                    state.__updating.Value = true;");
+                sb.AppendLine("                    try");
+                sb.AppendLine("                    {");
+                sb.AppendLine("                        var convertedBack = state.targetToHost((TTargetProperty)(object?)val!);");
+                sb.AppendLine($"                        {fromLeafAssign}");
+                sb.AppendLine("                    }");
+                sb.AppendLine("                    catch { }");
+                sb.AppendLine("                    finally { state.__updating.Value = false; }");
+                sb.AppendLine("                }));");
+            }
         }
         else
         {
@@ -1507,18 +1525,22 @@ internal sealed class CodeEmitter
                 PropertySegment seg = m.ToSegments[i];
                 string parentRef = i == 0 ? "targetObject" : $"__seg_to_{i - 1}";
                 string parentType = i == 0 ? "TTarget" : m.ToSegments[i - 1].TypeName;
-                sb.AppendLine($"            if ({parentRef} is INotifyPropertyChanged inpc_to_{i})");
-                sb.AppendLine("            {");
-                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})x)");
-                sb.AppendLine($"                innerBuilder.Add(inpc_to_{i}.ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine("                    .Subscribe(_ => { UpdateToChain(); EmitToValue(); }));");
-                sb.AppendLine("            }");
-                sb.AppendLine("            else");
-                sb.AppendLine("            {");
-                string segAccess = BuildChainAccess("targetObject", m.ToSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                innerBuilder.Add(Observable.EveryValueChanged(targetObject, static x => {segAccess.Replace("targetObject", "x")})");
-                sb.AppendLine("                    .Subscribe(_ => { UpdateToChain(); EmitToValue(); }));");
-                sb.AppendLine("            }");
+                bool parentImplementsNotify = i == 0 ? seg.DeclaringTypeImplementsNotify : m.ToSegments[i - 1].IsNotify;
+
+                if (parentImplementsNotify)
+                {
+                    // Parent implements INPC - use ObservePropertyChanged
+                    string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})x)");
+                    sb.AppendLine($"                innerBuilder.Add({parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                    sb.AppendLine("                    .Subscribe(_ => { UpdateToChain(); EmitToValue(); }));");
+                }
+                else
+                {
+                    // Parent doesn't implement INPC - use EveryValueChanged
+                    string segAccess = BuildChainAccess("targetObject", m.ToSegments.Take(i + 1).ToList());
+                    sb.AppendLine($"                innerBuilder.Add(Observable.EveryValueChanged(targetObject, static x => {segAccess.Replace("targetObject", "x")})");
+                    sb.AppendLine("                    .Subscribe(_ => { UpdateToChain(); EmitToValue(); }));");
+                }
             }
 
             sb.AppendLine("            UpdateToChain();");
@@ -2661,21 +2683,26 @@ internal sealed class CodeEmitter
             PropertySegment seg = segments[i];
             string parentRef = i == 0 ? rootVar : $"__{segVarPrefix}_{i - 1}";
             string parentType = i == 0 ? rootType : segments[i - 1].TypeName;
-            string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})x)");
-            string segAccess = BuildChainAccess(rootVar, segments.Take(i + 1).ToList());
+            bool parentImplementsNotify = i == 0 ? seg.DeclaringTypeImplementsNotify : segments[i - 1].IsNotify;
 
             sb.AppendLine($"                if (fromIndex <= {i})");
             sb.AppendLine("                {");
-            sb.AppendLine($"                    if ({parentRef} is INotifyPropertyChanged inpc_{segVarPrefix}_{i})");
-            sb.AppendLine("                    {");
-            sb.AppendLine($"                        subscriptions[{i}] = inpc_{segVarPrefix}_{i}.ObservePropertyChanged(static x => {propAccess})");
-            sb.AppendLine($"                            .Subscribe(_ => {{ Rewire{methodSuffix}({i + 1}); Emit{methodSuffix}Value(); }});");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                    else");
-            sb.AppendLine("                    {");
-            sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged({rootVar}, static x => {segAccess.Replace(rootVar, "x")})");
-            sb.AppendLine($"                            .Subscribe(_ => {{ Rewire{methodSuffix}({i + 1}); Emit{methodSuffix}Value(); }});");
-            sb.AppendLine("                    }");
+
+            if (parentImplementsNotify)
+            {
+                // Parent implements INPC - use ObservePropertyChanged
+                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})x)");
+                sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine($"                        .Subscribe(_ => {{ Rewire{methodSuffix}({i + 1}); Emit{methodSuffix}Value(); }});");
+            }
+            else
+            {
+                // Parent doesn't implement INPC - use EveryValueChanged
+                string segAccess = BuildChainAccess(rootVar, segments.Take(i + 1).ToList());
+                sb.AppendLine($"                    subscriptions[{i}] = Observable.EveryValueChanged({rootVar}, static x => {segAccess.Replace(rootVar, "x")})");
+                sb.AppendLine($"                        .Subscribe(_ => {{ Rewire{methodSuffix}({i + 1}); Emit{methodSuffix}Value(); }});");
+            }
+
             sb.AppendLine("                }");
         }
 
