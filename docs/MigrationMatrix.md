@@ -40,7 +40,7 @@ Legend:
 | Lifecycle               | DisposeMany                                          | Cache/List         | Implemented | Passing |                                                     |
 | Lifecycle               | ExpireAfter                                          | Cache              | Implemented | Passing |                                                     |
 | Lifecycle               | LimitSizeTo                                          | List               | Implemented | Passing | Cache size/time combos pending                       |
-| Lifecycle               | EnsureUniqueKeys                                     | Cache              | NotStarted  | None    | Enforce uniqueness externally                        |
+| Lifecycle               | EnsureUniqueKeys                                     | Cache              | Implemented | Passing |                                                    |
 | Batching                | Batch / BatchIf                                      | Cache              | NotStarted  | None    | Time / conditional batching                          |
 | Batching                | BufferIf                                             | List               | Implemented | Passing | Add timeout variant parity                           |
 | Paging / Virtualisation | Virtualise / Page / Top                              | List               | Partial     | Passing | Cache side not started                               |

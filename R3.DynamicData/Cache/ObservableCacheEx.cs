@@ -510,4 +510,14 @@ public static partial class ObservableCacheEx
         if (expireSelector is null) throw new ArgumentNullException(nameof(expireSelector));
         return new Cache.Internal.ExpireAfter<TObject, TKey>(source, expireSelector, timeProvider).Run();
     }
+
+    // EnsureUniqueKeys
+    public static Observable<IChangeSet<TObject, TKey>> EnsureUniqueKeys<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source)
+        where TObject : notnull
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        return new Cache.Internal.EnsureUniqueKeys<TObject, TKey>(source).Run();
+    }
 }
