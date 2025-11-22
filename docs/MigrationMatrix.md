@@ -16,9 +16,9 @@ Legend:
 | Transformation          | TransformMany (dedup)                                | Cache              | Implemented | Passing | Add list variant / observable child list overload                      |
 | Transformation          | Transform (core overloads)                           | Cache/List         | Implemented | Passing | Key-aware and simple overloads present                                 |
 | Transformation          | TransformAsync                                       | Cache/List         | Implemented | Passing | Cache and list variants with cancellation support                      |
-| Transformation          | TransformImmutable                                   | Cache/List         | NotStarted  | None    | Optional performance feature                                           |
+| Transformation          | TransformImmutable                                   | Cache              | Implemented | Passing | Stateless transformation for better performance; List variant optional |
 | Transformation          | TransformSafe                                        | Cache              | Implemented | Passing | Error handling with callback; list variant not found in DynamicData    |
-| Transformation          | TransformToTree                                      | Cache              | NotStarted  | None    | Hierarchical build logic                                               |
+| Transformation          | TransformToTree                                      | Cache              | Deferred    | None    | Complex hierarchical operator requiring AsObservableCache, Synchronize, Group - needs R3 reactive primitives not yet ported |
 | Transformation          | Cast / Convert                                       | Cache/List         | Implemented | Passing | Alias of Transform; list tests added                                   |
 | Transformation          | ChangeKey                                            | Cache              | Implemented | Passing | Projects to new key space; emits Remove+Add on key change              |
 | Transformation          | AddKey                                               | List               | NotStarted  | None    | Cache-only variant present; list version deferred                      |

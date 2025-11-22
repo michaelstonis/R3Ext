@@ -33,6 +33,16 @@ public readonly struct Change<TObject, TKey> : IEquatable<Change<TObject, TKey>>
     public Optional<TObject> Previous { get; }
 
     /// <summary>
+    /// Gets the current index. Defaults to -1 if index is not applicable.
+    /// </summary>
+    public int CurrentIndex { get; }
+
+    /// <summary>
+    /// Gets the previous index. Defaults to -1 if index is not applicable.
+    /// </summary>
+    public int PreviousIndex { get; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="Change{TObject, TKey}"/> struct for an add operation.
     /// </summary>
     /// <param name="reason">The reason for the change.</param>
@@ -44,6 +54,8 @@ public readonly struct Change<TObject, TKey> : IEquatable<Change<TObject, TKey>>
         Key = key;
         Current = current;
         Previous = Optional<TObject>.None;
+        CurrentIndex = -1;
+        PreviousIndex = -1;
     }
 
     /// <summary>
@@ -59,6 +71,27 @@ public readonly struct Change<TObject, TKey> : IEquatable<Change<TObject, TKey>>
         Key = key;
         Current = current;
         Previous = Optional<TObject>.Some(previous);
+        CurrentIndex = -1;
+        PreviousIndex = -1;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Change{TObject, TKey}"/> struct with index information.
+    /// </summary>
+    /// <param name="reason">The reason for the change.</param>
+    /// <param name="key">The key of the item.</param>
+    /// <param name="current">The current value.</param>
+    /// <param name="previous">The previous value.</param>
+    /// <param name="currentIndex">The current index.</param>
+    /// <param name="previousIndex">The previous index.</param>
+    public Change(ChangeReason reason, TKey key, TObject current, Optional<TObject> previous = default, int currentIndex = -1, int previousIndex = -1)
+    {
+        Reason = reason;
+        Key = key;
+        Current = current;
+        Previous = previous;
+        CurrentIndex = currentIndex;
+        PreviousIndex = previousIndex;
     }
 
     /// <summary>
@@ -70,7 +103,9 @@ public readonly struct Change<TObject, TKey> : IEquatable<Change<TObject, TKey>>
         EqualityComparer<TKey>.Default.Equals(Key, other.Key) &&
         Reason == other.Reason &&
         EqualityComparer<TObject>.Default.Equals(Current, other.Current) &&
-        Previous.Equals(other.Previous);
+        Previous.Equals(other.Previous) &&
+        CurrentIndex == other.CurrentIndex &&
+        PreviousIndex == other.PreviousIndex;
 
     /// <inheritdoc/>
     public override bool Equals(object? obj) =>
@@ -86,6 +121,8 @@ public readonly struct Change<TObject, TKey> : IEquatable<Change<TObject, TKey>>
             hash = (hash * 31) + Reason.GetHashCode();
             hash = (hash * 31) + (Current?.GetHashCode() ?? 0);
             hash = (hash * 31) + Previous.GetHashCode();
+            hash = (hash * 31) + CurrentIndex.GetHashCode();
+            hash = (hash * 31) + PreviousIndex.GetHashCode();
             return hash;
         }
     }

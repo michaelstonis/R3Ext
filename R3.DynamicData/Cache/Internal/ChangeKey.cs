@@ -1,6 +1,6 @@
 // Port of DynamicData ChangeKey operator to R3.
 // Emits change sets projected to a new key space using a selector.
-#pragma warning disable SA1503, SA1513, SA1516, SA1116, SA1117, SA1515, SA1649
+#pragma warning disable SA1503, SA1513, SA1516, SA1116, SA1117, SA1515
 using System;
 using System.Collections.Generic;
 using R3.DynamicData.Kernel;
@@ -37,72 +37,72 @@ internal sealed class ChangeKeyOperator<TObject, TOldKey, TNewKey>
                     switch (change.Reason)
                     {
                         case ChangeReason.Add:
+                        {
+                            var newKey = _keySelector(change.Current);
+                            projectedKeyByUpstream[change.Key] = newKey;
+                            result.Add(new Change<TObject, TNewKey>(ChangeReason.Add, newKey, change.Current));
+                            break;
+                        }
+                        case ChangeReason.Update:
+                        {
+                            var newKey = _keySelector(change.Current);
+                            var hadPrevious = change.Previous.HasValue;
+                            var oldProjected = hadPrevious && projectedKeyByUpstream.TryGetValue(change.Key, out var prevProj)
+                                ? prevProj
+                                : _keySelector(hadPrevious ? change.Previous.Value : change.Current);
+
+                            if (EqualityComparer<TNewKey>.Default.Equals(oldProjected, newKey))
                             {
+                                // Key unchanged -> emit Update with same projected key.
+                                var prevVal = hadPrevious ? change.Previous.Value : default!;
+                                result.Add(new Change<TObject, TNewKey>(ChangeReason.Update, newKey, change.Current, prevVal));
+                            }
+                            else
+                            {
+                                // Key changed -> emit Remove (old projected) then Add (new projected).
+                                if (projectedKeyByUpstream.ContainsKey(change.Key))
+                                {
+                                    // Emit remove for previous projected key.
+                                    var prevVal = hadPrevious ? change.Previous.Value : change.Current;
+                                    result.Add(new Change<TObject, TNewKey>(ChangeReason.Remove, oldProjected, prevVal, prevVal));
+                                }
+                                projectedKeyByUpstream[change.Key] = newKey;
+                                result.Add(new Change<TObject, TNewKey>(ChangeReason.Add, newKey, change.Current));
+                            }
+                            break;
+                        }
+                        case ChangeReason.Remove:
+                        {
+                            if (projectedKeyByUpstream.TryGetValue(change.Key, out var proj))
+                            {
+                                var prevVal = change.Previous.HasValue ? change.Previous.Value : change.Current;
+                                result.Add(new Change<TObject, TNewKey>(ChangeReason.Remove, proj, prevVal, prevVal));
+                                projectedKeyByUpstream.Remove(change.Key);
+                            }
+                            // else ignore remove for unknown upstream key.
+                            break;
+                        }
+                        case ChangeReason.Refresh:
+                        {
+                            // Refresh does not change value but we still re-emit with projected key.
+                            if (projectedKeyByUpstream.TryGetValue(change.Key, out var proj))
+                            {
+                                result.Add(new Change<TObject, TNewKey>(ChangeReason.Refresh, proj, change.Current));
+                            }
+                            else
+                            {
+                                // Treat refresh for unseen upstream key as add to maintain consistency.
                                 var newKey = _keySelector(change.Current);
                                 projectedKeyByUpstream[change.Key] = newKey;
                                 result.Add(new Change<TObject, TNewKey>(ChangeReason.Add, newKey, change.Current));
-                                break;
                             }
-                        case ChangeReason.Update:
-                            {
-                                var newKey = _keySelector(change.Current);
-                                var hadPrevious = change.Previous.HasValue;
-                                var oldProjected = hadPrevious && projectedKeyByUpstream.TryGetValue(change.Key, out var prevProj)
-                                    ? prevProj
-                                    : _keySelector(hadPrevious ? change.Previous.Value : change.Current);
-
-                                if (EqualityComparer<TNewKey>.Default.Equals(oldProjected, newKey))
-                                {
-                                    // Key unchanged -> emit Update with same projected key.
-                                    var prevVal = hadPrevious ? change.Previous.Value : default!;
-                                    result.Add(new Change<TObject, TNewKey>(ChangeReason.Update, newKey, change.Current, prevVal));
-                                }
-                                else
-                                {
-                                    // Key changed -> emit Remove (old projected) then Add (new projected).
-                                    if (projectedKeyByUpstream.ContainsKey(change.Key))
-                                    {
-                                        // Emit remove for previous projected key.
-                                        var prevVal = hadPrevious ? change.Previous.Value : change.Current;
-                                        result.Add(new Change<TObject, TNewKey>(ChangeReason.Remove, oldProjected, prevVal, prevVal));
-                                    }
-                                    projectedKeyByUpstream[change.Key] = newKey;
-                                    result.Add(new Change<TObject, TNewKey>(ChangeReason.Add, newKey, change.Current));
-                                }
-                                break;
-                            }
-                        case ChangeReason.Remove:
-                            {
-                                if (projectedKeyByUpstream.TryGetValue(change.Key, out var proj))
-                                {
-                                    var prevVal = change.Previous.HasValue ? change.Previous.Value : change.Current;
-                                    result.Add(new Change<TObject, TNewKey>(ChangeReason.Remove, proj, prevVal, prevVal));
-                                    projectedKeyByUpstream.Remove(change.Key);
-                                }
-                                // else ignore remove for unknown upstream key.
-                                break;
-                            }
-                        case ChangeReason.Refresh:
-                            {
-                                // Refresh does not change value but we still re-emit with projected key.
-                                if (projectedKeyByUpstream.TryGetValue(change.Key, out var proj))
-                                {
-                                    result.Add(new Change<TObject, TNewKey>(ChangeReason.Refresh, proj, change.Current));
-                                }
-                                else
-                                {
-                                    // Treat refresh for unseen upstream key as add to maintain consistency.
-                                    var newKey = _keySelector(change.Current);
-                                    projectedKeyByUpstream[change.Key] = newKey;
-                                    result.Add(new Change<TObject, TNewKey>(ChangeReason.Add, newKey, change.Current));
-                                }
-                                break;
-                            }
+                            break;
+                        }
                         case ChangeReason.Moved:
-                            {
-                                // Cache move not meaningful in projected key space; suppress.
-                                break;
-                            }
+                        {
+                            // Cache move not meaningful in projected key space; suppress.
+                            break;
+                        }
                     }
                 }
 
