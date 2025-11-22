@@ -497,4 +497,17 @@ public static partial class ObservableCacheEx
         if (observablePredicate is null) throw new ArgumentNullException(nameof(observablePredicate));
         return new Cache.Internal.FilterOnObservable<TObject, TKey, bool>(source, observablePredicate).Run();
     }
+
+    // Expiration
+    public static Observable<IChangeSet<TObject, TKey>> ExpireAfter<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        Func<TObject, TimeSpan?> expireSelector,
+        TimeProvider? timeProvider = null)
+        where TObject : notnull
+        where TKey : notnull
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (expireSelector is null) throw new ArgumentNullException(nameof(expireSelector));
+        return new Cache.Internal.ExpireAfter<TObject, TKey>(source, expireSelector, timeProvider).Run();
+    }
 }

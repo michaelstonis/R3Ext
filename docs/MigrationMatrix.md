@@ -38,7 +38,7 @@ Legend:
 | Refresh                 | SuppressRefresh                                      | List               | NotStarted  | None    | Simple filter on reasons                             |
 | Refresh                 | InvokeEvaluate                                       | Cache              | NotStarted  | None    | IEvaluateAware support                               |
 | Lifecycle               | DisposeMany                                          | Cache/List         | Implemented | Passing |                                                     |
-| Lifecycle               | ExpireAfter                                          | Cache              | NotStarted  | None    | Time-based eviction                                  |
+| Lifecycle               | ExpireAfter                                          | Cache              | Implemented | Passing |                                                     |
 | Lifecycle               | LimitSizeTo                                          | List               | Implemented | Passing | Cache size/time combos pending                       |
 | Lifecycle               | EnsureUniqueKeys                                     | Cache              | NotStarted  | None    | Enforce uniqueness externally                        |
 | Batching                | Batch / BatchIf                                      | Cache              | NotStarted  | None    | Time / conditional batching                          |
