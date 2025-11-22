@@ -55,4 +55,18 @@ public class DisposeManyOperatorTests
         Assert.True(d1.IsDisposed);
         Assert.True(d2.IsDisposed);
     }
+
+    [Fact]
+    public void DisposeMany_DisposesRemainingOnUnsubscribe()
+    {
+        var source = new SourceList<TrackDisposable>();
+        var d1 = new TrackDisposable();
+        var d2 = new TrackDisposable();
+        var subscription = source.Connect().DisposeMany().Subscribe(_ => { });
+        source.AddRange(new[] { d1, d2 });
+        // Unsubscribe without explicit removal
+        subscription.Dispose();
+        Assert.True(d1.IsDisposed);
+        Assert.True(d2.IsDisposed);
+    }
 }

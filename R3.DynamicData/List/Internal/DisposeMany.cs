@@ -38,7 +38,13 @@ internal sealed class DisposeMany<T>
                 observer.OnErrorResume,
                 observer.OnCompleted);
 
-            return disp;
+            return Disposable.Create(() =>
+            {
+                // On unsubscribe, dispose any remaining items to mirror cache DisposeMany semantics.
+                DisposeRange(current);
+                current.Clear();
+                disp.Dispose();
+            });
         });
     }
 

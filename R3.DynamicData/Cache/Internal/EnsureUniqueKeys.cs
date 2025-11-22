@@ -1,4 +1,8 @@
 // Port of DynamicData EnsureUniqueKeys (UniquenessEnforcer) to R3.
+#pragma warning disable SA1503 // Braces should not be omitted
+#pragma warning disable SA1513 // Closing brace should be followed by blank line
+#pragma warning disable SA1116 // Parameters should begin on the line after the declaration
+#pragma warning disable SA1515 // Single-line comment should be preceded by blank line
 using System.Reactive.Linq;
 
 namespace R3.DynamicData.Cache.Internal;
@@ -8,7 +12,6 @@ internal sealed class EnsureUniqueKeys<TObject, TKey>
     where TKey : notnull
 {
     private readonly Observable<IChangeSet<TObject, TKey>> _source;
-
     public EnsureUniqueKeys(Observable<IChangeSet<TObject, TKey>> source)
     {
         _source = source ?? throw new ArgumentNullException(nameof(source));
