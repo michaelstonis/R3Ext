@@ -1147,465 +1147,380 @@ internal sealed class CodeEmitter
 
     private void EmitOneWayBody(string id, InvocationModel m, StringBuilder sb)
     {
-        // n-level chain handling with INPC wiring and fallback EveryValueChanged for non-INPC segments
+        // Closure-free implementation using ObservePropertyChanged and EveryValueChanged hybrid
         sb.AppendLine(
             $"    private static IDisposable __BindOneWay_{id}<TFrom,TFromProperty,TTarget,TTargetProperty>(TFrom fromObject, TTarget targetObject, Func<TFromProperty,TTargetProperty>? convert)");
         sb.AppendLine("    {");
         sb.AppendLine("        if (fromObject is null || targetObject is null) return Disposable.Empty;");
         sb.AppendLine("        convert ??= v => (TTargetProperty)(object?)v!;");
-
-        // compute and wire host chain
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            PropertySegment? seg = m.FromSegments[i];
-            string access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
-            sb.AppendLine($"        {seg.TypeName} __host_{i} = default!;");
-        }
-
-        sb.AppendLine("        // compute and wire target chain lazily inside Push");
-
-        // Handler declarations (assigned after RewireHost/Push declared to avoid self-referential definite assignment issues)
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            sb.AppendLine($"        PropertyChangedEventHandler __h_host_{i} = null!;");
-        }
-
         sb.AppendLine("        var __builder = Disposable.CreateBuilder();");
-        sb.AppendLine("        Lock __hostGate = new();");
 
-        // RewireHost implementation
-        sb.AppendLine("        void RewireHost(){");
-        sb.AppendLine("            using (__hostGate.EnterScope()){");
-        sb.AppendLine("            // detach all handlers");
-        for (int i = 0; i < m.FromSegments.Count; i++)
+        // Handle empty chain (direct property access on root)
+        if (m.FromSegments.Count == 0)
         {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
+            sb.AppendLine("        // No segments to observe");
+            sb.AppendLine("        return Disposable.Empty;");
+            sb.AppendLine("    }");
+            return;
+        }
+
+        string targetLeafAssign = BuildLeafAssignmentSet("targetObject", m.ToSegments, "converted");
+        string fullChainAccess = BuildChainAccess("fromObject", m.FromSegments);
+
+        // For single segment, simple observation
+        if (m.FromSegments.Count == 1)
+        {
+            PropertySegment seg = m.FromSegments[0];
+            sb.AppendLine($"        // Single property observation: {seg.Name}");
+            sb.AppendLine("        if (fromObject is INotifyPropertyChanged inpc_0)");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            __builder.Add(inpc_0.ObservePropertyChanged(static x => (({seg.TypeName})x).{seg.Name})");
+            sb.AppendLine("                .Subscribe((fromObject, targetObject, convert), static (val, state) =>");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    try");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        var converted = state.convert((TFromProperty)(object?)val!);");
+            sb.AppendLine($"                        {targetLeafAssign}");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    catch { }");
+            sb.AppendLine("                }));");
+            sb.AppendLine("        }");
+            sb.AppendLine("        else");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            __builder.Add(Observable.EveryValueChanged(fromObject, static x => {fullChainAccess.Replace("fromObject", "x")})");
+            sb.AppendLine("                .Subscribe((fromObject, targetObject, convert), static (val, state) =>");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    try");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        var converted = state.convert((TFromProperty)(object?)val!);");
+            sb.AppendLine($"                        {targetLeafAssign}");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    catch { }");
+            sb.AppendLine("                }));");
+            sb.AppendLine("        }");
+        }
+        else
+        {
+            // Multi-segment chain: use Observable.Create to build dynamic observation
+            sb.AppendLine($"        // Multi-level chain observation");
+            sb.AppendLine("        __builder.Add(Observable.Create<TFromProperty>(observer =>");
+            sb.AppendLine("        {");
+            sb.AppendLine("            var innerBuilder = Disposable.CreateBuilder();");
+
+            // Build chain of observables for each segment
+            for (int i = 0; i < m.FromSegments.Count; i++)
             {
-                continue;
+                PropertySegment seg = m.FromSegments[i];
+                string parentRef = i == 0 ? "fromObject" : $"__seg_{i - 1}";
+                sb.AppendLine($"            {seg.TypeName} __seg_{i} = default!;");
             }
 
-            sb.AppendLine($"            if(__host_{i} is INotifyPropertyChanged npc_{i}) npc_{i}.PropertyChanged -= __h_host_{i};");
-        }
-
-        // recompute chain
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            string access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
-            sb.AppendLine($"            try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}");
-        }
-
-        // reattach
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
+            sb.AppendLine("            void UpdateChain()");
+            sb.AppendLine("            {");
+            for (int i = 0; i < m.FromSegments.Count; i++)
             {
-                continue;
+                string access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                try {{ __seg_{i} = {access}; }} catch {{ __seg_{i} = default!; }}");
             }
 
-            sb.AppendLine($"            if(__host_{i} is INotifyPropertyChanged npc2_{i}) npc2_{i}.PropertyChanged += __h_host_{i};");
+            sb.AppendLine("            }");
+
+            sb.AppendLine("            void EmitValue()");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                try {{ observer.OnNext((TFromProperty)(object?){fullChainAccess}!); }} catch {{ }}");
+            sb.AppendLine("            }");
+
+            // Wire up observations for each segment
+            for (int i = 0; i < m.FromSegments.Count; i++)
+            {
+                PropertySegment seg = m.FromSegments[i];
+                string parentRef = i == 0 ? "fromObject" : $"__seg_{i - 1}";
+
+                sb.AppendLine($"            // Observe segment {i}: {seg.Name}");
+                sb.AppendLine($"            if ({parentRef} is INotifyPropertyChanged inpc_{i})");
+                sb.AppendLine("            {");
+                sb.AppendLine($"                innerBuilder.Add(inpc_{i}.ObservePropertyChanged(static x => (({seg.TypeName})x).{seg.Name})");
+                sb.AppendLine("                    .Subscribe(_ => { UpdateChain(); EmitValue(); }));");
+                sb.AppendLine("            }");
+                sb.AppendLine("            else");
+                sb.AppendLine("            {");
+                string segAccess = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                innerBuilder.Add(Observable.EveryValueChanged(fromObject, static x => {segAccess.Replace("fromObject", "x")})");
+                sb.AppendLine("                    .Subscribe(_ => { UpdateChain(); EmitValue(); }));");
+                sb.AppendLine("            }");
+            }
+
+            sb.AppendLine("            UpdateChain();");
+            sb.AppendLine("            EmitValue();");
+            sb.AppendLine("            return innerBuilder.Build();");
+            sb.AppendLine("        })");
+            sb.AppendLine("        .Subscribe((fromObject, targetObject, convert), static (val, state) =>");
+            sb.AppendLine("        {");
+            sb.AppendLine("            try");
+            sb.AppendLine("            {");
+            sb.AppendLine("                var converted = state.convert(val);");
+            sb.AppendLine($"                {targetLeafAssign}");
+            sb.AppendLine("            }");
+            sb.AppendLine("            catch { }");
+            sb.AppendLine("        }));");
         }
 
-        sb.AppendLine("            }");
+        // Initial push
+        sb.AppendLine("        // Initial value");
+        sb.AppendLine("        try");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            var initialVal = (TFromProperty)(object?){fullChainAccess}!;");
+        sb.AppendLine("            var converted = convert(initialVal);");
+        sb.AppendLine($"            {targetLeafAssign}");
         sb.AppendLine("        }");
+        sb.AppendLine("        catch { }");
 
-        // Push implementation
-        sb.AppendLine("        void Push(){");
-
-        // compute leaf value with try-catch
-        string hostLeafAccess = BuildChainAccess("fromObject", m.FromSegments);
-        string targetLeafAssign = BuildLeafAssignmentSet("targetObject", m.ToSegments, "convert(v)");
-        sb.AppendLine("            try { var v = (TFromProperty)(object?)" + hostLeafAccess + "!; " + targetLeafAssign + " } catch { } ");
-        sb.AppendLine("        }");
-
-        // Assign handlers now that helper methods exist
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            string nextProp = i + 1 < m.FromSegments.Count ? m.FromSegments[i + 1].Name : m.FromSegments.Last().Name;
-            sb.AppendLine(
-                $"        __h_host_{i} = (s,e) => {{ if (e.PropertyName == \"{nextProp}\") {{ RewireHost(); Push(); }} if (e.PropertyName == \"{m.FromSegments.Last().Name}\") Push(); }};");
-        }
-
-        // initial wire
-        sb.AppendLine("        RewireHost();");
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            sb.AppendLine($"        if(__host_{i} is INotifyPropertyChanged npc_init_{i}) npc_init_{i}.PropertyChanged += __h_host_{i};");
-        }
-
-        // Root handler for first segment if root implements INPC
-        if (m.FromSegments.Count > 0)
-        {
-            string firstProp = m.FromSegments[0].Name;
-            sb.AppendLine("        PropertyChangedEventHandler __h_root = (s,e) => { if(e.PropertyName == \"" + firstProp +
-                          "\") { RewireHost(); Push(); } }; ");
-            sb.AppendLine("        if(fromObject is INotifyPropertyChanged npc_root) npc_root.PropertyChanged += __h_root;");
-        }
-
-        // Per-property EveryValueChanged for parents that do NOT implement INPC
-        if (m.FromSegments.Count > 0)
-        {
-            // First property: parent is fromObject (runtime-checked)
-            string firstAccess = BuildChainAccess("h", m.FromSegments.Take(1).ToList());
-            sb.AppendLine("        try { if(!(fromObject is INotifyPropertyChanged)) __builder.Add(Observable.EveryValueChanged(fromObject, h => " +
-                          firstAccess + ").Subscribe(_ => { RewireHost(); Push(); })); } catch { }");
-        }
-
-        for (int j = 1; j < m.FromSegments.Count; j++)
-        {
-            // parent is segment j-1
-            if (!m.FromSegments[j - 1].IsNotify)
-            {
-                string accessJ = BuildChainAccess("h", m.FromSegments.Take(j + 1).ToList());
-                bool isLeaf = j == m.FromSegments.Count - 1;
-                if (isLeaf)
-                {
-                    sb.AppendLine("        try { __builder.Add(Observable.EveryValueChanged(fromObject, h => " + accessJ +
-                                  ").Subscribe(_ => Push())); } catch { }");
-                }
-                else
-                {
-                    sb.AppendLine("        try { __builder.Add(Observable.EveryValueChanged(fromObject, h => " + accessJ +
-                                  ").Subscribe(_ => { RewireHost(); Push(); })); } catch { }");
-                }
-            }
-        }
-
-        sb.AppendLine("        Push();");
-        sb.AppendLine("        __builder.Add(Disposable.Create(() => {");
-        if (m.FromSegments.Count > 0)
-        {
-            sb.AppendLine("            if(fromObject is INotifyPropertyChanged npc_root2) npc_root2.PropertyChanged -= __h_root;");
-        }
-
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            sb.AppendLine($"            if(__host_{i} is INotifyPropertyChanged npc3_{i}) npc3_{i}.PropertyChanged -= __h_host_{i};");
-        }
-
-        sb.AppendLine("        }));");
         sb.AppendLine("        return __builder.Build();");
         sb.AppendLine("    }");
     }
 
     private void EmitTwoWayBody(string id, InvocationModel m, StringBuilder sb)
     {
+        // Closure-free two-way binding using ObservePropertyChanged and EveryValueChanged hybrid
         sb.AppendLine(
             $"    private static IDisposable __BindTwoWay_{id}<TFrom,TFromProperty,TTarget,TTargetProperty>(TFrom fromObject, TTarget targetObject, Func<TFromProperty,TTargetProperty>? hostToTarget, Func<TTargetProperty,TFromProperty>? targetToHost)");
         sb.AppendLine("    {");
         sb.AppendLine("        if (fromObject is null || targetObject is null) return Disposable.Empty;");
         sb.AppendLine("        hostToTarget ??= v => (TTargetProperty)(object?)v!;");
         sb.AppendLine("        targetToHost ??= v => (TFromProperty)(object?)v!;");
-        sb.AppendLine("        bool __updating = false;");
         sb.AppendLine("        var __builder = Disposable.CreateBuilder();");
+        sb.AppendLine("        var __updating = new System.Threading.ThreadLocal<bool>(() => false);");
 
-        // Gates to serialize rewires
-        sb.AppendLine("        Lock __hostGate = new();");
-        sb.AppendLine("        Lock __targetGate = new();");
-
-        // host chain vars
-        for (int i = 0; i < m.FromSegments.Count; i++)
+        // Handle empty chains
+        if (m.FromSegments.Count == 0 || m.ToSegments.Count == 0)
         {
-            PropertySegment? seg = m.FromSegments[i];
-            sb.AppendLine($"        {seg.TypeName} __host_{i} = default!;");
+            sb.AppendLine("        // Empty chain - no binding possible");
+            sb.AppendLine("        return Disposable.Empty;");
+            sb.AppendLine("    }");
+            return;
         }
 
-        // target chain vars
-        for (int i = 0; i < m.ToSegments.Count; i++)
-        {
-            PropertySegment? seg = m.ToSegments[i];
-            sb.AppendLine($"        {seg.TypeName} __target_{i} = default!;");
-        }
+        string fromFullChainAccess = BuildChainAccess("fromObject", m.FromSegments);
+        string toFullChainAccess = BuildChainAccess("targetObject", m.ToSegments);
+        string fromLeafAssign = BuildLeafAssignmentSet("fromObject", m.FromSegments, "convertedBack");
+        string toLeafAssign = BuildLeafAssignmentSet("targetObject", m.ToSegments, "convertedTo");
 
-        // Handler declarations (assignment postponed until after helpers)
-        for (int i = 0; i < m.FromSegments.Count; i++)
+        // From -> To direction using same pattern as OneWay
+        sb.AppendLine("        // From -> To direction");
+        if (m.FromSegments.Count == 1)
         {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
+            PropertySegment seg = m.FromSegments[0];
+            sb.AppendLine("        if (fromObject is INotifyPropertyChanged inpc_from)");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            __builder.Add(inpc_from.ObservePropertyChanged(static x => (({seg.TypeName})x).{seg.Name})");
+            sb.AppendLine("                .Subscribe((__updating, targetObject, hostToTarget), static (val, state) =>");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    if (state.__updating.Value) return;");
+            sb.AppendLine("                    state.__updating.Value = true;");
+            sb.AppendLine("                    try");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        var convertedTo = state.hostToTarget((TFromProperty)(object?)val!);");
+            sb.AppendLine($"                        {toLeafAssign}");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    catch { }");
+            sb.AppendLine("                    finally { state.__updating.Value = false; }");
+            sb.AppendLine("                }));");
+            sb.AppendLine("        }");
+            sb.AppendLine("        else");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            __builder.Add(Observable.EveryValueChanged(fromObject, static x => {fromFullChainAccess.Replace("fromObject", "x")})");
+            sb.AppendLine("                .Subscribe((__updating, targetObject, hostToTarget), static (val, state) =>");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    if (state.__updating.Value) return;");
+            sb.AppendLine("                    state.__updating.Value = true;");
+            sb.AppendLine("                    try");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        var convertedTo = state.hostToTarget((TFromProperty)(object?)val!);");
+            sb.AppendLine($"                        {toLeafAssign}");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    catch { }");
+            sb.AppendLine("                    finally { state.__updating.Value = false; }");
+            sb.AppendLine("                }));");
+            sb.AppendLine("        }");
+        }
+        else
+        {
+            // Multi-segment: use Observable.Create pattern
+            sb.AppendLine("        __builder.Add(Observable.Create<TFromProperty>(observer =>");
+            sb.AppendLine("        {");
+            sb.AppendLine("            var innerBuilder = Disposable.CreateBuilder();");
+            for (int i = 0; i < m.FromSegments.Count; i++)
             {
-                continue;
+                PropertySegment seg = m.FromSegments[i];
+                sb.AppendLine($"            {seg.TypeName} __seg_from_{i} = default!;");
             }
 
-            sb.AppendLine($"        PropertyChangedEventHandler __h_host_{i} = null!;");
-        }
-
-        // Handlers for target
-        for (int i = 0; i < m.ToSegments.Count; i++)
-        {
-            PropertySegment? seg = m.ToSegments[i];
-            if (!seg.IsNotify)
+            sb.AppendLine("            void UpdateFromChain()");
+            sb.AppendLine("            {");
+            for (int i = 0; i < m.FromSegments.Count; i++)
             {
-                continue;
+                string access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                try {{ __seg_from_{i} = {access}; }} catch {{ __seg_from_{i} = default!; }}");
             }
 
-            sb.AppendLine($"        PropertyChangedEventHandler __h_target_{i} = null!;");
-        }
+            sb.AppendLine("            }");
+            sb.AppendLine("            void EmitFromValue()");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                try {{ observer.OnNext((TFromProperty)(object?){fromFullChainAccess}!); }} catch {{ }}");
+            sb.AppendLine("            }");
 
-        // RewireHost
-        sb.AppendLine("        void RewireHost(){");
-        sb.AppendLine("            using (__hostGate.EnterScope()){");
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
+            for (int i = 0; i < m.FromSegments.Count; i++)
             {
-                continue;
+                PropertySegment seg = m.FromSegments[i];
+                string parentRef = i == 0 ? "fromObject" : $"__seg_from_{i - 1}";
+                sb.AppendLine($"            if ({parentRef} is INotifyPropertyChanged inpc_from_{i})");
+                sb.AppendLine("            {");
+                sb.AppendLine($"                innerBuilder.Add(inpc_from_{i}.ObservePropertyChanged(static x => (({seg.TypeName})x).{seg.Name})");
+                sb.AppendLine("                    .Subscribe(_ => { UpdateFromChain(); EmitFromValue(); }));");
+                sb.AppendLine("            }");
+                sb.AppendLine("            else");
+                sb.AppendLine("            {");
+                string segAccess = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                innerBuilder.Add(Observable.EveryValueChanged(fromObject, static x => {segAccess.Replace("fromObject", "x")})");
+                sb.AppendLine("                    .Subscribe(_ => { UpdateFromChain(); EmitFromValue(); }));");
+                sb.AppendLine("            }");
             }
 
-            sb.AppendLine($"            if(__host_{i} is INotifyPropertyChanged npc_{i}) npc_{i}.PropertyChanged -= __h_host_{i};");
+            sb.AppendLine("            UpdateFromChain();");
+            sb.AppendLine("            EmitFromValue();");
+            sb.AppendLine("            return innerBuilder.Build();");
+            sb.AppendLine("        })");
+            sb.AppendLine("        .Subscribe((__updating, targetObject, hostToTarget), static (val, state) =>");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (state.__updating.Value) return;");
+            sb.AppendLine("            state.__updating.Value = true;");
+            sb.AppendLine("            try");
+            sb.AppendLine("            {");
+            sb.AppendLine("                var convertedTo = state.hostToTarget(val);");
+            sb.AppendLine($"                {toLeafAssign}");
+            sb.AppendLine("            }");
+            sb.AppendLine("            catch { }");
+            sb.AppendLine("            finally { state.__updating.Value = false; }");
+            sb.AppendLine("        }));");
         }
 
-        for (int i = 0; i < m.FromSegments.Count; i++)
+        // To -> From direction (symmetric)
+        sb.AppendLine("        // To -> From direction");
+        if (m.ToSegments.Count == 1)
         {
-            string access = BuildChainAccess("fromObject", m.FromSegments.Take(i + 1).ToList());
-            sb.AppendLine($"            try {{ __host_{i} = {access}; }} catch {{ __host_{i} = default!; }}");
+            PropertySegment seg = m.ToSegments[0];
+            sb.AppendLine("        if (targetObject is INotifyPropertyChanged inpc_to)");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            __builder.Add(inpc_to.ObservePropertyChanged(static x => (({seg.TypeName})x).{seg.Name})");
+            sb.AppendLine("                .Subscribe((__updating, fromObject, targetToHost), static (val, state) =>");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    if (state.__updating.Value) return;");
+            sb.AppendLine("                    state.__updating.Value = true;");
+            sb.AppendLine("                    try");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        var convertedBack = state.targetToHost((TTargetProperty)(object?)val!);");
+            sb.AppendLine($"                        {fromLeafAssign}");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    catch { }");
+            sb.AppendLine("                    finally { state.__updating.Value = false; }");
+            sb.AppendLine("                }));");
+            sb.AppendLine("        }");
+            sb.AppendLine("        else");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            __builder.Add(Observable.EveryValueChanged(targetObject, static x => {toFullChainAccess.Replace("targetObject", "x")})");
+            sb.AppendLine("                .Subscribe((__updating, fromObject, targetToHost), static (val, state) =>");
+            sb.AppendLine("                {");
+            sb.AppendLine("                    if (state.__updating.Value) return;");
+            sb.AppendLine("                    state.__updating.Value = true;");
+            sb.AppendLine("                    try");
+            sb.AppendLine("                    {");
+            sb.AppendLine("                        var convertedBack = state.targetToHost((TTargetProperty)(object?)val!);");
+            sb.AppendLine($"                        {fromLeafAssign}");
+            sb.AppendLine("                    }");
+            sb.AppendLine("                    catch { }");
+            sb.AppendLine("                    finally { state.__updating.Value = false; }");
+            sb.AppendLine("                }));");
+            sb.AppendLine("        }");
         }
-
-        for (int i = 0; i < m.FromSegments.Count; i++)
+        else
         {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
+            // Multi-segment: use Observable.Create pattern
+            sb.AppendLine("        __builder.Add(Observable.Create<TTargetProperty>(observer =>");
+            sb.AppendLine("        {");
+            sb.AppendLine("            var innerBuilder = Disposable.CreateBuilder();");
+            for (int i = 0; i < m.ToSegments.Count; i++)
             {
-                continue;
+                PropertySegment seg = m.ToSegments[i];
+                sb.AppendLine($"            {seg.TypeName} __seg_to_{i} = default!;");
             }
 
-            sb.AppendLine($"            if(__host_{i} is INotifyPropertyChanged npc2_{i}) npc2_{i}.PropertyChanged += __h_host_{i};");
+            sb.AppendLine("            void UpdateToChain()");
+            sb.AppendLine("            {");
+            for (int i = 0; i < m.ToSegments.Count; i++)
+            {
+                string access = BuildChainAccess("targetObject", m.ToSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                try {{ __seg_to_{i} = {access}; }} catch {{ __seg_to_{i} = default!; }}");
+            }
+
+            sb.AppendLine("            }");
+            sb.AppendLine("            void EmitToValue()");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                try {{ observer.OnNext((TTargetProperty)(object?){toFullChainAccess}!); }} catch {{ }}");
+            sb.AppendLine("            }");
+
+            for (int i = 0; i < m.ToSegments.Count; i++)
+            {
+                PropertySegment seg = m.ToSegments[i];
+                string parentRef = i == 0 ? "targetObject" : $"__seg_to_{i - 1}";
+                sb.AppendLine($"            if ({parentRef} is INotifyPropertyChanged inpc_to_{i})");
+                sb.AppendLine("            {");
+                sb.AppendLine($"                innerBuilder.Add(inpc_to_{i}.ObservePropertyChanged(static x => (({seg.TypeName})x).{seg.Name})");
+                sb.AppendLine("                    .Subscribe(_ => { UpdateToChain(); EmitToValue(); }));");
+                sb.AppendLine("            }");
+                sb.AppendLine("            else");
+                sb.AppendLine("            {");
+                string segAccess = BuildChainAccess("targetObject", m.ToSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                innerBuilder.Add(Observable.EveryValueChanged(targetObject, static x => {segAccess.Replace("targetObject", "x")})");
+                sb.AppendLine("                    .Subscribe(_ => { UpdateToChain(); EmitToValue(); }));");
+                sb.AppendLine("            }");
+            }
+
+            sb.AppendLine("            UpdateToChain();");
+            sb.AppendLine("            EmitToValue();");
+            sb.AppendLine("            return innerBuilder.Build();");
+            sb.AppendLine("        })");
+            sb.AppendLine("        .Subscribe((__updating, fromObject, targetToHost), static (val, state) =>");
+            sb.AppendLine("        {");
+            sb.AppendLine("            if (state.__updating.Value) return;");
+            sb.AppendLine("            state.__updating.Value = true;");
+            sb.AppendLine("            try");
+            sb.AppendLine("            {");
+            sb.AppendLine("                var convertedBack = state.targetToHost(val);");
+            sb.AppendLine($"                {fromLeafAssign}");
+            sb.AppendLine("            }");
+            sb.AppendLine("            catch { }");
+            sb.AppendLine("            finally { state.__updating.Value = false; }");
+            sb.AppendLine("        }));");
         }
 
-        sb.AppendLine("            }");
+        // Initial sync from -> to
+        sb.AppendLine("        // Initial sync");
+        sb.AppendLine("        try");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            var initialVal = (TFromProperty)(object?){fromFullChainAccess}!;");
+        sb.AppendLine("            var convertedTo = hostToTarget(initialVal);");
+        sb.AppendLine($"            {toLeafAssign}");
         sb.AppendLine("        }");
+        sb.AppendLine("        catch { }");
+        sb.AppendLine("        __builder.Add(__updating);");
 
-        // RewireTarget
-        sb.AppendLine("        void RewireTarget(){");
-        sb.AppendLine("            using (__targetGate.EnterScope()){");
-        for (int i = 0; i < m.ToSegments.Count; i++)
-        {
-            PropertySegment? seg = m.ToSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            sb.AppendLine($"            if(__target_{i} is INotifyPropertyChanged npcT_{i}) npcT_{i}.PropertyChanged -= __h_target_{i};");
-        }
-
-        for (int i = 0; i < m.ToSegments.Count; i++)
-        {
-            string access = BuildChainAccess("targetObject", m.ToSegments.Take(i + 1).ToList());
-            sb.AppendLine($"            try {{ __target_{i} = {access}; }} catch {{ __target_{i} = default!; }}");
-        }
-
-        for (int i = 0; i < m.ToSegments.Count; i++)
-        {
-            PropertySegment? seg = m.ToSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            sb.AppendLine($"            if(__target_{i} is INotifyPropertyChanged npcT2_{i}) npcT2_{i}.PropertyChanged += __h_target_{i};");
-        }
-
-        sb.AppendLine("            }");
-        sb.AppendLine("        }");
-
-        // UpdateTarget and UpdateHost
-        string fromLeaf = BuildChainAccess("fromObject", m.FromSegments);
-        string toLeafAssign = BuildLeafAssignmentSet("targetObject", m.ToSegments, "hostToTarget(v)");
-        string toLeafRead = BuildChainAccess("targetObject", m.ToSegments);
-        string fromLeafAssign = BuildLeafAssignmentSet("fromObject", m.FromSegments, "targetToHost(v)");
-        sb.AppendLine("        void UpdateTarget(){ if (__updating) return; __updating = true; try { var v = (TFromProperty)(object?)" + fromLeaf + "!; " +
-                      toLeafAssign + " } catch { } finally { __updating = false; } }");
-        sb.AppendLine("        void UpdateHost(){ if (__updating) return; __updating = true; try { var v = (TTargetProperty)(object?)" + toLeafRead + "!; " +
-                      fromLeafAssign + " } catch { } finally { __updating = false; } }");
-
-        // Assign handlers now that helper methods exist
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            string nextProp = i + 1 < m.FromSegments.Count ? m.FromSegments[i + 1].Name : m.FromSegments.Last().Name;
-            sb.AppendLine(
-                $"        __h_host_{i} = (s,e)=>{{ if(e.PropertyName==\"{nextProp}\"){{ RewireHost(); UpdateTarget(); }} if(e.PropertyName==\"{m.FromSegments.Last().Name}\") UpdateTarget(); }};");
-        }
-
-        for (int i = 0; i < m.ToSegments.Count; i++)
-        {
-            PropertySegment? seg = m.ToSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            string nextProp = i + 1 < m.ToSegments.Count ? m.ToSegments[i + 1].Name : m.ToSegments.Last().Name;
-            sb.AppendLine(
-                $"        __h_target_{i} = (s,e)=>{{ if(e.PropertyName==\"{nextProp}\"){{ RewireTarget(); UpdateHost(); }} if(e.PropertyName==\"{m.ToSegments.Last().Name}\") UpdateHost(); }};");
-        }
-
-        // Initial wire
-        sb.AppendLine("        RewireHost(); RewireTarget();");
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            sb.AppendLine($"        if(__host_{i} is INotifyPropertyChanged npc_init_{i}) npc_init_{i}.PropertyChanged += __h_host_{i};");
-        }
-
-        for (int i = 0; i < m.ToSegments.Count; i++)
-        {
-            PropertySegment? seg = m.ToSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            sb.AppendLine($"        if(__target_{i} is INotifyPropertyChanged npc_initT_{i}) npc_initT_{i}.PropertyChanged += __h_target_{i};");
-        }
-
-        // Root handlers for first properties when roots implement INPC
-        if (m.FromSegments.Count > 0)
-        {
-            string firstHostProp = m.FromSegments[0].Name;
-            sb.AppendLine("        PropertyChangedEventHandler __h_rootHost = (s,e)=>{ if(e.PropertyName==\"" + firstHostProp +
-                          "\") { RewireHost(); UpdateTarget(); } }; ");
-            sb.AppendLine("        if(fromObject is INotifyPropertyChanged npc_rootHost) npc_rootHost.PropertyChanged += __h_rootHost;");
-        }
-
-        if (m.ToSegments.Count > 0)
-        {
-            string firstTargetProp = m.ToSegments[0].Name;
-            sb.AppendLine("        PropertyChangedEventHandler __h_rootTarget = (s,e)=>{ if(e.PropertyName==\"" + firstTargetProp +
-                          "\") { RewireTarget(); UpdateHost(); } }; ");
-            sb.AppendLine("        if(targetObject is INotifyPropertyChanged npc_rootTarget) npc_rootTarget.PropertyChanged += __h_rootTarget;");
-        }
-
-        // Per-property EveryValueChanged watchers when parent does NOT implement INPC
-        if (m.FromSegments.Count > 0)
-        {
-            string firstAccessH = BuildChainAccess("h", m.FromSegments.Take(1).ToList());
-            sb.AppendLine("        try { if(!(fromObject is INotifyPropertyChanged)) __builder.Add(Observable.EveryValueChanged(fromObject, h => " +
-                          firstAccessH + ").Subscribe(_ => { RewireHost(); UpdateTarget(); })); } catch { }");
-        }
-
-        for (int j = 1; j < m.FromSegments.Count; j++)
-        {
-            if (!m.FromSegments[j - 1].IsNotify)
-            {
-                string accessH = BuildChainAccess("h", m.FromSegments.Take(j + 1).ToList());
-                bool isLeafH = j == m.FromSegments.Count - 1;
-                if (isLeafH)
-                {
-                    sb.AppendLine("        try { __builder.Add(Observable.EveryValueChanged(fromObject, h => " + accessH +
-                                  ").Subscribe(_ => UpdateTarget())); } catch { }");
-                }
-                else
-                {
-                    sb.AppendLine("        try { __builder.Add(Observable.EveryValueChanged(fromObject, h => " + accessH +
-                                  ").Subscribe(_ => { RewireHost(); UpdateTarget(); })); } catch { }");
-                }
-            }
-        }
-
-        if (m.ToSegments.Count > 0)
-        {
-            string firstAccessT = BuildChainAccess("t", m.ToSegments.Take(1).ToList());
-            sb.AppendLine("        try { if(!(targetObject is INotifyPropertyChanged)) __builder.Add(Observable.EveryValueChanged(targetObject, t => " +
-                          firstAccessT + ").Subscribe(_ => { RewireTarget(); UpdateHost(); })); } catch { }");
-        }
-
-        for (int j = 1; j < m.ToSegments.Count; j++)
-        {
-            if (!m.ToSegments[j - 1].IsNotify)
-            {
-                string accessT = BuildChainAccess("t", m.ToSegments.Take(j + 1).ToList());
-                bool isLeafT = j == m.ToSegments.Count - 1;
-                if (isLeafT)
-                {
-                    sb.AppendLine("        try { __builder.Add(Observable.EveryValueChanged(targetObject, t => " + accessT +
-                                  ").Subscribe(_ => UpdateHost())); } catch { }");
-                }
-                else
-                {
-                    sb.AppendLine("        try { __builder.Add(Observable.EveryValueChanged(targetObject, t => " + accessT +
-                                  ").Subscribe(_ => { RewireTarget(); UpdateHost(); })); } catch { }");
-                }
-            }
-        }
-
-        sb.AppendLine("        UpdateTarget();");
-        sb.AppendLine("        __builder.Add(Disposable.Create(() => {");
-        if (m.FromSegments.Count > 0)
-        {
-            sb.AppendLine("            if(fromObject is INotifyPropertyChanged npc_rootHost2) npc_rootHost2.PropertyChanged -= __h_rootHost;");
-        }
-
-        if (m.ToSegments.Count > 0)
-        {
-            sb.AppendLine("            if(targetObject is INotifyPropertyChanged npc_rootTarget2) npc_rootTarget2.PropertyChanged -= __h_rootTarget;");
-        }
-
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            PropertySegment? seg = m.FromSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            sb.AppendLine($"            if(__host_{i} is INotifyPropertyChanged npc3_{i}) npc3_{i}.PropertyChanged -= __h_host_{i};");
-        }
-
-        for (int i = 0; i < m.ToSegments.Count; i++)
-        {
-            PropertySegment? seg = m.ToSegments[i];
-            if (!seg.IsNotify)
-            {
-                continue;
-            }
-
-            sb.AppendLine($"            if(__target_{i} is INotifyPropertyChanged npc3T_{i}) npc3T_{i}.PropertyChanged -= __h_target_{i};");
-        }
-
-        sb.AppendLine("        }));");
         sb.AppendLine("        return __builder.Build();");
         sb.AppendLine("    }");
     }
 
     private void EmitWhenBody(string id, InvocationModel m, StringBuilder sb)
     {
+        // Closure-free WhenChanged implementation using ObservePropertyChanged and EveryValueChanged hybrid
         sb.AppendLine($"    private static Observable<TReturn> __WhenChanged_{id}<TObj,TReturn>(TObj root)");
         sb.AppendLine("    {");
 
@@ -1613,123 +1528,84 @@ internal sealed class CodeEmitter
         if (m.FromSegments.Count == 0)
         {
             string getterFallback = ExtractMemberAccess(m.WhenLambda!, "root");
-            sb.AppendLine("        try { return Observable.EveryValueChanged(root, _ => { try { return " + getterFallback +
-                          "; } catch { return default!; } }).Select(v => (TReturn)v).DistinctUntilChanged(); } catch { return Observable.Empty<TReturn>(); }");
+            sb.AppendLine("        try { return Observable.EveryValueChanged(root, static _ => { try { return " + getterFallback +
+                          "; } catch { return default!; } }).Select(static v => (TReturn)v).DistinctUntilChanged(); } catch { return Observable.Empty<TReturn>(); }");
             sb.AppendLine("    }");
             return;
         }
 
-        // Hybrid approach: use INPC handlers where available, EveryValueChanged for non-INPC parents
         sb.AppendLine("        if (root is null) return Observable.Empty<TReturn>();");
 
         string leafAccess = BuildChainAccess("root", m.FromSegments);
+
+        // Single segment: simple observation
+        if (m.FromSegments.Count == 1)
+        {
+            PropertySegment seg = m.FromSegments[0];
+            sb.AppendLine("        if (root is INotifyPropertyChanged inpc_root)");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            return inpc_root.ObservePropertyChanged(static x => (({seg.TypeName})x).{seg.Name})");
+            sb.AppendLine("                .Select(static v => (TReturn)(object?)v!)");
+            sb.AppendLine("                .DistinctUntilChanged();");
+            sb.AppendLine("        }");
+            sb.AppendLine("        else");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            return Observable.EveryValueChanged(root, static x => {leafAccess.Replace("root", "x")})");
+            sb.AppendLine("                .Select(static v => (TReturn)(object?)v!)");
+            sb.AppendLine("                .DistinctUntilChanged();");
+            sb.AppendLine("        }");
+            sb.AppendLine("    }");
+            return;
+        }
+
+        // Multi-segment chain: use Observable.Create with hybrid observation
         sb.AppendLine("        return Observable.Create<TReturn>(observer => {");
         sb.AppendLine("            var __builder = Disposable.CreateBuilder();");
-        sb.AppendLine("            Lock __gate = new();");
 
         // Segment variables
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
-            sb.AppendLine($"            {m.FromSegments[i].TypeName} __seg_{i} = default!;");
+            PropertySegment seg = m.FromSegments[i];
+            sb.AppendLine($"            {seg.TypeName} __seg_{i} = default!;");
         }
 
-        // Handler declarations for INPC segments
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            if (m.FromSegments[i].IsNotify)
-            {
-                sb.AppendLine($"            PropertyChangedEventHandler __h_seg_{i} = null!;");
-            }
-        }
-
-        sb.AppendLine("            void Emit(){ try { observer.OnNext((TReturn)(object?)" + leafAccess + "!); } catch { observer.OnNext(default!); } }");
-
-        // Rewire method
-        sb.AppendLine("            void Rewire(){");
-        sb.AppendLine("                using (__gate.EnterScope()){");
-
-        // Detach INPC handlers
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            if (m.FromSegments[i].IsNotify)
-            {
-                sb.AppendLine($"                    if(__seg_{i} is INotifyPropertyChanged npc_det_{i}) npc_det_{i}.PropertyChanged -= __h_seg_{i};");
-            }
-        }
-
-        // Recompute chain
+        sb.AppendLine("            void UpdateChain()");
+        sb.AppendLine("            {");
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             string access = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
-            sb.AppendLine($"                    try {{ __seg_{i} = {access}; }} catch {{ __seg_{i} = default!; }}");
+            sb.AppendLine($"                try {{ __seg_{i} = {access}; }} catch {{ __seg_{i} = default!; }}");
         }
 
-        // Reattach INPC handlers
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            if (m.FromSegments[i].IsNotify)
-            {
-                sb.AppendLine($"                    if(__seg_{i} is INotifyPropertyChanged npc_att_{i}) npc_att_{i}.PropertyChanged += __h_seg_{i};");
-            }
-        }
-
-        sb.AppendLine("                }");
         sb.AppendLine("            }");
 
-        // Assign INPC handlers for intermediate segments
+        sb.AppendLine("            void EmitValue()");
+        sb.AppendLine("            {");
+        sb.AppendLine($"                try {{ observer.OnNext((TReturn)(object?){leafAccess}!); }} catch {{ observer.OnNext(default!); }}");
+        sb.AppendLine("            }");
+
+        // Wire up observations for each segment using hybrid approach
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
-            if (!m.FromSegments[i].IsNotify)
-            {
-                continue;
-            }
+            PropertySegment seg = m.FromSegments[i];
+            string parentRef = i == 0 ? "root" : $"__seg_{i - 1}";
 
-            string nextProp = i + 1 < m.FromSegments.Count ? m.FromSegments[i + 1].Name : m.FromSegments.Last().Name;
-            sb.AppendLine($"            __h_seg_{i} = (s,e) => {{ if(e.PropertyName == \"{nextProp}\") {{ Rewire(); Emit(); }} if(e.PropertyName == \"{m.FromSegments.Last().Name}\") Emit(); }};");
+            sb.AppendLine($"            // Observe segment {i}: {seg.Name}");
+            sb.AppendLine($"            if ({parentRef} is INotifyPropertyChanged inpc_{i})");
+            sb.AppendLine("            {");
+            sb.AppendLine($"                __builder.Add(inpc_{i}.ObservePropertyChanged(static x => (({seg.TypeName})x).{seg.Name})");
+            sb.AppendLine("                    .Subscribe(_ => { UpdateChain(); EmitValue(); }));");
+            sb.AppendLine("            }");
+            sb.AppendLine("            else");
+            sb.AppendLine("            {");
+            string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+            sb.AppendLine($"                __builder.Add(Observable.EveryValueChanged(root, static x => {segAccess.Replace("root", "x")})");
+            sb.AppendLine("                    .Subscribe(_ => { UpdateChain(); EmitValue(); }));");
+            sb.AppendLine("            }");
         }
 
-        // Root handler if root implements INPC
-        string firstProp = m.FromSegments[0].Name;
-        sb.AppendLine("            PropertyChangedEventHandler __h_root = null!;");
-        sb.AppendLine("            if((object?)root is INotifyPropertyChanged npc_root) { __h_root = (s,e) => { if(e.PropertyName == \"" + firstProp + "\") { Rewire(); Emit(); } if(e.PropertyName == \"" + m.FromSegments.Last().Name + "\") Emit(); }; npc_root.PropertyChanged += __h_root; }");
-
-        sb.AppendLine("            Rewire(); Emit();");
-
-        // Add EveryValueChanged watchers for non-INPC parents
-        // Watch root's first segment if root doesn't implement INPC
-        sb.AppendLine("            try { if(!((object?)root is INotifyPropertyChanged)) __builder.Add(Observable.EveryValueChanged(root, r => " + BuildChainAccess("r", m.FromSegments.Take(1).ToList()) + ").Subscribe(_ => { Rewire(); Emit(); })); } catch { }");
-
-        // Watch each subsequent segment whose parent doesn't implement INPC
-        for (int j = 1; j < m.FromSegments.Count; j++)
-        {
-            if (!m.FromSegments[j - 1].IsNotify)
-            {
-                string accessJ = BuildChainAccess("r", m.FromSegments.Take(j + 1).ToList());
-                bool isLeaf = j == m.FromSegments.Count - 1;
-                if (isLeaf)
-                {
-                    sb.AppendLine("            try { __builder.Add(Observable.EveryValueChanged(root, r => " + accessJ + ").Subscribe(_ => Emit())); } catch { }");
-                }
-                else
-                {
-                    sb.AppendLine("            try { __builder.Add(Observable.EveryValueChanged(root, r => " + accessJ + ").Subscribe(_ => { Rewire(); Emit(); })); } catch { }");
-                }
-            }
-        }
-
-        // Cleanup
-        sb.AppendLine("            __builder.Add(Disposable.Create(() => {");
-        sb.AppendLine("                if((object?)root is INotifyPropertyChanged npc_root2 && __h_root is not null) npc_root2.PropertyChanged -= __h_root;");
-
-        for (int i = 0; i < m.FromSegments.Count; i++)
-        {
-            if (m.FromSegments[i].IsNotify)
-            {
-                sb.AppendLine($"                if(__seg_{i} is INotifyPropertyChanged npc_fin_{i}) npc_fin_{i}.PropertyChanged -= __h_seg_{i};");
-            }
-        }
-
-        sb.AppendLine("            }));");
+        sb.AppendLine("            UpdateChain();");
+        sb.AppendLine("            EmitValue();");
         sb.AppendLine("            return __builder.Build();");
         sb.AppendLine("        }).DistinctUntilChanged();");
         sb.AppendLine("    }");
