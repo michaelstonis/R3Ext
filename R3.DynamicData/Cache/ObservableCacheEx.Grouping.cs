@@ -1,6 +1,6 @@
 // Upgraded Group operator implementation for R3.DynamicData
 // Now returns IGroup with IObservableCache children for TreeBuilder compatibility
-#pragma warning disable SA1210 // Using directives should be ordered alphabetically
+#pragma warning disable SA1210, SA1137, SA1116, SA1513, SA1516, SA1503, SA1127
 
 using System;
 using System.Collections.Generic;
@@ -29,19 +29,28 @@ public static partial class ObservableCacheEx
         where TKey : notnull
         where TGroupKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (groupSelector is null) throw new ArgumentNullException(nameof(groupSelector));
-
-        return Observable.Create<IChangeSet<IGroup<TObject, TKey, TGroupKey>, TGroupKey>>(observer =>
+        if (source is null)
         {
-            var groupCache = new Dictionary<TGroupKey, ManagedGroup<TObject, TKey, TGroupKey>>();
-            var itemCache = new Dictionary<TKey, (TObject Item, TGroupKey GroupKey)>();
+            throw new ArgumentNullException(nameof(source));
+        }
 
-            return source.Subscribe(changeSet =>
+        if (groupSelector is null)
+        {
+            throw new ArgumentNullException(nameof(groupSelector));
+        }
+
+        return Observable.Create<IChangeSet<IGroup<TObject, TKey, TGroupKey>, TGroupKey>>(
+            observer =>
             {
-                try
-                {
-                    var result = new ChangeSet<IGroup<TObject, TKey, TGroupKey>, TGroupKey>();
+                var groupCache = new Dictionary<TGroupKey, ManagedGroup<TObject, TKey, TGroupKey>>();
+                var itemCache = new Dictionary<TKey, (TObject Item, TGroupKey GroupKey)>();
+
+                return source.Subscribe(
+                    changeSet =>
+                    {
+                        try
+                        {
+                            var result = new ChangeSet<IGroup<TObject, TKey, TGroupKey>, TGroupKey>();
 
                     foreach (var change in changeSet)
                     {
