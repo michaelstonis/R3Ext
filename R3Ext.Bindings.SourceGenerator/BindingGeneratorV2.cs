@@ -940,14 +940,14 @@ internal sealed class CodeEmitter
                 if (inv.Kind == "BindOneWay" && inv.FromPath is not null && inv.ToPath is not null && inv.RootFromTypeName is not null &&
                     inv.FromLeafTypeName is not null && inv.RootTargetTypeName is not null && inv.TargetLeafTypeName is not null)
                 {
-                    string id = Hash(inv.FromPath + "|" + inv.ToPath);
+                    string id = Hash(inv.RootFromTypeName + "|" + inv.FromLeafTypeName + "|" + inv.RootTargetTypeName + "|" + inv.TargetLeafTypeName + "|" + inv.FromPath + "|" + inv.ToPath);
                     sb.AppendLine(
                         $"        BindingRegistry.RegisterOneWay<{inv.RootFromTypeName},{inv.FromLeafTypeName},{inv.RootTargetTypeName},{inv.TargetLeafTypeName}>(\"{Escape(inv.FromPath)}\", \"{Escape(inv.ToPath)}\", (f,t,conv) => __RegBindOneWay_{id}(f,t,conv));");
                 }
                 else if (inv.Kind == "BindTwoWay" && inv.FromPath is not null && inv.ToPath is not null && inv.RootFromTypeName is not null &&
                          inv.FromLeafTypeName is not null && inv.RootTargetTypeName is not null && inv.TargetLeafTypeName is not null)
                 {
-                    string id = Hash(inv.FromPath + "|" + inv.ToPath);
+                    string id = Hash(inv.RootFromTypeName + "|" + inv.FromLeafTypeName + "|" + inv.RootTargetTypeName + "|" + inv.TargetLeafTypeName + "|" + inv.FromPath + "|" + inv.ToPath);
                     sb.AppendLine(
                         $"        BindingRegistry.RegisterTwoWay<{inv.RootFromTypeName},{inv.FromLeafTypeName},{inv.RootTargetTypeName},{inv.TargetLeafTypeName}>(\"{Escape(inv.FromPath)}\", \"{Escape(inv.ToPath)}\", (f,t,ht,th) => __RegBindTwoWay_{id}(f,t,ht,th));");
                 }
@@ -968,7 +968,7 @@ internal sealed class CodeEmitter
                 if (inv.Kind == "BindOneWay" && inv.FromPath is not null && inv.ToPath is not null && inv.RootFromTypeName is not null &&
                     inv.FromLeafTypeName is not null && inv.RootTargetTypeName is not null && inv.TargetLeafTypeName is not null)
                 {
-                    string id = Hash(inv.FromPath + "|" + inv.ToPath);
+                    string id = Hash(inv.RootFromTypeName + "|" + inv.FromLeafTypeName + "|" + inv.RootTargetTypeName + "|" + inv.TargetLeafTypeName + "|" + inv.FromPath + "|" + inv.ToPath);
                     if (emitted.Add("ow" + id))
                     {
                         this.EmitOneWayRegistrationBody(id, inv, sb);
@@ -977,7 +977,7 @@ internal sealed class CodeEmitter
                 else if (inv.Kind == "BindTwoWay" && inv.FromPath is not null && inv.ToPath is not null && inv.RootFromTypeName is not null &&
                          inv.FromLeafTypeName is not null && inv.RootTargetTypeName is not null && inv.TargetLeafTypeName is not null)
                 {
-                    string id = Hash(inv.FromPath + "|" + inv.ToPath);
+                    string id = Hash(inv.RootFromTypeName + "|" + inv.FromLeafTypeName + "|" + inv.RootTargetTypeName + "|" + inv.TargetLeafTypeName + "|" + inv.FromPath + "|" + inv.ToPath);
                     if (emitted.Add("tw" + id))
                     {
                         this.EmitTwoWayRegistrationBody(id, inv, sb);
@@ -1211,6 +1211,7 @@ internal sealed class CodeEmitter
                 sb.AppendLine("                    }");
                 sb.AppendLine("                    catch { }");
                 sb.AppendLine("                }));");
+                sb.AppendLine("            R3ExtGeneratedInstrumentation.NotifyWires++;");
             }
             else
             {
@@ -1281,6 +1282,7 @@ internal sealed class CodeEmitter
                     string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})x)");
                     sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
                     sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); EmitValue(); }});");
+                    sb.AppendLine("                    R3ExtGeneratedInstrumentation.NotifyWires++;");
                 }
                 else
                 {
@@ -1380,6 +1382,7 @@ internal sealed class CodeEmitter
                 sb.AppendLine("                    catch { }");
                 sb.AppendLine("                    finally { state.__updating.Value = false; }");
                 sb.AppendLine("                }));");
+                sb.AppendLine("            R3ExtGeneratedInstrumentation.NotifyWires++;");
             }
             else
             {
@@ -1475,6 +1478,7 @@ internal sealed class CodeEmitter
                 sb.AppendLine("                    catch { }");
                 sb.AppendLine("                    finally { state.__updating.Value = false; }");
                 sb.AppendLine("                }));");
+                sb.AppendLine("            R3ExtGeneratedInstrumentation.NotifyWires++;");
             }
             else
             {
@@ -1674,6 +1678,7 @@ internal sealed class CodeEmitter
                 // Parent implements INPC - use ObservePropertyChanged
                 sb.AppendLine($"                    subscriptions[{i}] = ((INotifyPropertyChanged){parentRef}).ObservePropertyChanged(static x => {propAccess})");
                 sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); EmitValue(); }});");
+                sb.AppendLine("                    R3ExtGeneratedInstrumentation.NotifyWires++;");
             }
             else
             {
@@ -1743,6 +1748,7 @@ internal sealed class CodeEmitter
                 sb.AppendLine("                }");
                 sb.AppendLine("                catch { }");
                 sb.AppendLine("            }));");
+                sb.AppendLine("        R3ExtGeneratedInstrumentation.NotifyWires++;");
             }
             else
             {
@@ -1874,9 +1880,23 @@ internal sealed class CodeEmitter
                 if (parentImplementsNotify)
                 {
                     // Parent implements INPC - use ObservePropertyChanged
+                    // Add null check for parent segment (handles null intermediates gracefully)
+                    if (i > 0)
+                    {
+                        sb.AppendLine($"                    if ({parentRef} != null)");
+                        sb.AppendLine("                    {");
+                    }
+
+                    string indent = i > 0 ? "    " : string.Empty;
                     string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-                    sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
-                    sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                    sb.AppendLine($"                    {indent}subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                    sb.AppendLine($"                    {indent}    .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                    sb.AppendLine($"                    {indent}R3ExtGeneratedInstrumentation.NotifyWires++;");
+
+                    if (i > 0)
+                    {
+                        sb.AppendLine("                    }");
+                    }
                 }
                 else
                 {
@@ -1957,6 +1977,7 @@ internal sealed class CodeEmitter
                 sb.AppendLine("                catch { }");
                 sb.AppendLine("                finally { state.__updating.Value = false; }");
                 sb.AppendLine("            }));");
+                sb.AppendLine("        R3ExtGeneratedInstrumentation.NotifyWires++;");
             }
             else
             {
@@ -2029,6 +2050,7 @@ internal sealed class CodeEmitter
                 sb.AppendLine("                catch { }");
                 sb.AppendLine("                finally { state.__updating.Value = false; }");
                 sb.AppendLine("            }));");
+                sb.AppendLine("        R3ExtGeneratedInstrumentation.NotifyWires++;");
             }
             else
             {
@@ -2168,9 +2190,23 @@ internal sealed class CodeEmitter
                 if (parentImplementsNotify)
                 {
                     // Parent implements INPC - use ObservePropertyChanged
+                    // Add null check for parent segment (handles null intermediates gracefully)
+                    if (i > 0)
+                    {
+                        sb.AppendLine($"                    if ({parentRef} != null)");
+                        sb.AppendLine("                    {");
+                    }
+
+                    string indent = i > 0 ? "    " : string.Empty;
                     string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-                    sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
-                    sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                    sb.AppendLine($"                    {indent}subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                    sb.AppendLine($"                    {indent}    .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                    sb.AppendLine($"                    {indent}R3ExtGeneratedInstrumentation.NotifyWires++;");
+
+                    if (i > 0)
+                    {
+                        sb.AppendLine("                    }");
+                    }
                 }
                 else
                 {
@@ -2279,9 +2315,23 @@ internal sealed class CodeEmitter
                 if (parentImplementsNotify)
                 {
                     // Parent implements INPC - use ObservePropertyChanged
+                    // Add null check for parent segment (handles null intermediates gracefully)
+                    if (i > 0)
+                    {
+                        sb.AppendLine($"                    if ({parentRef} != null)");
+                        sb.AppendLine("                    {");
+                    }
+
+                    string indent = i > 0 ? "    " : string.Empty;
                     string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-                    sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
-                    sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                    sb.AppendLine($"                    {indent}subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                    sb.AppendLine($"                    {indent}    .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                    sb.AppendLine($"                    {indent}R3ExtGeneratedInstrumentation.NotifyWires++;");
+
+                    if (i > 0)
+                    {
+                        sb.AppendLine("                    }");
+                    }
                 }
                 else
                 {
@@ -2443,9 +2493,23 @@ internal sealed class CodeEmitter
             if (parentImplementsNotify)
             {
                 // Parent implements INPC - use ObservePropertyChanged
+                // Add null check for parent segment (handles null intermediates gracefully)
+                if (i > 0)
+                {
+                    sb.AppendLine($"                    if ({parentRef} != null)");
+                    sb.AppendLine("                    {");
+                }
+
+                string indent = i > 0 ? "    " : string.Empty;
                 string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-                sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                sb.AppendLine($"                    {indent}subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine($"                    {indent}    .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                sb.AppendLine($"                    {indent}R3ExtGeneratedInstrumentation.NotifyWires++;");
+
+                if (i > 0)
+                {
+                    sb.AppendLine("                    }");
+                }
             }
             else
             {
@@ -2718,6 +2782,7 @@ internal sealed class CodeEmitter
                 string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})x)");
                 sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
                 sb.AppendLine($"                        .Subscribe(_ => {{ Rewire{methodSuffix}({i + 1}); Emit{methodSuffix}Value(); }});");
+                sb.AppendLine("                    R3ExtGeneratedInstrumentation.NotifyWires++;");
             }
             else
             {
