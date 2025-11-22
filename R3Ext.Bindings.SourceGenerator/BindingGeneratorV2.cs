@@ -180,6 +180,12 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     {
                         m.WhenRootTypeName = m.FromSegments[0].DeclaringTypeName;
                         m.WhenLeafTypeName = m.FromSegments.Last().TypeName;
+
+                        // For root INPC check: need to lookup the declaring type symbol
+                        // But we don't have Compilation here, so we'll use a heuristic:
+                        // Check if the first segment came from an INPC type by looking at segment metadata
+                        // Actually, the segments don't store the parent's IsNotify, so we'll handle this in code generation
+                        m.WhenRootImplementsNotify = false; // Will determine at generation time
                     }
                 }
                 else
@@ -188,12 +194,14 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     {
                         m.RootFromTypeName = m.FromSegments[0].DeclaringTypeName;
                         m.FromLeafTypeName = m.FromSegments.Last().TypeName;
+                        m.RootFromImplementsNotify = false; // Will determine at generation time
                     }
 
                     if (m.ToSegments.Count > 0)
                     {
                         m.RootTargetTypeName = m.ToSegments[0].DeclaringTypeName;
                         m.TargetLeafTypeName = m.ToSegments.Last().TypeName;
+                        m.RootTargetImplementsNotify = false; // Will determine at generation time
                     }
                 }
             }
@@ -495,6 +503,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     DeclaringTypeName = ps.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = ps.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(ps.Type),
+                    DeclaringTypeImplementsNotify = ImplementsNotify(ps.ContainingType),
                     HasSetter = ps.SetMethod is not null,
                     SetterIsNonPublic = ps.SetMethod is not null && ps.SetMethod.DeclaredAccessibility != Accessibility.Public,
                     IsNonPublic = ps.DeclaredAccessibility != Accessibility.Public,
@@ -513,6 +522,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     DeclaringTypeName = fs.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = fs.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(fs.Type),
+                    DeclaringTypeImplementsNotify = ImplementsNotify(fs.ContainingType),
                     HasSetter = false,
                     SetterIsNonPublic = false,
                     IsNonPublic = fs.DeclaredAccessibility != Accessibility.Public,
@@ -606,6 +616,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     DeclaringTypeName = ps.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = ps.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(ps.Type),
+                    DeclaringTypeImplementsNotify = ImplementsNotify(ps.ContainingType),
                     HasSetter = ps.SetMethod is not null,
                     SetterIsNonPublic = ps.SetMethod is not null && ps.SetMethod.DeclaredAccessibility != Accessibility.Public,
                     IsNonPublic = ps.DeclaredAccessibility != Accessibility.Public,
@@ -623,6 +634,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     DeclaringTypeName = fs.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = fs.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(fs.Type),
+                    DeclaringTypeImplementsNotify = ImplementsNotify(fs.ContainingType),
                     HasSetter = false,
                     SetterIsNonPublic = false,
                     IsNonPublic = fs.DeclaredAccessibility != Accessibility.Public,
@@ -717,6 +729,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     DeclaringTypeName = prop.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = prop.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(prop.Type),
+                    DeclaringTypeImplementsNotify = ImplementsNotify(prop.ContainingType),
                     HasSetter = prop.SetMethod is not null,
                     SetterIsNonPublic = prop.SetMethod is not null && prop.SetMethod.DeclaredAccessibility != Accessibility.Public,
                     IsNonPublic = prop.DeclaredAccessibility != Accessibility.Public,
@@ -735,6 +748,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     DeclaringTypeName = field.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     IsReferenceType = field.Type.IsReferenceType,
                     IsNotify = ImplementsNotify(field.Type),
+                    DeclaringTypeImplementsNotify = ImplementsNotify(field.ContainingType),
                     HasSetter = false,
                     SetterIsNonPublic = false,
                     IsNonPublic = field.DeclaredAccessibility != Accessibility.Public,
@@ -813,6 +827,12 @@ internal sealed class InvocationModel(
 
     public string? ContainingTypeName { get; set; }
 
+    public bool RootFromImplementsNotify { get; set; }
+
+    public bool RootTargetImplementsNotify { get; set; }
+
+    public bool WhenRootImplementsNotify { get; set; }
+
     public List<(string MemberName, string Expression, string Reason)> SymbolResolutionFailures { get; set; } = new();
 }
 
@@ -827,6 +847,8 @@ internal sealed class PropertySegment
     public bool IsReferenceType { get; set; }
 
     public bool IsNotify { get; set; }
+
+    public bool DeclaringTypeImplementsNotify { get; set; }
 
     public bool HasSetter { get; set; }
 
@@ -1738,9 +1760,9 @@ internal sealed class CodeEmitter
         // Generate state class if multi-segment OneWay binding was used
         if (m.FromSegments.Count > 1)
         {
-            string stateClassName = $"OneWayState_{m.FromSegments.Count}_{id}";
+            string oneWayStateClassName = $"OneWayState_{m.FromSegments.Count}_{id}";
             sb.AppendLine(string.Empty);
-            sb.AppendLine($"    sealed class {stateClassName} : IDisposable");
+            sb.AppendLine($"    sealed class {oneWayStateClassName} : IDisposable");
             sb.AppendLine("    {");
             sb.AppendLine($"        private readonly Observer<{m.FromLeafTypeName}> observer;");
             sb.AppendLine($"        private readonly {m.RootFromTypeName} root;");
@@ -1754,7 +1776,7 @@ internal sealed class CodeEmitter
             }
 
             sb.AppendLine(string.Empty);
-            sb.AppendLine($"        public {stateClassName}(Observer<{m.FromLeafTypeName}> observer, {m.RootFromTypeName} root)");
+            sb.AppendLine($"        public {oneWayStateClassName}(Observer<{m.FromLeafTypeName}> observer, {m.RootFromTypeName} root)");
             sb.AppendLine("        {");
             sb.AppendLine("            this.observer = observer;");
             sb.AppendLine("            this.root = root;");
@@ -1806,20 +1828,26 @@ internal sealed class CodeEmitter
                 PropertySegment seg = m.FromSegments[i];
                 string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
                 string parentType = i == 0 ? m.RootFromTypeName! : m.FromSegments[i - 1].TypeName;
+                bool parentImplementsNotify = i == 0 ? seg.DeclaringTypeImplementsNotify : m.FromSegments[i - 1].IsNotify;
+
                 sb.AppendLine($"                if (fromIndex <= {i})");
                 sb.AppendLine("                {");
-                sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_{i})");
-                sb.AppendLine("                    {");
-                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-                sb.AppendLine($"                        subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                    else");
-                sb.AppendLine("                    {");
-                string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
-                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
-                sb.AppendLine("                    }");
+
+                if (parentImplementsNotify)
+                {
+                    // Parent implements INPC - use ObservePropertyChanged
+                    string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
+                    sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                    sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                }
+                else
+                {
+                    // Parent doesn't implement INPC - use EveryValueChanged
+                    string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+                    sb.AppendLine($"                    subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
+                    sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                }
+
                 sb.AppendLine("                }");
             }
 
@@ -2086,20 +2114,26 @@ internal sealed class CodeEmitter
                 PropertySegment seg = m.FromSegments[i];
                 string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
                 string parentType = i == 0 ? m.RootFromTypeName! : m.FromSegments[i - 1].TypeName;
+                bool parentImplementsNotify = i == 0 ? seg.DeclaringTypeImplementsNotify : m.FromSegments[i - 1].IsNotify;
+
                 sb.AppendLine($"                if (fromIndex <= {i})");
                 sb.AppendLine("                {");
-                sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_{i})");
-                sb.AppendLine("                    {");
-                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-                sb.AppendLine($"                        subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                    else");
-                sb.AppendLine("                    {");
-                string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
-                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
-                sb.AppendLine("                    }");
+
+                if (parentImplementsNotify)
+                {
+                    // Parent implements INPC - use ObservePropertyChanged
+                    string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
+                    sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                    sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                }
+                else
+                {
+                    // Parent doesn't implement INPC - use EveryValueChanged
+                    string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+                    sb.AppendLine($"                    subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
+                    sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                }
+
                 sb.AppendLine("                }");
             }
 
@@ -2191,20 +2225,26 @@ internal sealed class CodeEmitter
                 PropertySegment seg = m.ToSegments[i];
                 string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
                 string parentType = i == 0 ? m.RootTargetTypeName! : m.ToSegments[i - 1].TypeName;
+                bool parentImplementsNotify = i == 0 ? seg.DeclaringTypeImplementsNotify : m.ToSegments[i - 1].IsNotify;
+
                 sb.AppendLine($"                if (fromIndex <= {i})");
                 sb.AppendLine("                {");
-                sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_{i})");
-                sb.AppendLine("                    {");
-                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-                sb.AppendLine($"                        subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
-                sb.AppendLine("                    }");
-                sb.AppendLine("                    else");
-                sb.AppendLine("                    {");
-                string segAccess = BuildChainAccess("root", m.ToSegments.Take(i + 1).ToList());
-                sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
-                sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
-                sb.AppendLine("                    }");
+
+                if (parentImplementsNotify)
+                {
+                    // Parent implements INPC - use ObservePropertyChanged
+                    string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
+                    sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                    sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                }
+                else
+                {
+                    // Parent doesn't implement INPC - use EveryValueChanged
+                    string segAccess = BuildChainAccess("root", m.ToSegments.Take(i + 1).ToList());
+                    sb.AppendLine($"                    subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
+                    sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+                }
+
                 sb.AppendLine("                }");
             }
 
@@ -2251,19 +2291,24 @@ internal sealed class CodeEmitter
         if (m.FromSegments.Count == 1)
         {
             PropertySegment seg = m.FromSegments[0];
-            sb.AppendLine("        if ((object)root is INotifyPropertyChanged inpc_root)");
-            sb.AppendLine("        {");
-            string propAccess = BuildObservePropertyAccess(seg, $"(({m.WhenRootTypeName})(object)x)");
-            sb.AppendLine($"            return inpc_root.ObservePropertyChanged(static x => {propAccess})");
-            sb.AppendLine("                .Select(static v => (" + m.WhenLeafTypeName + ")(object?)v!)");
-            sb.AppendLine("                .DistinctUntilChanged();");
-            sb.AppendLine("        }");
-            sb.AppendLine("        else");
-            sb.AppendLine("        {");
-            sb.AppendLine($"            return Observable.EveryValueChanged(root, x => {leafAccess.Replace("root", "x")})");
-            sb.AppendLine("                .Select(static v => (" + m.WhenLeafTypeName + ")(object?)v!)");
-            sb.AppendLine("                .DistinctUntilChanged();");
-            sb.AppendLine("        }");
+            bool rootImplementsNotify = seg.DeclaringTypeImplementsNotify;
+
+            if (rootImplementsNotify)
+            {
+                // Root implements INPC - use ObservePropertyChanged
+                string propAccess = BuildObservePropertyAccess(seg, $"(({m.WhenRootTypeName})(object)x)");
+                sb.AppendLine($"        return root.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine("            .Select(static v => (" + m.WhenLeafTypeName + ")(object?)v!)");
+                sb.AppendLine("            .DistinctUntilChanged();");
+            }
+            else
+            {
+                // Root doesn't implement INPC - use EveryValueChanged
+                sb.AppendLine($"        return Observable.EveryValueChanged(root, x => {leafAccess.Replace("root", "x")})");
+                sb.AppendLine("            .Select(static v => (" + m.WhenLeafTypeName + ")(object?)v!)");
+                sb.AppendLine("            .DistinctUntilChanged();");
+            }
+
             sb.AppendLine("    }");
             return;
         }
@@ -2344,20 +2389,26 @@ internal sealed class CodeEmitter
             PropertySegment seg = m.FromSegments[i];
             string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
             string parentType = i == 0 ? m.WhenRootTypeName! : m.FromSegments[i - 1].TypeName;
+            bool parentImplementsNotify = i == 0 ? seg.DeclaringTypeImplementsNotify : m.FromSegments[i - 1].IsNotify;
+
             sb.AppendLine($"                if (fromIndex <= {i})");
             sb.AppendLine("                {");
-            sb.AppendLine($"                    if ((object){parentRef} is INotifyPropertyChanged inpc_{i})");
-            sb.AppendLine("                    {");
-            string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
-            sb.AppendLine($"                        subscriptions[{i}] = inpc_{i}.ObservePropertyChanged(static x => {propAccess})");
-            sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
-            sb.AppendLine("                    }");
-            sb.AppendLine("                    else");
-            sb.AppendLine("                    {");
-            string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
-            sb.AppendLine($"                        subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
-            sb.AppendLine($"                            .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
-            sb.AppendLine("                    }");
+
+            if (parentImplementsNotify)
+            {
+                // Parent implements INPC - use ObservePropertyChanged
+                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
+                sb.AppendLine($"                    subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+            }
+            else
+            {
+                // Parent doesn't implement INPC - use EveryValueChanged
+                string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                    subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
+                sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.EmitValue(); }});");
+            }
+
             sb.AppendLine("                }");
         }
 
