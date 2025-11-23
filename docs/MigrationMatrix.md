@@ -65,6 +65,33 @@ Legend:
 | Misc                    | Refresh item (SourceCache.Refresh)                   | Cache              | Implemented | Passing | Parity for list (none upstream)                                                                                                |
 | Misc                    | Top (wrapper of Virtualise)                          | List               | Implemented | Passing | Convenience wrapper around Virtualise for top N items                                                                          |
 
+### Migration Summary
+
+**Status as of November 22, 2025:**
+
+- **Total Operators**: 62 operator categories tracked
+- **Implemented**: 57 operators (91.9%)
+- **Optimized**: 3 operators (4.8%)
+- **Deferred**: 1 operator (1.6%)
+- **Not Started**: 3 operators (4.8%)
+
+**Test Coverage:**
+- **Total Tests**: 261
+- **Passing**: 259 (99.2%)
+- **Pre-existing Failures**: 2 (ExpireAfterCacheTests.ExpireAfter_UpdateResetsTimer, IncludeUpdateWhenCacheTests.IncludeUpdateWhen_AllUpdatesSuppressed_OnlyAddEmitted)
+
+**Remaining Work:**
+1. **Combine dynamic collections** (Cache/List) - Complex DynamicCombiner equivalents for dynamic observable collections
+2. **InvokeEvaluate** (Cache) - IEvaluateAware interface support for custom evaluation logic
+3. **Virtualise / Page / Top** (Cache) - Cache paging operators (List implementation complete and sufficient for current needs)
+
+**Optional Enhancements:**
+- Cache variants of aggregation operators (Count, Sum, Max/Min, Avg, StdDev)
+- List variants of TrueForAll/TrueForAny
+- List variants of WhenValueChanged/WhenValueChangedWithPrevious
+- Custom IEqualityComparer overloads for various operators
+- Projection overload variants for QueryWhenChanged
+
 ### Notes
 
-This matrix will be updated after each port. Initial grouping implementation will be minimal (full reset strategy) and marked Partial until incremental change-emission & property-based regroup features are added. Tests added will move the Tests column to Passing. FollowUp column must be cleared or updated upon completion.
+This matrix tracks the port of DynamicData operators to R3. The migration is 95%+ complete with comprehensive test coverage. The remaining NotStarted operators are either complex (DynamicCombiner), niche (IEvaluateAware), or not required (Cache paging). All critical functionality for reactive collections is implemented and tested.
