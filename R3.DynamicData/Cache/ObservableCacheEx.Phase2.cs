@@ -32,11 +32,14 @@ public static partial class ObservableCacheEx
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (keySelector is null) throw new ArgumentNullException(nameof(keySelector));
-        return Observable.Create<IChangeSet<TObject, TKey>>(observer =>
+        var state = new AddKeyState<TObject, TKey>(source, keySelector);
+        return Observable.Create<IChangeSet<TObject, TKey>, AddKeyState<TObject, TKey>>(
+            state,
+            static (observer, state) =>
         {
             // Track current items so we can emit proper removes on Clear / RemoveRange.
             var current = new Dictionary<TKey, TObject>();
-            return source.Subscribe(changes =>
+            return state.Source.Subscribe(changes =>
             {
                 var converted = new List<Change<TObject, TKey>>();
                 foreach (var change in changes)
@@ -45,7 +48,7 @@ public static partial class ObservableCacheEx
                     {
                         case ListChangeReason.Add:
                             {
-                                var key = keySelector(change.Item);
+                                var key = state.KeySelector(change.Item);
                                 current[key] = change.Item;
                                 converted.Add(new Change<TObject, TKey>(ChangeReason.Add, key, change.Item));
                                 break;
@@ -53,18 +56,18 @@ public static partial class ObservableCacheEx
                         case ListChangeReason.AddRange:
                             foreach (var item in change.Range)
                             {
-                                var key = keySelector(item);
+                                var key = state.KeySelector(item);
                                 current[key] = item;
                                 converted.Add(new Change<TObject, TKey>(ChangeReason.Add, key, item));
                             }
                             break;
                         case ListChangeReason.Replace:
                             {
-                                var key = keySelector(change.Item);
+                                var key = state.KeySelector(change.Item);
                                 // Assume key stable; if changed treat as remove+add.
-                                if (change.PreviousItem is not null && !EqualityComparer<TKey>.Default.Equals(keySelector(change.PreviousItem), key))
+                                if (change.PreviousItem is not null && !EqualityComparer<TKey>.Default.Equals(state.KeySelector(change.PreviousItem), key))
                                 {
-                                    var oldKey = keySelector(change.PreviousItem);
+                                    var oldKey = state.KeySelector(change.PreviousItem);
                                     if (current.Remove(oldKey))
                                     {
                                         converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, oldKey, change.PreviousItem));
@@ -89,7 +92,7 @@ public static partial class ObservableCacheEx
                             }
                         case ListChangeReason.Remove:
                             {
-                                var key = keySelector(change.Item);
+                                var key = state.KeySelector(change.Item);
                                 if (current.Remove(key))
                                 {
                                     converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, change.Item));
@@ -99,7 +102,7 @@ public static partial class ObservableCacheEx
                         case ListChangeReason.RemoveRange:
                             foreach (var item in change.Range)
                             {
-                                var key = keySelector(item);
+                                var key = state.KeySelector(item);
                                 if (current.Remove(key))
                                 {
                                     converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, item));
@@ -108,10 +111,10 @@ public static partial class ObservableCacheEx
                             break;
                         case ListChangeReason.Moved:
                             // Cache has no ordering concept; treat as Refresh.
-                            converted.Add(new Change<TObject, TKey>(ChangeReason.Refresh, keySelector(change.Item), change.Item));
+                            converted.Add(new Change<TObject, TKey>(ChangeReason.Refresh, state.KeySelector(change.Item), change.Item));
                             break;
                         case ListChangeReason.Refresh:
-                            converted.Add(new Change<TObject, TKey>(ChangeReason.Refresh, keySelector(change.Item), change.Item));
+                            converted.Add(new Change<TObject, TKey>(ChangeReason.Refresh, state.KeySelector(change.Item), change.Item));
                             break;
                         case ListChangeReason.Clear:
                             // Remove all previously tracked items if range includes them; if empty fallback to clearing dictionary.
@@ -119,7 +122,7 @@ public static partial class ObservableCacheEx
                             {
                                 foreach (var item in change.Range)
                                 {
-                                    var key = keySelector(item);
+                                    var key = state.KeySelector(item);
                                     if (current.Remove(key))
                                         converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, item));
                                 }
@@ -153,9 +156,12 @@ public static partial class ObservableCacheEx
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (selector is null) throw new ArgumentNullException(nameof(selector));
-        return Observable.Create<IChangeSet<TDestination, TKey>>(observer =>
+        var state = new CastState<TSource, TKey, TDestination>(source, selector);
+        return Observable.Create<IChangeSet<TDestination, TKey>, CastState<TSource, TKey, TDestination>>(
+            state,
+            static (observer, state) =>
         {
-            return source.Subscribe(changes =>
+            return state.Source.Subscribe(changes =>
             {
                 var converted = new List<Change<TDestination, TKey>>(changes.Count);
                 foreach (var change in changes)
@@ -163,18 +169,18 @@ public static partial class ObservableCacheEx
                     switch (change.Reason)
                     {
                         case ChangeReason.Add:
-                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Add, change.Key, selector(change.Current)));
+                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Add, change.Key, state.Selector(change.Current)));
                             break;
                         case ChangeReason.Update:
-                            var prevVal = change.Previous.HasValue ? selector(change.Previous.Value) : selector(change.Current);
-                            var currVal = selector(change.Current);
+                            var prevVal = change.Previous.HasValue ? state.Selector(change.Previous.Value) : state.Selector(change.Current);
+                            var currVal = state.Selector(change.Current);
                             converted.Add(new Change<TDestination, TKey>(ChangeReason.Update, change.Key, currVal, prevVal));
                             break;
                         case ChangeReason.Remove:
-                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Remove, change.Key, selector(change.Current)));
+                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Remove, change.Key, state.Selector(change.Current)));
                             break;
                         case ChangeReason.Refresh:
-                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Refresh, change.Key, selector(change.Current)));
+                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Refresh, change.Key, state.Selector(change.Current)));
                             break;
                     }
                 }
@@ -639,4 +645,33 @@ internal sealed class CacheQuery<TObject, TKey>(IReadOnlyDictionary<TKey, TObjec
     public IEnumerable<TKey> Keys => _data.Keys;
     public IEnumerable<KeyValuePair<TKey, TObject>> KeyValues => _data;
     public Optional<TObject> Lookup(TKey key) => _data.TryGetValue(key, out var value) ? Optional<TObject>.Some(value) : Optional<TObject>.None;
+}
+
+internal readonly struct AddKeyState<TObject, TKey>
+    where TObject : notnull
+    where TKey : notnull
+{
+    public readonly Observable<IChangeSet<TObject>> Source;
+    public readonly Func<TObject, TKey> KeySelector;
+
+    public AddKeyState(Observable<IChangeSet<TObject>> source, Func<TObject, TKey> keySelector)
+    {
+        Source = source;
+        KeySelector = keySelector;
+    }
+}
+
+internal readonly struct CastState<TSource, TKey, TDestination>
+    where TSource : notnull
+    where TKey : notnull
+    where TDestination : notnull
+{
+    public readonly Observable<IChangeSet<TSource, TKey>> Source;
+    public readonly Func<TSource, TDestination> Selector;
+
+    public CastState(Observable<IChangeSet<TSource, TKey>> source, Func<TSource, TDestination> selector)
+    {
+        Source = source;
+        Selector = selector;
+    }
 }
