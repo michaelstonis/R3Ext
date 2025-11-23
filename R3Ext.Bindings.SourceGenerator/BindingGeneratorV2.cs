@@ -2727,9 +2727,12 @@ internal sealed class CodeEmitter
             string containerAccess = BuildChainAccess(root, segments.Take(segments.Count - 1).ToList());
             PropertySegment? leaf = segments.Last();
             string key = SanKey(leaf);
-            string direct = containerAccess + "." + leaf.Name + " = " + valueExpr + ";";
+
+            // For assignments, we need the non-nullable version to avoid null-conditional assignment syntax (?.=)
+            string containerForAssignment = containerAccess.Replace("?.", ".");
+            string direct = containerForAssignment + "." + leaf.Name + " = " + valueExpr + ";";
             return $"if(({containerAccess}) != null) {{ " + (leaf.SetterIsNonPublic
-                ? $"#if NET8_0_OR_GREATER || NET9_0_OR_GREATER\n                __UA_SET_{key}({containerAccess}, ({leaf.TypeName}) (object?){valueExpr}!);\n#else\n                {direct}\n#endif"
+                ? $"#if NET8_0_OR_GREATER || NET9_0_OR_GREATER\n                __UA_SET_{key}({containerForAssignment}, ({leaf.TypeName}) (object?){valueExpr}!);\n#else\n                {direct}\n#endif"
                 : direct) + " }";
         }
 
