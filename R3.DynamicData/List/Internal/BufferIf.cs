@@ -12,55 +12,51 @@ internal sealed class BufferIf<T>(Observable<IChangeSet<T>> source, Observable<b
     private readonly Observable<IChangeSet<T>> _source = source ?? throw new ArgumentNullException(nameof(source));
     private readonly TimeSpan _timeOut = timeOut ?? TimeSpan.Zero;
 
-    public Observable<IChangeSet<T>> Run() => Observable.Create<IChangeSet<T>>(
-        observer =>
+    public Observable<IChangeSet<T>> Run() => Observable.Create<IChangeSet<T>, BufferIfState<T>>(
+        new BufferIfState<T>(_source, _pauseIfTrueSelector, _timeOut, initialPauseState),
+        static (observer, state) =>
         {
-            var paused = initialPauseState;
-            var buffer = new ChangeSet<T>();
-            Subject<bool> timeoutSubject = new();
-            SerialDisposable timeoutSubscriber = new();
-
-            var bufferSelector = Observable.Return(initialPauseState)
-                .Concat(_pauseIfTrueSelector.Merge(timeoutSubject))
+            var bufferSelector = Observable.Return(state.InitialPauseState)
+                .Concat(state.PauseIfTrueSelector.Merge(state.TimeoutSubject))
                 .Publish();
 
-            var pause = bufferSelector.Where(state => state).Subscribe(
+            var pause = bufferSelector.Where(s => s).Subscribe(
                 _ =>
                 {
-                    paused = true;
+                    state.Paused = true;
 
                     // add pause timeout if required
-                    if (_timeOut != TimeSpan.Zero)
+                    if (state.TimeOut != TimeSpan.Zero)
                     {
-                        timeoutSubscriber.Disposable = Observable.Timer(_timeOut)
-                            .Subscribe(_ => timeoutSubject.OnNext(false));
+                        state.TimeoutSubscriber.Disposable = Observable.Timer(state.TimeOut)
+                            .Subscribe(_ => state.TimeoutSubject.OnNext(false));
                     }
                 });
 
-            var resume = bufferSelector.Where(state => !state).Subscribe(
+            var resume = bufferSelector.Where(s => !s).Subscribe(
                 _ =>
                 {
-                    paused = false;
+                    state.Paused = false;
 
                     // publish changes and clear buffer
-                    if (buffer.Count == 0)
+                    if (state.Buffer.Count == 0)
                     {
                         return;
                     }
 
-                    observer.OnNext(buffer);
-                    buffer = new ChangeSet<T>();
+                    observer.OnNext(state.Buffer);
+                    state.Buffer = new ChangeSet<T>();
 
                     // kill off timeout if required
-                    timeoutSubscriber.Disposable = Disposable.Empty;
+                    state.TimeoutSubscriber.Disposable = Disposable.Empty;
                 });
 
-            var updateSubscriber = _source.Subscribe(
+            var updateSubscriber = state.Source.Subscribe(
                 updates =>
                 {
-                    if (paused)
+                    if (state.Paused)
                     {
-                        buffer.AddRange(updates);
+                        state.Buffer.AddRange(updates);
                     }
                     else
                     {
@@ -76,9 +72,42 @@ internal sealed class BufferIf<T>(Observable<IChangeSet<T>> source, Observable<b
                 pause.Dispose();
                 resume.Dispose();
                 updateSubscriber.Dispose();
-                timeoutSubject.OnCompleted();
-                timeoutSubject.Dispose();
-                timeoutSubscriber.Dispose();
+                state.Dispose();
             });
         });
+
+    private sealed class BufferIfState<TItem> : IDisposable
+        where TItem : notnull
+    {
+        public readonly Observable<IChangeSet<TItem>> Source;
+        public readonly Observable<bool> PauseIfTrueSelector;
+        public readonly TimeSpan TimeOut;
+        public readonly bool InitialPauseState;
+        public readonly Subject<bool> TimeoutSubject = new();
+        public readonly SerialDisposable TimeoutSubscriber = new();
+
+        public bool Paused;
+        public ChangeSet<TItem> Buffer;
+
+        public BufferIfState(
+            Observable<IChangeSet<TItem>> source,
+            Observable<bool> pauseIfTrueSelector,
+            TimeSpan timeOut,
+            bool initialPauseState)
+        {
+            Source = source;
+            PauseIfTrueSelector = pauseIfTrueSelector;
+            TimeOut = timeOut;
+            InitialPauseState = initialPauseState;
+            Paused = initialPauseState;
+            Buffer = new ChangeSet<TItem>();
+        }
+
+        public void Dispose()
+        {
+            TimeoutSubject.OnCompleted();
+            TimeoutSubject.Dispose();
+            TimeoutSubscriber.Dispose();
+        }
+    }
 }

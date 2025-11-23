@@ -11,9 +11,14 @@ internal sealed class SuppressRefresh<TObject, TKey>
     private readonly Observable<IChangeSet<TObject, TKey>> _source;
     public SuppressRefresh(Observable<IChangeSet<TObject, TKey>> source) => _source = source ?? throw new ArgumentNullException(nameof(source));
 
-    public Observable<IChangeSet<TObject, TKey>> Run() => Observable.Create<IChangeSet<TObject, TKey>>(observer =>
+    public Observable<IChangeSet<TObject, TKey>> Run()
     {
-        return _source.Subscribe(changes =>
+        var state = new SuppressRefreshState(_source);
+        return Observable.Create<IChangeSet<TObject, TKey>, SuppressRefreshState>(
+            state,
+            static (observer, state) =>
+        {
+            return state.Source.Subscribe(changes =>
         {
             if (changes.Count == 0) return;
             var filtered = new ChangeSet<TObject, TKey>();
@@ -24,5 +29,12 @@ internal sealed class SuppressRefresh<TObject, TKey>
             }
             if (filtered.Count > 0) observer.OnNext(filtered);
         }, observer.OnErrorResume, observer.OnCompleted);
-    });
+        });
+    }
+
+    private readonly struct SuppressRefreshState
+    {
+        public readonly Observable<IChangeSet<TObject, TKey>> Source;
+        public SuppressRefreshState(Observable<IChangeSet<TObject, TKey>> source) => Source = source;
+    }
 }

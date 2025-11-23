@@ -1,5 +1,7 @@
 // Port of DynamicData to R3.
 
+using R3.DynamicData.Utilities;
+
 namespace R3.DynamicData.List;
 
 #pragma warning disable SA1116 // Parameter spans multiple lines
@@ -10,51 +12,64 @@ public static class ObservableListAggregates
 {
     public static Observable<int> Count<T>(this Observable<IChangeSet<T>> source)
     {
-        return Observable.Create<int>(observer =>
-        {
-            int count = 0;
-            return source.Subscribe(
-                changes =>
-                {
-                    try
+        return Observable.Create<int, Observable<IChangeSet<T>>>(
+            source,
+            static (observer, state) =>
+            {
+                var count = new RefInt();
+                return state.Subscribe(
+                    (observer, count),
+                    static (changes, tuple) =>
                     {
-                        foreach (var c in changes)
+                        try
                         {
-                            switch (c.Reason)
+                            foreach (var c in changes)
                             {
-                                case ListChangeReason.Add:
-                                    count += 1;
-                                    break;
-                                case ListChangeReason.AddRange:
-                                    count += c.Range.Count > 0 ? c.Range.Count : 1;
-                                    break;
-                                case ListChangeReason.Remove:
-                                    count -= 1;
-                                    break;
-                                case ListChangeReason.RemoveRange:
-                                    count -= c.Range.Count > 0 ? c.Range.Count : 1;
-                                    break;
-                                case ListChangeReason.Clear:
-                                    count = 0;
-                                    break;
+                                switch (c.Reason)
+                                {
+                                    case ListChangeReason.Add:
+                                        tuple.count.Increment();
+                                        break;
+                                    case ListChangeReason.AddRange:
+                                        tuple.count.Add(c.Range.Count > 0 ? c.Range.Count : 1);
+                                        break;
+                                    case ListChangeReason.Remove:
+                                        tuple.count.Decrement();
+                                        break;
+                                    case ListChangeReason.RemoveRange:
+                                        tuple.count.Subtract(c.Range.Count > 0 ? c.Range.Count : 1);
+                                        break;
+                                    case ListChangeReason.Clear:
+                                        tuple.count.Value = 0;
+                                        break;
+                                }
                             }
-                        }
 
-                        observer.OnNext(count);
-                    }
-                    catch (Exception ex)
+                            tuple.observer.OnNext(tuple.count.Value);
+                        }
+                        catch (Exception ex)
+                        {
+                            tuple.observer.OnErrorResume(ex);
+                        }
+                    },
+                    static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                    static (result, tuple) =>
                     {
-                        observer.OnErrorResume(ex);
-                    }
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted);
-        });
+                        if (result.IsSuccess)
+                        {
+                            tuple.observer.OnCompleted();
+                        }
+                        else
+                        {
+                            tuple.observer.OnCompleted(result);
+                        }
+                    });
+            });
     }
 
     public static Observable<int> Sum(this Observable<IChangeSet<int>> source)
     {
-        return source.Scan(0, (sum, changes) =>
+        return source.Scan(0, static (sum, changes) =>
         {
             int s = sum;
             foreach (var c in changes)

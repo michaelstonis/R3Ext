@@ -32,11 +32,14 @@ public static partial class ObservableCacheEx
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (keySelector is null) throw new ArgumentNullException(nameof(keySelector));
-        return Observable.Create<IChangeSet<TObject, TKey>>(observer =>
+        var state = new AddKeyState<TObject, TKey>(source, keySelector);
+        return Observable.Create<IChangeSet<TObject, TKey>, AddKeyState<TObject, TKey>>(
+            state,
+            static (observer, state) =>
         {
             // Track current items so we can emit proper removes on Clear / RemoveRange.
             var current = new Dictionary<TKey, TObject>();
-            return source.Subscribe(changes =>
+            return state.Source.Subscribe(changes =>
             {
                 var converted = new List<Change<TObject, TKey>>();
                 foreach (var change in changes)
@@ -45,7 +48,7 @@ public static partial class ObservableCacheEx
                     {
                         case ListChangeReason.Add:
                             {
-                                var key = keySelector(change.Item);
+                                var key = state.KeySelector(change.Item);
                                 current[key] = change.Item;
                                 converted.Add(new Change<TObject, TKey>(ChangeReason.Add, key, change.Item));
                                 break;
@@ -53,18 +56,18 @@ public static partial class ObservableCacheEx
                         case ListChangeReason.AddRange:
                             foreach (var item in change.Range)
                             {
-                                var key = keySelector(item);
+                                var key = state.KeySelector(item);
                                 current[key] = item;
                                 converted.Add(new Change<TObject, TKey>(ChangeReason.Add, key, item));
                             }
                             break;
                         case ListChangeReason.Replace:
                             {
-                                var key = keySelector(change.Item);
+                                var key = state.KeySelector(change.Item);
                                 // Assume key stable; if changed treat as remove+add.
-                                if (change.PreviousItem is not null && !EqualityComparer<TKey>.Default.Equals(keySelector(change.PreviousItem), key))
+                                if (change.PreviousItem is not null && !EqualityComparer<TKey>.Default.Equals(state.KeySelector(change.PreviousItem), key))
                                 {
-                                    var oldKey = keySelector(change.PreviousItem);
+                                    var oldKey = state.KeySelector(change.PreviousItem);
                                     if (current.Remove(oldKey))
                                     {
                                         converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, oldKey, change.PreviousItem));
@@ -89,7 +92,7 @@ public static partial class ObservableCacheEx
                             }
                         case ListChangeReason.Remove:
                             {
-                                var key = keySelector(change.Item);
+                                var key = state.KeySelector(change.Item);
                                 if (current.Remove(key))
                                 {
                                     converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, change.Item));
@@ -99,7 +102,7 @@ public static partial class ObservableCacheEx
                         case ListChangeReason.RemoveRange:
                             foreach (var item in change.Range)
                             {
-                                var key = keySelector(item);
+                                var key = state.KeySelector(item);
                                 if (current.Remove(key))
                                 {
                                     converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, item));
@@ -108,10 +111,10 @@ public static partial class ObservableCacheEx
                             break;
                         case ListChangeReason.Moved:
                             // Cache has no ordering concept; treat as Refresh.
-                            converted.Add(new Change<TObject, TKey>(ChangeReason.Refresh, keySelector(change.Item), change.Item));
+                            converted.Add(new Change<TObject, TKey>(ChangeReason.Refresh, state.KeySelector(change.Item), change.Item));
                             break;
                         case ListChangeReason.Refresh:
-                            converted.Add(new Change<TObject, TKey>(ChangeReason.Refresh, keySelector(change.Item), change.Item));
+                            converted.Add(new Change<TObject, TKey>(ChangeReason.Refresh, state.KeySelector(change.Item), change.Item));
                             break;
                         case ListChangeReason.Clear:
                             // Remove all previously tracked items if range includes them; if empty fallback to clearing dictionary.
@@ -119,7 +122,7 @@ public static partial class ObservableCacheEx
                             {
                                 foreach (var item in change.Range)
                                 {
-                                    var key = keySelector(item);
+                                    var key = state.KeySelector(item);
                                     if (current.Remove(key))
                                         converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, item));
                                 }
@@ -153,9 +156,12 @@ public static partial class ObservableCacheEx
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (selector is null) throw new ArgumentNullException(nameof(selector));
-        return Observable.Create<IChangeSet<TDestination, TKey>>(observer =>
+        var state = new CastState<TSource, TKey, TDestination>(source, selector);
+        return Observable.Create<IChangeSet<TDestination, TKey>, CastState<TSource, TKey, TDestination>>(
+            state,
+            static (observer, state) =>
         {
-            return source.Subscribe(changes =>
+            return state.Source.Subscribe(changes =>
             {
                 var converted = new List<Change<TDestination, TKey>>(changes.Count);
                 foreach (var change in changes)
@@ -163,18 +169,18 @@ public static partial class ObservableCacheEx
                     switch (change.Reason)
                     {
                         case ChangeReason.Add:
-                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Add, change.Key, selector(change.Current)));
+                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Add, change.Key, state.Selector(change.Current)));
                             break;
                         case ChangeReason.Update:
-                            var prevVal = change.Previous.HasValue ? selector(change.Previous.Value) : selector(change.Current);
-                            var currVal = selector(change.Current);
+                            var prevVal = change.Previous.HasValue ? state.Selector(change.Previous.Value) : state.Selector(change.Current);
+                            var currVal = state.Selector(change.Current);
                             converted.Add(new Change<TDestination, TKey>(ChangeReason.Update, change.Key, currVal, prevVal));
                             break;
                         case ChangeReason.Remove:
-                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Remove, change.Key, selector(change.Current)));
+                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Remove, change.Key, state.Selector(change.Current)));
                             break;
                         case ChangeReason.Refresh:
-                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Refresh, change.Key, selector(change.Current)));
+                            converted.Add(new Change<TDestination, TKey>(ChangeReason.Refresh, change.Key, state.Selector(change.Current)));
                             break;
                     }
                 }
@@ -195,17 +201,18 @@ public static partial class ObservableCacheEx
         where TObject : notnull where TKey : notnull
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
-        return Observable.Create<Optional<TObject>>(observer =>
+        var state = new ToObservableOptionalState<TObject, TKey>(source, key);
+        return Observable.Create<Optional<TObject>, ToObservableOptionalState<TObject, TKey>>(state, static (observer, state) =>
         {
             TObject? latest = default;
             bool hasValue = false;
             observer.OnNext(Optional<TObject>.None);
-            return source.Subscribe(changes =>
+            return state.Source.Subscribe(changes =>
             {
                 bool changed = false;
                 foreach (var change in changes)
                 {
-                    if (!EqualityComparer<TKey>.Default.Equals(change.Key, key)) continue;
+                    if (!EqualityComparer<TKey>.Default.Equals(change.Key, state.Key)) continue;
                     switch (change.Reason)
                     {
                         case ChangeReason.Add:
@@ -228,6 +235,20 @@ public static partial class ObservableCacheEx
                 }
             }, observer.OnErrorResume, observer.OnCompleted);
         });
+    }
+
+    private readonly struct ToObservableOptionalState<TObject, TKey>
+        where TObject : notnull
+        where TKey : notnull
+    {
+        public readonly Observable<IChangeSet<TObject, TKey>> Source;
+        public readonly TKey Key;
+
+        public ToObservableOptionalState(Observable<IChangeSet<TObject, TKey>> source, TKey key)
+        {
+            Source = source;
+            Key = key;
+        }
     }
 
     // ------------------ EditDiff ------------------
@@ -391,59 +412,98 @@ public static partial class ObservableCacheEx
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (observableSelector is null) throw new ArgumentNullException(nameof(observableSelector));
         if (equalityCondition is null) throw new ArgumentNullException(nameof(equalityCondition));
-        return Observable.Create<bool>(observer =>
-        {
-            var itemStates = new Dictionary<TKey, (TObject Item, TValue? Latest)>();
-            var innerSubs = new Dictionary<TKey, IDisposable>();
-            void Recompute()
-            {
-                bool any = itemStates.Any(kvp => kvp.Value.Latest is TValue v && equalityCondition(kvp.Value.Item, v));
-                observer.OnNext(any);
-            }
-            // Initial (empty) => false
-            observer.OnNext(false);
 
-            var outer = source.Subscribe(changes =>
+        var state = new TrueForAnyState<TObject, TKey, TValue>(source, observableSelector, equalityCondition);
+        return Observable.Create<bool, TrueForAnyState<TObject, TKey, TValue>>(
+            state,
+            static (observer, state) =>
             {
-                foreach (var change in changes)
+                var itemStates = new Dictionary<TKey, (TObject Item, TValue? Latest)>();
+                var innerSubs = new Dictionary<TKey, IDisposable>();
+                void Recompute()
                 {
-                    switch (change.Reason)
-                    {
-                        case ChangeReason.Add:
-                        case ChangeReason.Update:
-                            var existingLatest = itemStates.TryGetValue(change.Key, out var tuple) ? tuple.Latest : default;
-                            itemStates[change.Key] = (change.Current, existingLatest);
-                            if (!innerSubs.ContainsKey(change.Key))
-                            {
-                                var obs = observableSelector(change.Current);
-                                innerSubs[change.Key] = obs.Subscribe(val =>
-                                {
-                                    itemStates[change.Key] = (change.Current, val);
-                                    Recompute();
-                                });
-                            }
-                            break;
-                        case ChangeReason.Remove:
-                            if (innerSubs.Remove(change.Key, out var disp)) disp.Dispose();
-                            itemStates.Remove(change.Key);
-                            break;
-                        case ChangeReason.Refresh:
-                            if (itemStates.TryGetValue(change.Key, out var existing))
-                            {
-                                itemStates[change.Key] = (change.Current, existing.Latest);
-                            }
-                            break;
-                    }
+                    bool any = itemStates.Any(kvp => kvp.Value.Latest is TValue v && state.EqualityCondition(kvp.Value.Item, v));
+                    observer.OnNext(any);
                 }
-                Recompute();
-            });
+                // Initial (empty) => false
+                observer.OnNext(false);
 
-            return Disposable.Create(() =>
-            {
-                outer.Dispose();
-                foreach (var d in innerSubs.Values) d.Dispose();
+                var outer = state.Source.Subscribe(changes =>
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                            case ChangeReason.Update:
+                                var existingLatest = itemStates.TryGetValue(change.Key, out var tuple) ? tuple.Latest : default;
+                                itemStates[change.Key] = (change.Current, existingLatest);
+                                if (!innerSubs.ContainsKey(change.Key))
+                                {
+                                    var obs = state.ObservableSelector(change.Current);
+                                    var innerState = new InnerSubscriptionState<TObject, TKey, TValue>(change.Current, change.Key, itemStates, state.EqualityCondition, Recompute);
+                                    innerSubs[change.Key] = obs.Subscribe(innerState, static (val, innerState) =>
+                                    {
+                                        innerState.ItemStates[innerState.Key] = (innerState.Current, val);
+                                        innerState.Recompute();
+                                    });
+                                }
+                                break;
+                            case ChangeReason.Remove:
+                                if (innerSubs.Remove(change.Key, out var disp)) disp.Dispose();
+                                itemStates.Remove(change.Key);
+                                break;
+                            case ChangeReason.Refresh:
+                                if (itemStates.TryGetValue(change.Key, out var existing))
+                                {
+                                    itemStates[change.Key] = (change.Current, existing.Latest);
+                                }
+                                break;
+                        }
+                    }
+                    Recompute();
+                });
+
+                return Disposable.Create(() =>
+                {
+                    outer.Dispose();
+                    foreach (var d in innerSubs.Values) d.Dispose();
+                });
             });
-        });
+    }
+
+    private sealed class TrueForAnyState<TObj, TK, TV>
+        where TObj : notnull where TK : notnull where TV : notnull
+    {
+        public readonly Observable<IChangeSet<TObj, TK>> Source;
+        public readonly Func<TObj, Observable<TV>> ObservableSelector;
+        public readonly Func<TObj, TV, bool> EqualityCondition;
+
+        public TrueForAnyState(Observable<IChangeSet<TObj, TK>> source, Func<TObj, Observable<TV>> observableSelector, Func<TObj, TV, bool> equalityCondition)
+        {
+            Source = source;
+            ObservableSelector = observableSelector;
+            EqualityCondition = equalityCondition;
+        }
+    }
+
+    private sealed class InnerSubscriptionState<TObj, TK, TV>
+        where TObj : notnull where TK : notnull where TV : notnull
+    {
+        public readonly TObj Current;
+        public readonly TK Key;
+        public readonly Dictionary<TK, (TObj Item, TV? Latest)> ItemStates;
+        public readonly Func<TObj, TV, bool> EqualityCondition;
+        public readonly Action Recompute;
+
+        public InnerSubscriptionState(TObj current, TK key, Dictionary<TK, (TObj Item, TV? Latest)> itemStates, Func<TObj, TV, bool> equalityCondition, Action recompute)
+        {
+            Current = current;
+            Key = key;
+            ItemStates = itemStates;
+            EqualityCondition = equalityCondition;
+            Recompute = recompute;
+        }
     }
 
     // ------------------ TrueForAll ------------------
@@ -456,59 +516,79 @@ public static partial class ObservableCacheEx
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (observableSelector is null) throw new ArgumentNullException(nameof(observableSelector));
         if (equalityCondition is null) throw new ArgumentNullException(nameof(equalityCondition));
-        return Observable.Create<bool>(observer =>
-        {
-            var itemStates = new Dictionary<TKey, (TObject Item, TValue? Latest)>();
-            var innerSubs = new Dictionary<TKey, IDisposable>();
-            void Recompute()
-            {
-                bool all = itemStates.Count == 0 || itemStates.All(kvp => kvp.Value.Latest is TValue v && equalityCondition(kvp.Value.Item, v));
-                observer.OnNext(all);
-            }
-            // Empty set vacuously true
-            observer.OnNext(true);
 
-            var outer = source.Subscribe(changes =>
+        var state = new TrueForAllState<TObject, TKey, TValue>(source, observableSelector, equalityCondition);
+        return Observable.Create<bool, TrueForAllState<TObject, TKey, TValue>>(
+            state,
+            static (observer, state) =>
             {
-                foreach (var change in changes)
+                var itemStates = new Dictionary<TKey, (TObject Item, TValue? Latest)>();
+                var innerSubs = new Dictionary<TKey, IDisposable>();
+                void Recompute()
                 {
-                    switch (change.Reason)
-                    {
-                        case ChangeReason.Add:
-                        case ChangeReason.Update:
-                            var existingLatest = itemStates.TryGetValue(change.Key, out var tuple) ? tuple.Latest : default;
-                            itemStates[change.Key] = (change.Current, existingLatest);
-                            if (!innerSubs.ContainsKey(change.Key))
-                            {
-                                var obs = observableSelector(change.Current);
-                                innerSubs[change.Key] = obs.Subscribe(val =>
-                                {
-                                    itemStates[change.Key] = (change.Current, val);
-                                    Recompute();
-                                });
-                            }
-                            break;
-                        case ChangeReason.Remove:
-                            if (innerSubs.Remove(change.Key, out var disp)) disp.Dispose();
-                            itemStates.Remove(change.Key);
-                            break;
-                        case ChangeReason.Refresh:
-                            if (itemStates.TryGetValue(change.Key, out var existing))
-                            {
-                                itemStates[change.Key] = (change.Current, existing.Latest);
-                            }
-                            break;
-                    }
+                    bool all = itemStates.Count == 0 || itemStates.All(kvp => kvp.Value.Latest is TValue v && state.EqualityCondition(kvp.Value.Item, v));
+                    observer.OnNext(all);
                 }
-                Recompute();
-            });
+                // Empty set vacuously true
+                observer.OnNext(true);
 
-            return Disposable.Create(() =>
-            {
-                outer.Dispose();
-                foreach (var d in innerSubs.Values) d.Dispose();
+                var outer = state.Source.Subscribe(changes =>
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                            case ChangeReason.Update:
+                                var existingLatest = itemStates.TryGetValue(change.Key, out var tuple) ? tuple.Latest : default;
+                                itemStates[change.Key] = (change.Current, existingLatest);
+                                if (!innerSubs.ContainsKey(change.Key))
+                                {
+                                    var obs = state.ObservableSelector(change.Current);
+                                    var innerState = new InnerSubscriptionState<TObject, TKey, TValue>(change.Current, change.Key, itemStates, state.EqualityCondition, Recompute);
+                                    innerSubs[change.Key] = obs.Subscribe(innerState, static (val, innerState) =>
+                                    {
+                                        innerState.ItemStates[innerState.Key] = (innerState.Current, val);
+                                        innerState.Recompute();
+                                    });
+                                }
+                                break;
+                            case ChangeReason.Remove:
+                                if (innerSubs.Remove(change.Key, out var disp)) disp.Dispose();
+                                itemStates.Remove(change.Key);
+                                break;
+                            case ChangeReason.Refresh:
+                                if (itemStates.TryGetValue(change.Key, out var existing))
+                                {
+                                    itemStates[change.Key] = (change.Current, existing.Latest);
+                                }
+                                break;
+                        }
+                    }
+                    Recompute();
+                });
+
+                return Disposable.Create(() =>
+                {
+                    outer.Dispose();
+                    foreach (var d in innerSubs.Values) d.Dispose();
+                });
             });
-        });
+    }
+
+    private sealed class TrueForAllState<TObj, TK, TV>
+        where TObj : notnull where TK : notnull where TV : notnull
+    {
+        public readonly Observable<IChangeSet<TObj, TK>> Source;
+        public readonly Func<TObj, Observable<TV>> ObservableSelector;
+        public readonly Func<TObj, TV, bool> EqualityCondition;
+
+        public TrueForAllState(Observable<IChangeSet<TObj, TK>> source, Func<TObj, Observable<TV>> observableSelector, Func<TObj, TV, bool> equalityCondition)
+        {
+            Source = source;
+            ObservableSelector = observableSelector;
+            EqualityCondition = equalityCondition;
+        }
     }
 
     // ------------------ QueryWhenChanged / ToCollection ------------------
@@ -580,4 +660,33 @@ internal sealed class CacheQuery<TObject, TKey>(IReadOnlyDictionary<TKey, TObjec
     public IEnumerable<TKey> Keys => _data.Keys;
     public IEnumerable<KeyValuePair<TKey, TObject>> KeyValues => _data;
     public Optional<TObject> Lookup(TKey key) => _data.TryGetValue(key, out var value) ? Optional<TObject>.Some(value) : Optional<TObject>.None;
+}
+
+internal readonly struct AddKeyState<TObject, TKey>
+    where TObject : notnull
+    where TKey : notnull
+{
+    public readonly Observable<IChangeSet<TObject>> Source;
+    public readonly Func<TObject, TKey> KeySelector;
+
+    public AddKeyState(Observable<IChangeSet<TObject>> source, Func<TObject, TKey> keySelector)
+    {
+        Source = source;
+        KeySelector = keySelector;
+    }
+}
+
+internal readonly struct CastState<TSource, TKey, TDestination>
+    where TSource : notnull
+    where TKey : notnull
+    where TDestination : notnull
+{
+    public readonly Observable<IChangeSet<TSource, TKey>> Source;
+    public readonly Func<TSource, TDestination> Selector;
+
+    public CastState(Observable<IChangeSet<TSource, TKey>> source, Func<TSource, TDestination> selector)
+    {
+        Source = source;
+        Selector = selector;
+    }
 }

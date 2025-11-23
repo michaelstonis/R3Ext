@@ -15,9 +15,14 @@ internal sealed class IncludeUpdateWhen<TObject, TKey>
         _predicate = predicate ?? throw new ArgumentNullException(nameof(predicate));
     }
 
-    public Observable<IChangeSet<TObject, TKey>> Run() => Observable.Create<IChangeSet<TObject, TKey>>(observer =>
+    public Observable<IChangeSet<TObject, TKey>> Run()
     {
-        return _source.Subscribe(changes =>
+        var state = new IncludeUpdateWhenState(_source, _predicate);
+        return Observable.Create<IChangeSet<TObject, TKey>, IncludeUpdateWhenState>(
+            state,
+            static (observer, state) =>
+        {
+            return state.Source.Subscribe(changes =>
         {
             if (changes.Count == 0) return;
             var filtered = new ChangeSet<TObject, TKey>();
@@ -26,12 +31,25 @@ internal sealed class IncludeUpdateWhen<TObject, TKey>
                 if (c.Reason == Kernel.ChangeReason.Update)
                 {
                     var prev = c.Previous.HasValue ? c.Previous.Value : default;
-                    if (!_predicate(c.Current, prev))
+                    if (!state.Predicate(c.Current, prev))
                         continue; // suppress this update
                 }
                 filtered.Add(c);
             }
             if (filtered.Count > 0) observer.OnNext(filtered);
         }, observer.OnErrorResume, observer.OnCompleted);
-    });
+        });
+    }
+
+    private readonly struct IncludeUpdateWhenState
+    {
+        public readonly Observable<IChangeSet<TObject, TKey>> Source;
+        public readonly Func<TObject, TObject?, bool> Predicate;
+
+        public IncludeUpdateWhenState(Observable<IChangeSet<TObject, TKey>> source, Func<TObject, TObject?, bool> predicate)
+        {
+            Source = source;
+            Predicate = predicate;
+        }
+    }
 }

@@ -20,18 +20,37 @@ internal sealed class ToObservableChangeSet<TObject>
             throw new ArgumentNullException(nameof(source));
         }
 
-        return Observable.Create<IChangeSet<TObject>>(observer =>
+        var state = new ToObservableChangeSetState<TObject>(source, expireAfter, limitSizeTo);
+        return Observable.Create<IChangeSet<TObject>, ToObservableChangeSetState<TObject>>(
+            state,
+            static (observer, state) =>
+            {
+                return CreateFromEnumerable(
+                    state.Source.Select(state.Buffer, static (item, buf) =>
+                    {
+                        buf[0] = item;
+                        return (IEnumerable<TObject>)buf;
+                    }),
+                    state.ExpireAfter,
+                    state.LimitSizeTo).Subscribe(observer);
+            });
+    }
+
+    private readonly struct ToObservableChangeSetState<T>
+        where T : notnull
+    {
+        public readonly Observable<T> Source;
+        public readonly Func<T, TimeSpan?>? ExpireAfter;
+        public readonly int LimitSizeTo;
+        public readonly T[] Buffer;
+
+        public ToObservableChangeSetState(Observable<T> source, Func<T, TimeSpan?>? expireAfter, int limitSizeTo)
         {
-            var buffer = new TObject[1];
-            return CreateFromEnumerable(
-                source.Select(item =>
-                {
-                    buffer[0] = item;
-                    return (IEnumerable<TObject>)buffer;
-                }),
-                expireAfter,
-                limitSizeTo).Subscribe(observer);
-        });
+            Source = source;
+            ExpireAfter = expireAfter;
+            LimitSizeTo = limitSizeTo;
+            Buffer = new T[1];
+        }
     }
 
     public static Observable<IChangeSet<TObject>> CreateFromEnumerable(

@@ -28,10 +28,13 @@ internal sealed class EnsureUniqueKeys<TObject, TKey>
         //  - Multiple Refresh only -> single Refresh.
         //  - Update for existing key emitted as Update; if key did not exist prior to batch treat as Add.
         //  - Remove for existing key emitted; if key new in batch (Add then Remove) suppressed.
-        return Observable.Create<IChangeSet<TObject, TKey>>(observer =>
+        var opState = new EnsureUniqueKeysState(_source);
+        return Observable.Create<IChangeSet<TObject, TKey>, EnsureUniqueKeysState>(
+            opState,
+            static (observer, opState) =>
         {
             var state = new Dictionary<TKey, TObject>(); // Tracks cache state across batches.
-            return _source.Subscribe(changes =>
+            return opState.Source.Subscribe(changes =>
             {
                 if (changes.Count == 0)
                     return; // nothing to process
@@ -142,5 +145,11 @@ internal sealed class EnsureUniqueKeys<TObject, TKey>
                 }
             }, observer.OnErrorResume, observer.OnCompleted);
         });
+    }
+
+    private readonly struct EnsureUniqueKeysState
+    {
+        public readonly Observable<IChangeSet<TObject, TKey>> Source;
+        public EnsureUniqueKeysState(Observable<IChangeSet<TObject, TKey>> source) => Source = source;
     }
 }

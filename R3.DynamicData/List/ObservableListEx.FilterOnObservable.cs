@@ -17,131 +17,144 @@ public static partial class ObservableListEx
         Func<T, Observable<bool>> predicateSelector)
         where T : notnull
     {
-        return Observable.Create<IChangeSet<T>>(observer =>
-        {
-            var trackedItems = new Dictionary<T, TrackedItem<T>>();
-            var includedItems = new List<T>();
-            var disposables = new CompositeDisposable();
+        return Observable.Create<IChangeSet<T>, FilterOnObservableState<T>>(
+            new FilterOnObservableState<T>(source, predicateSelector),
+            static (observer, state) =>
+            {
+                var trackedItems = new Dictionary<T, TrackedItem<T>>();
+                var includedItems = new List<T>();
+                var disposables = new CompositeDisposable();
 
-            source.Subscribe(
-                changeSet =>
-                {
-                    try
+                state.Source.Subscribe(
+                    (observer, trackedItems, includedItems, state),
+                    static (changeSet, tuple) =>
                     {
-                        var outputChanges = new ChangeSet<T>();
-
-                        foreach (var change in changeSet)
+                        try
                         {
-                            switch (change.Reason)
+                            var outputChanges = new ChangeSet<T>();
+
+                            foreach (var change in changeSet)
                             {
-                                case ListChangeReason.Add:
-                                case ListChangeReason.Replace:
-                                    HandleAddOrReplace(
-                                        change.Item,
-                                        change.CurrentIndex,
-                                        trackedItems,
-                                        includedItems,
-                                        predicateSelector,
-                                        outputChanges,
-                                        observer);
-                                    break;
-
-                                case ListChangeReason.Remove:
-                                    HandleRemove(
-                                        change.Item,
-                                        change.CurrentIndex,
-                                        trackedItems,
-                                        includedItems,
-                                        outputChanges);
-                                    break;
-
-                                case ListChangeReason.AddRange:
-                                    foreach (var item in change.Range)
-                                    {
+                                switch (change.Reason)
+                                {
+                                    case ListChangeReason.Add:
+                                    case ListChangeReason.Replace:
                                         HandleAddOrReplace(
-                                            item,
-                                            -1,
-                                            trackedItems,
-                                            includedItems,
-                                            predicateSelector,
+                                            change.Item,
+                                            change.CurrentIndex,
+                                            tuple.trackedItems,
+                                            tuple.includedItems,
+                                            tuple.state.PredicateSelector,
                                             outputChanges,
-                                            observer);
-                                    }
+                                            tuple.observer);
+                                        break;
 
-                                    break;
+                                    case ListChangeReason.Remove:
+                                        HandleRemove(
+                                            change.Item,
+                                            change.CurrentIndex,
+                                            tuple.trackedItems,
+                                            tuple.includedItems,
+                                            outputChanges);
+                                        break;
 
-                                case ListChangeReason.RemoveRange:
-                                    foreach (var item in change.Range)
-                                    {
-                                        HandleRemove(item, -1, trackedItems, includedItems, outputChanges);
-                                    }
-
-                                    break;
-
-                                case ListChangeReason.Clear:
-                                    foreach (var trackedValue in trackedItems.Values)
-                                    {
-                                        trackedValue.Subscription?.Dispose();
-                                    }
-
-                                    trackedItems.Clear();
-                                    if (includedItems.Count > 0)
-                                    {
-                                        var itemsToRemove = includedItems.ToList();
-                                        includedItems.Clear();
-                                        outputChanges.Add(new Change<T>(ListChangeReason.Clear, itemsToRemove, 0));
-                                    }
-
-                                    break;
-
-                                case ListChangeReason.Moved:
-                                    // For moved items, we need to update their position in includedItems
-                                    var movedItem = change.Item;
-                                    if (trackedItems.TryGetValue(movedItem, out var tracked) && tracked.IsIncluded)
-                                    {
-                                        var oldIndex = includedItems.IndexOf(movedItem);
-                                        if (oldIndex >= 0)
+                                    case ListChangeReason.AddRange:
+                                        foreach (var item in change.Range)
                                         {
-                                            includedItems.RemoveAt(oldIndex);
-                                            var newIndex = Math.Min(change.CurrentIndex, includedItems.Count);
-                                            includedItems.Insert(newIndex, movedItem);
-                                            outputChanges.Add(new Change<T>(
-                                                ListChangeReason.Moved,
-                                                movedItem,
-                                                newIndex,
-                                                oldIndex));
+                                            HandleAddOrReplace(
+                                                item,
+                                                -1,
+                                                tuple.trackedItems,
+                                                tuple.includedItems,
+                                                tuple.state.PredicateSelector,
+                                                outputChanges,
+                                                tuple.observer);
                                         }
-                                    }
 
-                                    break;
+                                        break;
+
+                                    case ListChangeReason.RemoveRange:
+                                        foreach (var item in change.Range)
+                                        {
+                                            HandleRemove(item, -1, tuple.trackedItems, tuple.includedItems, outputChanges);
+                                        }
+
+                                        break;
+
+                                    case ListChangeReason.Clear:
+                                        foreach (var trackedValue in tuple.trackedItems.Values)
+                                        {
+                                            trackedValue.Subscription?.Dispose();
+                                        }
+
+                                        tuple.trackedItems.Clear();
+                                        if (tuple.includedItems.Count > 0)
+                                        {
+                                            var itemsToRemove = tuple.includedItems.ToList();
+                                            tuple.includedItems.Clear();
+                                            outputChanges.Add(new Change<T>(ListChangeReason.Clear, itemsToRemove, 0));
+                                        }
+
+                                        break;
+
+                                    case ListChangeReason.Moved:
+                                        // For moved items, we need to update their position in includedItems
+                                        var movedItem = change.Item;
+                                        if (tuple.trackedItems.TryGetValue(movedItem, out var tracked) && tracked.IsIncluded)
+                                        {
+                                            var oldIndex = tuple.includedItems.IndexOf(movedItem);
+                                            if (oldIndex >= 0)
+                                            {
+                                                tuple.includedItems.RemoveAt(oldIndex);
+                                                var newIndex = Math.Min(change.CurrentIndex, tuple.includedItems.Count);
+                                                tuple.includedItems.Insert(newIndex, movedItem);
+                                                outputChanges.Add(new Change<T>(
+                                                    ListChangeReason.Moved,
+                                                    movedItem,
+                                                    newIndex,
+                                                    oldIndex));
+                                            }
+                                        }
+
+                                        break;
+                                }
+                            }
+
+                            if (outputChanges.Count > 0)
+                            {
+                                tuple.observer.OnNext(outputChanges);
                             }
                         }
-
-                        if (outputChanges.Count > 0)
+                        catch (Exception ex)
                         {
-                            observer.OnNext(outputChanges);
+                            tuple.observer.OnErrorResume(ex);
                         }
-                    }
-                    catch (Exception ex)
+                    },
+                    static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                    static (result, tuple) =>
                     {
-                        observer.OnErrorResume(ex);
-                    }
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted).AddTo(disposables);
+                        if (result.IsSuccess)
+                        {
+                            tuple.observer.OnCompleted();
+                        }
+                        else
+                        {
+                            tuple.observer.OnCompleted(result);
+                        }
+                    }).AddTo(disposables);
 
-            return Disposable.Create(() =>
-            {
-                foreach (var trackedValue in trackedItems.Values)
+                return Disposable.Create((trackedItems, includedItems, disposables), static tuple =>
                 {
-                    trackedValue.Subscription?.Dispose();
-                }
+                    foreach (var trackedValue in tuple.trackedItems.Values)
+                    {
+                        trackedValue.Subscription?.Dispose();
+                    }
 
-                trackedItems.Clear();
-                includedItems.Clear();
-                disposables.Dispose();
+                    tuple.trackedItems.Clear();
+                    tuple.includedItems.Clear();
+                    tuple.disposables.Dispose();
+                });
             });
-        });
     }
 
     private static void HandleAddOrReplace<T>(
@@ -245,5 +258,18 @@ public static partial class ObservableListEx
         public bool IsIncluded { get; set; }
 
         public IDisposable? Subscription { get; set; }
+    }
+
+    private readonly struct FilterOnObservableState<T>
+        where T : notnull
+    {
+        public readonly Observable<IChangeSet<T>> Source;
+        public readonly Func<T, Observable<bool>> PredicateSelector;
+
+        public FilterOnObservableState(Observable<IChangeSet<T>> source, Func<T, Observable<bool>> predicateSelector)
+        {
+            Source = source;
+            PredicateSelector = predicateSelector;
+        }
     }
 }
