@@ -69,7 +69,7 @@ public static class ObservableListAggregates
 
     public static Observable<int> Sum(this Observable<IChangeSet<int>> source)
     {
-        return source.Scan(0, (sum, changes) =>
+        return source.Scan(0, static (sum, changes) =>
         {
             int s = sum;
             foreach (var c in changes)
