@@ -51,7 +51,7 @@ public class ExpireAfterCacheTests
         var removed = new List<int>();
 
         using var sub = cache.Connect()
-            .ExpireAfter<Item, int>(i => i.Name == "expire" ? TimeSpan.FromMilliseconds(200) : TimeSpan.FromMilliseconds(600))
+            .ExpireAfter<Item, int>(i => i.Name == "expire" ? TimeSpan.FromMilliseconds(400) : TimeSpan.FromMilliseconds(1000))
             .Subscribe(changes =>
             {
                 foreach (var c in changes)
@@ -61,12 +61,12 @@ public class ExpireAfterCacheTests
             });
 
         cache.AddOrUpdate(new Item(1, "expire"));
-        await Task.Delay(100); // Advance to 100ms, well before 200ms expiry
+        await Task.Delay(200); // Advance to 200ms, well before 400ms expiry
         // Update to extended expiry before original expiry fires
         cache.AddOrUpdate(new Item(1, "extended"));
-        await Task.Delay(200); // Advance to 300ms total, past original 200ms expiry but within 600ms from update (at 100ms)
+        await Task.Delay(400); // Advance to 600ms total, past original 400ms expiry but within 1000ms from update (at 200ms)
         Assert.DoesNotContain(1, removed);
-        await Task.Delay(400); // Advance to 700ms total, past 600ms from update (100ms + 600ms)
+        await Task.Delay(700); // Advance to 1300ms total, well past 1000ms from update (200ms + 1000ms)
         Assert.Contains(1, removed);
     }
 

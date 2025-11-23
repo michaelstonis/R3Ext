@@ -157,7 +157,22 @@ public sealed class NewOperatorsTests : IDisposable
         _source.AddRange(new[] { 1, 2, 3 });
         source2.AddRange(new[] { 2, 3, 4 });
 
-        var allItems = _results.SelectMany(cs => cs.Select(c => c.Item)).ToHashSet();
+        var allItems = new HashSet<int>();
+        foreach (var cs in _results)
+        {
+            foreach (var change in cs)
+            {
+                if (change.Reason == ListChangeReason.Add)
+                {
+                    allItems.Add(change.Item);
+                }
+                else if (change.Reason == ListChangeReason.AddRange)
+                {
+                    allItems.UnionWith(change.Range);
+                }
+            }
+        }
+
         Assert.Equal(new[] { 2, 3 }, allItems.OrderBy(x => x));
 
         source2.Dispose();
@@ -175,7 +190,22 @@ public sealed class NewOperatorsTests : IDisposable
         _source.AddRange(new[] { 1, 2, 3 });
         source2.AddRange(new[] { 3, 4, 5 });
 
-        var allItems = _results.SelectMany(cs => cs.Select(c => c.Item)).ToHashSet();
+        var allItems = new HashSet<int>();
+        foreach (var cs in _results)
+        {
+            foreach (var change in cs)
+            {
+                if (change.Reason == ListChangeReason.Add)
+                {
+                    allItems.Add(change.Item);
+                }
+                else if (change.Reason == ListChangeReason.AddRange)
+                {
+                    allItems.UnionWith(change.Range);
+                }
+            }
+        }
+
         Assert.Equal(new[] { 1, 2, 3, 4, 5 }, allItems.OrderBy(x => x));
 
         source2.Dispose();
