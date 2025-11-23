@@ -40,69 +40,69 @@ public static partial class ObservableCacheEx
                         foreach (var change in changes)
                         {
                             switch (change.Reason)
-                        {
-                            case ChangeReason.Add:
-                                {
-                                    if (state.Predicate(change.Current))
+                            {
+                                case ChangeReason.Add:
                                     {
-                                        included.Add(change.Key);
-                                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, change.Key, change.Current));
+                                        if (state.Predicate(change.Current))
+                                        {
+                                            included.Add(change.Key);
+                                            outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, change.Key, change.Current));
+                                        }
+                                        break;
                                     }
+                                case ChangeReason.Update:
+                                    {
+                                        var wasIncluded = included.Contains(change.Key);
+                                        var nowIncluded = state.Predicate(change.Current);
+                                        if (wasIncluded && nowIncluded)
+                                        {
+                                            outSet.Add(new Change<TObject, TKey>(ChangeReason.Update, change.Key, change.Current, change.Previous.HasValue ? change.Previous.Value : change.Current));
+                                        }
+                                        else if (wasIncluded && !nowIncluded)
+                                        {
+                                            included.Remove(change.Key);
+                                            var prev = change.Previous.HasValue ? change.Previous.Value : change.Current;
+                                            outSet.Add(new Change<TObject, TKey>(ChangeReason.Remove, change.Key, prev, prev));
+                                        }
+                                        else if (!wasIncluded && nowIncluded)
+                                        {
+                                            included.Add(change.Key);
+                                            outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, change.Key, change.Current));
+                                        }
+                                        // else both false: ignore
+                                        break;
+                                    }
+                                case ChangeReason.Remove:
+                                    {
+                                        if (included.Remove(change.Key))
+                                        {
+                                            outSet.Add(new Change<TObject, TKey>(ChangeReason.Remove, change.Key, change.Current, change.Current));
+                                        }
+                                        break;
+                                    }
+                                case ChangeReason.Refresh:
+                                    {
+                                        var wasIncluded = included.Contains(change.Key);
+                                        var nowIncluded = state.Predicate(change.Current);
+                                        if (wasIncluded && nowIncluded)
+                                        {
+                                            outSet.Add(new Change<TObject, TKey>(ChangeReason.Refresh, change.Key, change.Current));
+                                        }
+                                        else if (wasIncluded && !nowIncluded)
+                                        {
+                                            included.Remove(change.Key);
+                                            outSet.Add(new Change<TObject, TKey>(ChangeReason.Remove, change.Key, change.Current, change.Current));
+                                        }
+                                        else if (!wasIncluded && nowIncluded)
+                                        {
+                                            included.Add(change.Key);
+                                            outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, change.Key, change.Current));
+                                        }
+                                        break;
+                                    }
+                                case ChangeReason.Moved:
                                     break;
-                                }
-                            case ChangeReason.Update:
-                                {
-                                    var wasIncluded = included.Contains(change.Key);
-                                    var nowIncluded = state.Predicate(change.Current);
-                                    if (wasIncluded && nowIncluded)
-                                    {
-                                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Update, change.Key, change.Current, change.Previous.HasValue ? change.Previous.Value : change.Current));
-                                    }
-                                    else if (wasIncluded && !nowIncluded)
-                                    {
-                                        included.Remove(change.Key);
-                                        var prev = change.Previous.HasValue ? change.Previous.Value : change.Current;
-                                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Remove, change.Key, prev, prev));
-                                    }
-                                    else if (!wasIncluded && nowIncluded)
-                                    {
-                                        included.Add(change.Key);
-                                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, change.Key, change.Current));
-                                    }
-                                    // else both false: ignore
-                                    break;
-                                }
-                            case ChangeReason.Remove:
-                                {
-                                    if (included.Remove(change.Key))
-                                    {
-                                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Remove, change.Key, change.Current, change.Current));
-                                    }
-                                    break;
-                                }
-                            case ChangeReason.Refresh:
-                                {
-                                    var wasIncluded = included.Contains(change.Key);
-                                    var nowIncluded = state.Predicate(change.Current);
-                                    if (wasIncluded && nowIncluded)
-                                    {
-                                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Refresh, change.Key, change.Current));
-                                    }
-                                    else if (wasIncluded && !nowIncluded)
-                                    {
-                                        included.Remove(change.Key);
-                                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Remove, change.Key, change.Current, change.Current));
-                                    }
-                                    else if (!wasIncluded && nowIncluded)
-                                    {
-                                        included.Add(change.Key);
-                                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, change.Key, change.Current));
-                                    }
-                                    break;
-                                }
-                            case ChangeReason.Moved:
-                                break;
-                        }
+                            }
                         }
 
                         if (outSet.Count > 0)
@@ -115,7 +115,7 @@ public static partial class ObservableCacheEx
                         observer.OnErrorResume(ex);
                     }
                 }, observer.OnErrorResume, observer.OnCompleted);
-        });
+            });
     }
 
     private readonly struct FilterCacheState<TObj, TK>

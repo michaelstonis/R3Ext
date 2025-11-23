@@ -573,16 +573,33 @@ public static partial class ObservableCacheEx
         where TKey : notnull
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
-        return Observable.Create<Change<TObject, TKey>>(observer =>
+        var state = new WatchValueState<TObject, TKey>(source, key);
+        return Observable.Create<Change<TObject, TKey>, WatchValueState<TObject, TKey>>(
+            state,
+            static (observer, state) =>
         {
-            return source.Subscribe(changes =>
+            return state.Source.Subscribe(changes =>
             {
                 foreach (var c in changes)
                 {
-                    if (EqualityComparer<TKey>.Default.Equals(c.Key, key))
+                    if (EqualityComparer<TKey>.Default.Equals(c.Key, state.Key))
                         observer.OnNext(c);
                 }
             }, observer.OnErrorResume, observer.OnCompleted);
         });
+    }
+
+    private readonly struct WatchValueState<TObject, TKey>
+        where TObject : notnull
+        where TKey : notnull
+    {
+        public readonly Observable<IChangeSet<TObject, TKey>> Source;
+        public readonly TKey Key;
+
+        public WatchValueState(Observable<IChangeSet<TObject, TKey>> source, TKey key)
+        {
+            Source = source;
+            Key = key;
+        }
     }
 }

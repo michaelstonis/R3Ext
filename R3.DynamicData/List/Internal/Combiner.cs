@@ -81,47 +81,47 @@ internal sealed class Combiner<T>
         }
 
         public static void ApplyChanges(List<TItem> list, IChangeSet<TItem> changes)
-    {
-        foreach (var change in changes)
         {
-            switch (change.Reason)
+            foreach (var change in changes)
             {
-                case ListChangeReason.Add:
-                    list.Insert(change.CurrentIndex, change.Item);
-                    break;
+                switch (change.Reason)
+                {
+                    case ListChangeReason.Add:
+                        list.Insert(change.CurrentIndex, change.Item);
+                        break;
 
-                case ListChangeReason.AddRange:
-                    list.InsertRange(change.CurrentIndex, change.Range);
-                    break;
+                    case ListChangeReason.AddRange:
+                        list.InsertRange(change.CurrentIndex, change.Range);
+                        break;
 
-                case ListChangeReason.Remove:
-                    list.RemoveAt(change.CurrentIndex);
-                    break;
-
-                case ListChangeReason.RemoveRange:
-                    for (int i = 0; i < change.Range.Count; i++)
-                    {
+                    case ListChangeReason.Remove:
                         list.RemoveAt(change.CurrentIndex);
-                    }
+                        break;
 
-                    break;
+                    case ListChangeReason.RemoveRange:
+                        for (int i = 0; i < change.Range.Count; i++)
+                        {
+                            list.RemoveAt(change.CurrentIndex);
+                        }
 
-                case ListChangeReason.Replace:
-                    list[change.CurrentIndex] = change.Item;
-                    break;
+                        break;
 
-                case ListChangeReason.Moved:
-                    var movedItem = list[change.PreviousIndex];
-                    list.RemoveAt(change.PreviousIndex);
-                    list.Insert(change.CurrentIndex, movedItem);
-                    break;
+                    case ListChangeReason.Replace:
+                        list[change.CurrentIndex] = change.Item;
+                        break;
 
-                case ListChangeReason.Clear:
-                    list.Clear();
-                    break;
+                    case ListChangeReason.Moved:
+                        var movedItem = list[change.PreviousIndex];
+                        list.RemoveAt(change.PreviousIndex);
+                        list.Insert(change.CurrentIndex, movedItem);
+                        break;
+
+                    case ListChangeReason.Clear:
+                        list.Clear();
+                        break;
+                }
             }
         }
-    }
 
         public static IChangeSet<TItem> CalculateCombinedResult(
             List<List<TItem>> sourceLists,
@@ -132,75 +132,75 @@ internal sealed class Combiner<T>
             var changes = new List<Change<TItem>>();
 
             switch (type)
-        {
-            case CombineOperator.And:
-                // Items in all sources
-                if (sourceLists.Count > 0 && sourceLists[0].Count > 0)
-                {
-                    var candidates = new HashSet<TItem>(sourceLists[0], comparer);
-                    for (int i = 1; i < sourceLists.Count; i++)
+            {
+                case CombineOperator.And:
+                    // Items in all sources
+                    if (sourceLists.Count > 0 && sourceLists[0].Count > 0)
                     {
-                        candidates.IntersectWith(sourceLists[i]);
-                    }
-
-                    resultSet = candidates;
-                }
-
-                break;
-
-            case CombineOperator.Or:
-                // Items in any source
-                foreach (var list in sourceLists)
-                {
-                    resultSet.UnionWith(list);
-                }
-
-                break;
-
-            case CombineOperator.Except:
-                // Items in first source but not in others
-                if (sourceLists.Count > 0)
-                {
-                    resultSet = new HashSet<TItem>(sourceLists[0], comparer);
-                    for (int i = 1; i < sourceLists.Count; i++)
-                    {
-                        resultSet.ExceptWith(sourceLists[i]);
-                    }
-                }
-
-                break;
-
-            case CombineOperator.Xor:
-                // Items in exactly one source - need to check which sources contain each item
-                var itemToSources = new Dictionary<TItem, HashSet<int>>(comparer);
-                for (int sourceIndex = 0; sourceIndex < sourceLists.Count; sourceIndex++)
-                {
-                    var uniqueInSource = new HashSet<TItem>(sourceLists[sourceIndex], comparer);
-                    foreach (var item in uniqueInSource)
-                    {
-                        if (!itemToSources.ContainsKey(item))
+                        var candidates = new HashSet<TItem>(sourceLists[0], comparer);
+                        for (int i = 1; i < sourceLists.Count; i++)
                         {
-                            itemToSources[item] = new HashSet<int>();
+                            candidates.IntersectWith(sourceLists[i]);
                         }
 
-                        itemToSources[item].Add(sourceIndex);
+                        resultSet = candidates;
                     }
-                }
 
-                // XOR: include items that appear in exactly one source
-                foreach (var kvp in itemToSources.Where(kvp => kvp.Value.Count == 1))
-                {
-                    resultSet.Add(kvp.Key);
-                }
+                    break;
 
-                break;
+                case CombineOperator.Or:
+                    // Items in any source
+                    foreach (var list in sourceLists)
+                    {
+                        resultSet.UnionWith(list);
+                    }
+
+                    break;
+
+                case CombineOperator.Except:
+                    // Items in first source but not in others
+                    if (sourceLists.Count > 0)
+                    {
+                        resultSet = new HashSet<TItem>(sourceLists[0], comparer);
+                        for (int i = 1; i < sourceLists.Count; i++)
+                        {
+                            resultSet.ExceptWith(sourceLists[i]);
+                        }
+                    }
+
+                    break;
+
+                case CombineOperator.Xor:
+                    // Items in exactly one source - need to check which sources contain each item
+                    var itemToSources = new Dictionary<TItem, HashSet<int>>(comparer);
+                    for (int sourceIndex = 0; sourceIndex < sourceLists.Count; sourceIndex++)
+                    {
+                        var uniqueInSource = new HashSet<TItem>(sourceLists[sourceIndex], comparer);
+                        foreach (var item in uniqueInSource)
+                        {
+                            if (!itemToSources.ContainsKey(item))
+                            {
+                                itemToSources[item] = new HashSet<int>();
+                            }
+
+                            itemToSources[item].Add(sourceIndex);
+                        }
+                    }
+
+                    // XOR: include items that appear in exactly one source
+                    foreach (var kvp in itemToSources.Where(kvp => kvp.Value.Count == 1))
+                    {
+                        resultSet.Add(kvp.Key);
+                    }
+
+                    break;
             }
 
             // Emit Clear followed by AddRange to ensure clean state
             changes.Add(new Change<TItem>(ListChangeReason.Clear, Array.Empty<TItem>(), 0));
             if (resultSet.Count > 0)
             {
-            changes.Add(new Change<TItem>(ListChangeReason.AddRange, resultSet, 0));
+                changes.Add(new Change<TItem>(ListChangeReason.AddRange, resultSet, 0));
             }
 
             return new ChangeSet<TItem>(changes);
