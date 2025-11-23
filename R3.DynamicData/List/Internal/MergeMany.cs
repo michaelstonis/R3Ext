@@ -18,31 +18,45 @@ internal sealed class MergeMany<TSource, TDestination>
 
     public Observable<TDestination> Run()
     {
-        return Observable.Create<TDestination>(observer =>
-        {
-            var counter = new SubscriptionCounter();
-            var gate = new object();
-            var disposables = new CompositeDisposable();
+        return Observable.Create<TDestination, MergeManyState<TSource, TDestination>>(
+            new MergeManyState<TSource, TDestination>(_source, _selector),
+            static (observer, state) =>
+            {
+                var counter = new SubscriptionCounter();
+                var gate = new object();
+                var disposables = new CompositeDisposable();
 
-            _source
-                .Concat(counter.DeferCleanup)
-                .SubscribeMany(item =>
-                {
-                    counter.Added();
-                    return _selector(item)
-                        .Synchronize(gate)
-                        .Do(onNext: observer.OnNext, onDispose: counter.Finally)
-                        .Subscribe();
-                })
+                new SubscribeMany<TSource>(
+                    state.Source.Concat(counter.DeferCleanup),
+                    item =>
+                    {
+                        counter.Added();
+                        return state.Selector(item)
+                            .Synchronize(gate)
+                            .Do(onNext: observer.OnNext, onDispose: counter.Finally)
+                            .Subscribe();
+                    })
+                .Run()
                 .Subscribe(
-                    static _ => { },
-                    observer.OnErrorResume,
-                    observer.OnCompleted)
+                    observer,
+                    static (_, _) => { },
+                    static (ex, obs) => obs.OnErrorResume(ex),
+                    static (result, obs) =>
+                    {
+                        if (result.IsSuccess)
+                        {
+                            obs.OnCompleted();
+                        }
+                        else
+                        {
+                            obs.OnCompleted(result);
+                        }
+                    })
                 .AddTo(disposables);
 
-            counter.AddTo(disposables);
-            return disposables;
-        });
+                counter.AddTo(disposables);
+                return disposables;
+            });
     }
 
     private sealed class SubscriptionCounter : IDisposable
@@ -68,6 +82,19 @@ internal sealed class MergeMany<TSource, TDestination>
             {
                 _subject.OnCompleted();
             }
+        }
+    }
+
+    private readonly struct MergeManyState<TItem, TDest>
+        where TItem : notnull
+    {
+        public readonly Observable<IChangeSet<TItem>> Source;
+        public readonly Func<TItem, Observable<TDest>> Selector;
+
+        public MergeManyState(Observable<IChangeSet<TItem>> source, Func<TItem, Observable<TDest>> selector)
+        {
+            Source = source;
+            Selector = selector;
         }
     }
 }
