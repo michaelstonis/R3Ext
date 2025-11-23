@@ -52,133 +52,133 @@ public static partial class ObservableCacheEx
                         {
                             var result = new ChangeSet<IGroup<TObject, TKey, TGroupKey>, TGroupKey>();
 
-                    foreach (var change in changeSet)
-                    {
-                        var key = change.Key;
-                        var current = change.Current;
+                            foreach (var change in changeSet)
+                            {
+                                var key = change.Key;
+                                var current = change.Current;
 
-                        switch (change.Reason)
-                        {
-                            case ChangeReason.Add:
-                            case ChangeReason.Update:
+                                switch (change.Reason)
                                 {
-                                    var groupKey = groupSelector(current);
-
-                                    // Check if item was previously in a different group
-                                    if (itemCache.TryGetValue(key, out var previous))
-                                    {
-                                        if (!EqualityComparer<TGroupKey>.Default.Equals(previous.GroupKey, groupKey))
+                                    case ChangeReason.Add:
+                                    case ChangeReason.Update:
                                         {
-                                            // Remove from old group
-                                            if (groupCache.TryGetValue(previous.GroupKey, out var oldGroup))
+                                            var groupKey = groupSelector(current);
+
+                                            // Check if item was previously in a different group
+                                            if (itemCache.TryGetValue(key, out var previous))
                                             {
-                                                oldGroup.Remove(key);
-                                                if (oldGroup.Count == 0)
+                                                if (!EqualityComparer<TGroupKey>.Default.Equals(previous.GroupKey, groupKey))
                                                 {
-                                                    groupCache.Remove(previous.GroupKey);
-                                                    oldGroup.Dispose();
-                                                    result.Add(new Change<IGroup<TObject, TKey, TGroupKey>, TGroupKey>(
-                                                        ChangeReason.Remove, previous.GroupKey, oldGroup));
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Get or create target group
-                                    if (!groupCache.TryGetValue(groupKey, out var group))
-                                    {
-                                        group = new ManagedGroup<TObject, TKey, TGroupKey>(groupKey);
-                                        groupCache[groupKey] = group;
-                                        result.Add(new Change<IGroup<TObject, TKey, TGroupKey>, TGroupKey>(
-                                            ChangeReason.Add, groupKey, group));
-                                    }
-
-                                    // Add/update item in group
-                                    group.AddOrUpdate(current, key);
-                                    itemCache[key] = (current, groupKey);
-                                    break;
-                                }
-
-                            case ChangeReason.Remove:
-                                {
-                                    if (itemCache.TryGetValue(key, out var previous))
-                                    {
-                                        if (groupCache.TryGetValue(previous.GroupKey, out var group))
-                                        {
-                                            group.Remove(key);
-                                            if (group.Count == 0)
-                                            {
-                                                groupCache.Remove(previous.GroupKey);
-                                                group.Dispose();
-                                                result.Add(new Change<IGroup<TObject, TKey, TGroupKey>, TGroupKey>(
-                                                    ChangeReason.Remove, previous.GroupKey, group));
-                                            }
-                                        }
-
-                                        itemCache.Remove(key);
-                                    }
-
-                                    break;
-                                }
-
-                            case ChangeReason.Refresh:
-                                {
-                                    var newGroupKey = groupSelector(current);
-
-                                    if (itemCache.TryGetValue(key, out var previous))
-                                    {
-                                        if (!EqualityComparer<TGroupKey>.Default.Equals(previous.GroupKey, newGroupKey))
-                                        {
-                                            // Remove from old group
-                                            if (groupCache.TryGetValue(previous.GroupKey, out var oldGroup))
-                                            {
-                                                oldGroup.Remove(key);
-                                                if (oldGroup.Count == 0)
-                                                {
-                                                    groupCache.Remove(previous.GroupKey);
-                                                    oldGroup.Dispose();
-                                                    result.Add(new Change<IGroup<TObject, TKey, TGroupKey>, TGroupKey>(
-                                                        ChangeReason.Remove, previous.GroupKey, oldGroup));
+                                                    // Remove from old group
+                                                    if (groupCache.TryGetValue(previous.GroupKey, out var oldGroup))
+                                                    {
+                                                        oldGroup.Remove(key);
+                                                        if (oldGroup.Count == 0)
+                                                        {
+                                                            groupCache.Remove(previous.GroupKey);
+                                                            oldGroup.Dispose();
+                                                            result.Add(new Change<IGroup<TObject, TKey, TGroupKey>, TGroupKey>(
+                                                                ChangeReason.Remove, previous.GroupKey, oldGroup));
+                                                        }
+                                                    }
                                                 }
                                             }
 
-                                            // Add to new group
-                                            if (!groupCache.TryGetValue(newGroupKey, out var newGroup))
+                                            // Get or create target group
+                                            if (!groupCache.TryGetValue(groupKey, out var group))
                                             {
-                                                newGroup = new ManagedGroup<TObject, TKey, TGroupKey>(newGroupKey);
-                                                groupCache[newGroupKey] = newGroup;
+                                                group = new ManagedGroup<TObject, TKey, TGroupKey>(groupKey);
+                                                groupCache[groupKey] = group;
                                                 result.Add(new Change<IGroup<TObject, TKey, TGroupKey>, TGroupKey>(
-                                                    ChangeReason.Add, newGroupKey, newGroup));
+                                                    ChangeReason.Add, groupKey, group));
                                             }
 
-                                            newGroup.AddOrUpdate(current, key);
-                                            itemCache[key] = (current, newGroupKey);
+                                            // Add/update item in group
+                                            group.AddOrUpdate(current, key);
+                                            itemCache[key] = (current, groupKey);
+                                            break;
                                         }
-                                        else
+
+                                    case ChangeReason.Remove:
                                         {
-                                            // Same group - just refresh
-                                            if (groupCache.TryGetValue(previous.GroupKey, out var group))
+                                            if (itemCache.TryGetValue(key, out var previous))
                                             {
-                                                group.Refresh(key);
-                                            }
-                                        }
-                                    }
+                                                if (groupCache.TryGetValue(previous.GroupKey, out var group))
+                                                {
+                                                    group.Remove(key);
+                                                    if (group.Count == 0)
+                                                    {
+                                                        groupCache.Remove(previous.GroupKey);
+                                                        group.Dispose();
+                                                        result.Add(new Change<IGroup<TObject, TKey, TGroupKey>, TGroupKey>(
+                                                            ChangeReason.Remove, previous.GroupKey, group));
+                                                    }
+                                                }
 
-                                    break;
+                                                itemCache.Remove(key);
+                                            }
+
+                                            break;
+                                        }
+
+                                    case ChangeReason.Refresh:
+                                        {
+                                            var newGroupKey = groupSelector(current);
+
+                                            if (itemCache.TryGetValue(key, out var previous))
+                                            {
+                                                if (!EqualityComparer<TGroupKey>.Default.Equals(previous.GroupKey, newGroupKey))
+                                                {
+                                                    // Remove from old group
+                                                    if (groupCache.TryGetValue(previous.GroupKey, out var oldGroup))
+                                                    {
+                                                        oldGroup.Remove(key);
+                                                        if (oldGroup.Count == 0)
+                                                        {
+                                                            groupCache.Remove(previous.GroupKey);
+                                                            oldGroup.Dispose();
+                                                            result.Add(new Change<IGroup<TObject, TKey, TGroupKey>, TGroupKey>(
+                                                                ChangeReason.Remove, previous.GroupKey, oldGroup));
+                                                        }
+                                                    }
+
+                                                    // Add to new group
+                                                    if (!groupCache.TryGetValue(newGroupKey, out var newGroup))
+                                                    {
+                                                        newGroup = new ManagedGroup<TObject, TKey, TGroupKey>(newGroupKey);
+                                                        groupCache[newGroupKey] = newGroup;
+                                                        result.Add(new Change<IGroup<TObject, TKey, TGroupKey>, TGroupKey>(
+                                                            ChangeReason.Add, newGroupKey, newGroup));
+                                                    }
+
+                                                    newGroup.AddOrUpdate(current, key);
+                                                    itemCache[key] = (current, newGroupKey);
+                                                }
+                                                else
+                                                {
+                                                    // Same group - just refresh
+                                                    if (groupCache.TryGetValue(previous.GroupKey, out var group))
+                                                    {
+                                                        group.Refresh(key);
+                                                    }
+                                                }
+                                            }
+
+                                            break;
+                                        }
                                 }
+                            }
+
+                            if (result.Count > 0)
+                            {
+                                observer.OnNext(result);
+                            }
                         }
-                    }
-
-                    if (result.Count > 0)
-                    {
-                        observer.OnNext(result);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    observer.OnErrorResume(ex);
-                }
-            }, observer.OnErrorResume, observer.OnCompleted);
-        });
+                        catch (Exception ex)
+                        {
+                            observer.OnErrorResume(ex);
+                        }
+                    }, observer.OnErrorResume, observer.OnCompleted);
+            });
     }
 }
