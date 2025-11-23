@@ -143,9 +143,9 @@ public static Observable<T> ForEach<T>(this Observable<System.Collections.Generi
 public static Observable<T> ForEach<T>(this Observable<System.Collections.Generic.List<T>> source)
 {
     if (source is null) throw new ArgumentNullException(nameof(source));
-    return Observable.Create<T>(observer =>
+    return Observable.Create<T, Observable<System.Collections.Generic.List<T>>>(source, static (observer, state) =>
     {
-        return source.Subscribe(list =>
+        return state.Subscribe(list =>
         {
             if (list is null) return;
             for (int i = 0; i < list.Count; i++) observer.OnNext(list[i]);
@@ -163,10 +163,13 @@ public static Observable<TResult> Using<TResource, TResult>(Func<TResource> reso
 {
     if (resourceFactory is null) throw new ArgumentNullException(nameof(resourceFactory));
     if (observableFactory is null) throw new ArgumentNullException(nameof(observableFactory));
-    return Observable.Create<TResult>(observer =>
+    var state = (resourceFactory, observableFactory);
+    return Observable.Create<TResult, (Func<TResource> resourceFactory, Func<TResource, Observable<TResult>> observableFactory)>(
+        state,
+        static (observer, state) =>
     {
-        var resource = resourceFactory();
-        var subscription = observableFactory(resource).Subscribe(observer);
+        var resource = state.resourceFactory();
+        var subscription = state.observableFactory(resource).Subscribe(observer);
         return Disposable.Combine(subscription, resource);
     });
 }

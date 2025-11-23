@@ -201,17 +201,18 @@ public static partial class ObservableCacheEx
         where TObject : notnull where TKey : notnull
     {
         if (source is null) throw new ArgumentNullException(nameof(source));
-        return Observable.Create<Optional<TObject>>(observer =>
+        var state = new ToObservableOptionalState<TObject, TKey>(source, key);
+        return Observable.Create<Optional<TObject>, ToObservableOptionalState<TObject, TKey>>(state, static (observer, state) =>
         {
             TObject? latest = default;
             bool hasValue = false;
             observer.OnNext(Optional<TObject>.None);
-            return source.Subscribe(changes =>
+            return state.Source.Subscribe(changes =>
             {
                 bool changed = false;
                 foreach (var change in changes)
                 {
-                    if (!EqualityComparer<TKey>.Default.Equals(change.Key, key)) continue;
+                    if (!EqualityComparer<TKey>.Default.Equals(change.Key, state.Key)) continue;
                     switch (change.Reason)
                     {
                         case ChangeReason.Add:
@@ -234,6 +235,20 @@ public static partial class ObservableCacheEx
                 }
             }, observer.OnErrorResume, observer.OnCompleted);
         });
+    }
+
+    private readonly struct ToObservableOptionalState<TObject, TKey>
+        where TObject : notnull
+        where TKey : notnull
+    {
+        public readonly Observable<IChangeSet<TObject, TKey>> Source;
+        public readonly TKey Key;
+
+        public ToObservableOptionalState(Observable<IChangeSet<TObject, TKey>> source, TKey key)
+        {
+            Source = source;
+            Key = key;
+        }
     }
 
     // ------------------ EditDiff ------------------
