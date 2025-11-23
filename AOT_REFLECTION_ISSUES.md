@@ -113,21 +113,23 @@ The refactoring maintains the same functionality while being AOT-compatible:
 ---
 
 ### 5. JSON Serialization (Source Generator Build Tools)
-**Status:** ⏳ Pending  
+**Status:** ✅ Fixed (Commit af2a790)  
 **Severity:** Low  
 **AOT Impact:** Affects build-time tools only, not runtime
 
 #### Locations:
 1. **`R3Ext.Bindings.SourceGenerator/UiBindingMetadata.cs`**
-   - Line 25: `JsonSerializer.Deserialize<UiBindingMetadata>()`
+   - ~~Line 25: `JsonSerializer.Deserialize<UiBindingMetadata>()`~~
    
 2. **`R3Ext.Bindings.MauiTargets/GenerateUiBindingTargetsTask.cs`**
-   - Line 80: `JsonSerializer.Serialize()`
+   - ~~Line 80: `JsonSerializer.Serialize()`~~
 
-#### Solution Approach:
-- Add `[JsonSerializable]` attributes with source generation
-- These are build-time tools, not runtime - lower priority
-- Consider STJ source generator for metadata
+#### Solution Implemented:
+- ✅ Added `UiBindingMetadataJsonContext` with `[JsonSerializable]` attributes
+- ✅ Added `UiBindingTargetsJsonContext` with `[JsonSerializable]` attributes  
+- ✅ Changed DTO classes from private to internal for source generator access
+- ✅ Updated JsonSerializer calls to use generated context
+- ✅ All 174 R3Ext tests passing
 
 ---
 
