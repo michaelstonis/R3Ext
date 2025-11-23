@@ -4,64 +4,93 @@
              x:Class="R3Ext.SampleApp.DDTransformationPage"
              Title="Transformation">
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="16">
+        <VerticalStackLayout Padding="20"
+                             Spacing="16">
             <Label Text="DynamicData Transformation Operators"
                    Style="{StaticResource Headline}" />
             <Label Text="Demonstrates Transform, TransformAsync, and TransformMany with real-time updates."
                    TextColor="Gray" />
-
             <!-- Input Controls -->
-            <Frame BorderColor="LightBlue" Padding="12">
+            <Frame BorderColor="LightBlue"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Add People" FontAttributes="Bold" />
-                    <Grid ColumnDefinitions="*,50,Auto" ColumnSpacing="8">
-                        <Entry x:Name="NameEntry" Placeholder="Name" />
-                        <Entry x:Name="AgeEntry" Grid.Column="1" Placeholder="Age" Keyboard="Numeric" />
-                        <Button Text="Add" Grid.Column="2" Clicked="OnAddPerson" />
+                    <Label Text="Add People"
+                           FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,50,Auto"
+                          ColumnSpacing="8">
+                        <Entry x:Name="NameEntry"
+                               Placeholder="Name" />
+                        <Entry x:Name="AgeEntry"
+                               Grid.Column="1"
+                               Placeholder="Age"
+                               Keyboard="Numeric" />
+                        <Button Text="Add"
+                                Grid.Column="2"
+                                Clicked="OnAddPerson" />
                     </Grid>
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button Text="Add Sample Data" Clicked="OnAddSampleData" />
-                        <Button Text="Clear" Grid.Column="1" BackgroundColor="DarkRed" Clicked="OnClear" />
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="8">
+                        <Button Text="Add Sample Data"
+                                Clicked="OnAddSampleData" />
+                        <Button Text="Clear"
+                                Grid.Column="1"
+                                BackgroundColor="DarkRed"
+                                Clicked="OnClear" />
                     </Grid>
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Transform: Person → DisplayName -->
-            <Label Text="Transform (Person → DisplayName):" FontAttributes="Bold" />
+            <Label Text="Transform (Person → DisplayName):"
+                   FontAttributes="Bold" />
             <Frame>
-                <CollectionView x:Name="TransformView" MaximumHeightRequest="150">
+                <CollectionView x:Name="TransformView"
+                                MaximumHeightRequest="150">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Label Text="{Binding}" Padding="8" />
+                            <Label Text="{Binding}"
+                                   Padding="8" />
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
             </Frame>
-
             <!-- TransformAsync: Load Avatar URLs -->
-            <Label Text="TransformAsync (Load Avatar URLs):" FontAttributes="Bold" />
-            <Label Text="Simulates async data loading for each person" FontSize="12" TextColor="Gray" />
+            <Label Text="TransformAsync (Load Avatar URLs):"
+                   FontAttributes="Bold" />
+            <Label Text="Simulates async data loading for each person"
+                   FontSize="12"
+                   TextColor="Gray" />
             <Frame>
-                <CollectionView x:Name="TransformAsyncView" MaximumHeightRequest="150">
+                <CollectionView x:Name="TransformAsyncView"
+                                MaximumHeightRequest="150">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Grid Padding="8" ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                                <Label Text="🧑" FontSize="20" VerticalOptions="Center" />
-                                <Label Text="{Binding}" Grid.Column="1" VerticalOptions="Center" />
+                            <Grid Padding="8"
+                                  ColumnDefinitions="Auto,*"
+                                  ColumnSpacing="8">
+                                <Label Text="🧑"
+                                       FontSize="20"
+                                       VerticalOptions="Center" />
+                                <Label Text="{Binding}"
+                                       Grid.Column="1"
+                                       VerticalOptions="Center" />
                             </Grid>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
             </Frame>
-
             <!-- TransformMany: Person → Hobbies (1-to-many) -->
-            <Label Text="TransformMany (Person → Hobbies):" FontAttributes="Bold" />
-            <Label Text="Flattens all hobbies from all people into a single list" FontSize="12" TextColor="Gray" />
+            <Label Text="TransformMany (Person → Hobbies):"
+                   FontAttributes="Bold" />
+            <Label Text="Flattens all hobbies from all people into a single list"
+                   FontSize="12"
+                   TextColor="Gray" />
             <Frame>
-                <CollectionView x:Name="TransformManyView" MaximumHeightRequest="150">
+                <CollectionView x:Name="TransformManyView"
+                                MaximumHeightRequest="150">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Label Text="{Binding}" Padding="8" />
+                            <Label Text="{Binding}"
+                                   Padding="8" />
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>

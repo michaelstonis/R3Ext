@@ -4,14 +4,13 @@
        xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
        xmlns:local="clr-namespace:R3Ext.SampleApp"
        Title="R3Ext.SampleApp">
-    
     <!-- Home -->
     <ShellContent Title="Home"
                   ContentTemplate="{DataTemplate local:MainPage}"
                   Route="MainPage" />
-
     <!-- R3 Basics -->
-    <FlyoutItem Title="R3 Basics" Icon="home.png">
+    <FlyoutItem Title="R3 Basics"
+                Icon="home.png">
         <ShellContent Title="Basics"
                       ContentTemplate="{DataTemplate local:BasicsPage}"
                       Route="BasicsPage" />
@@ -34,9 +33,9 @@
                       ContentTemplate="{DataTemplate local:PerformancePage}"
                       Route="PerformancePage" />
     </FlyoutItem>
-
     <!-- DynamicData: Core Concepts -->
-    <FlyoutItem Title="DD: Core" Icon="list.png">
+    <FlyoutItem Title="DD: Core"
+                Icon="list.png">
         <ShellContent Title="Basics (SourceList)"
                       ContentTemplate="{DataTemplate local:DynamicDataBasicsPage}"
                       Route="DynamicDataBasicsPage" />
@@ -50,16 +49,16 @@
                       ContentTemplate="{DataTemplate local:DynamicDataOperatorsPage}"
                       Route="DynamicDataOperatorsPage" />
     </FlyoutItem>
-
     <!-- DynamicData: Aggregation -->
-    <FlyoutItem Title="DD: Aggregation" Icon="calculator.png">
+    <FlyoutItem Title="DD: Aggregation"
+                Icon="calculator.png">
         <ShellContent Title="Count/Sum/Min/Max/Avg"
                       ContentTemplate="{DataTemplate local:DDAggregationPage}"
                       Route="DDAggregationPage" />
     </FlyoutItem>
-
     <!-- DynamicData: Transformation -->
-    <FlyoutItem Title="DD: Transformation" Icon="transform.png">
+    <FlyoutItem Title="DD: Transformation"
+                Icon="transform.png">
         <ShellContent Title="Transform/Async/Many"
                       ContentTemplate="{DataTemplate local:DDTransformationPage}"
                       Route="DDTransformationPage" />
@@ -70,33 +69,32 @@
                       ContentTemplate="{DataTemplate local:DynamicDataDistinctValuesPage}"
                       Route="DynamicDataDistinctValuesPage" />
     </FlyoutItem>
-
     <!-- DynamicData: Filtering & Refresh -->
-    <FlyoutItem Title="DD: Filtering" Icon="filter.png">
+    <FlyoutItem Title="DD: Filtering"
+                Icon="filter.png">
         <ShellContent Title="AutoRefresh"
                       ContentTemplate="{DataTemplate local:DDRefreshPage}"
                       Route="DDRefreshPage" />
     </FlyoutItem>
-
     <!-- DynamicData: Logical Operators -->
-    <FlyoutItem Title="DD: Logical" Icon="logic.png">
+    <FlyoutItem Title="DD: Logical"
+                Icon="logic.png">
         <ShellContent Title="And/Or/Except/Xor"
                       ContentTemplate="{DataTemplate local:DDLogicalOperatorsPage}"
                       Route="DDLogicalOperatorsPage" />
     </FlyoutItem>
-
     <!-- DynamicData: Grouping & Joins -->
-    <FlyoutItem Title="DD: Grouping" Icon="group.png">
+    <FlyoutItem Title="DD: Grouping"
+                Icon="group.png">
         <ShellContent Title="Group &amp; GroupOn"
                       ContentTemplate="{DataTemplate local:DDGroupingPage}"
                       Route="DDGroupingPage" />
     </FlyoutItem>
-
     <!-- DynamicData: Lifecycle -->
-    <FlyoutItem Title="DD: Lifecycle" Icon="recycle.png">
+    <FlyoutItem Title="DD: Lifecycle"
+                Icon="recycle.png">
         <ShellContent Title="LimitSizeTo/DisposeMany"
                       ContentTemplate="{DataTemplate local:DDLifecyclePage}"
                       Route="DDLifecyclePage" />
     </FlyoutItem>
-
 </Shell>
