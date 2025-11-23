@@ -391,59 +391,98 @@ public static partial class ObservableCacheEx
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (observableSelector is null) throw new ArgumentNullException(nameof(observableSelector));
         if (equalityCondition is null) throw new ArgumentNullException(nameof(equalityCondition));
-        return Observable.Create<bool>(observer =>
-        {
-            var itemStates = new Dictionary<TKey, (TObject Item, TValue? Latest)>();
-            var innerSubs = new Dictionary<TKey, IDisposable>();
-            void Recompute()
-            {
-                bool any = itemStates.Any(kvp => kvp.Value.Latest is TValue v && equalityCondition(kvp.Value.Item, v));
-                observer.OnNext(any);
-            }
-            // Initial (empty) => false
-            observer.OnNext(false);
 
-            var outer = source.Subscribe(changes =>
+        var state = new TrueForAnyState<TObject, TKey, TValue>(source, observableSelector, equalityCondition);
+        return Observable.Create<bool, TrueForAnyState<TObject, TKey, TValue>>(
+            state,
+            static (observer, state) =>
             {
-                foreach (var change in changes)
+                var itemStates = new Dictionary<TKey, (TObject Item, TValue? Latest)>();
+                var innerSubs = new Dictionary<TKey, IDisposable>();
+                void Recompute()
                 {
-                    switch (change.Reason)
-                    {
-                        case ChangeReason.Add:
-                        case ChangeReason.Update:
-                            var existingLatest = itemStates.TryGetValue(change.Key, out var tuple) ? tuple.Latest : default;
-                            itemStates[change.Key] = (change.Current, existingLatest);
-                            if (!innerSubs.ContainsKey(change.Key))
-                            {
-                                var obs = observableSelector(change.Current);
-                                innerSubs[change.Key] = obs.Subscribe(val =>
-                                {
-                                    itemStates[change.Key] = (change.Current, val);
-                                    Recompute();
-                                });
-                            }
-                            break;
-                        case ChangeReason.Remove:
-                            if (innerSubs.Remove(change.Key, out var disp)) disp.Dispose();
-                            itemStates.Remove(change.Key);
-                            break;
-                        case ChangeReason.Refresh:
-                            if (itemStates.TryGetValue(change.Key, out var existing))
-                            {
-                                itemStates[change.Key] = (change.Current, existing.Latest);
-                            }
-                            break;
-                    }
+                    bool any = itemStates.Any(kvp => kvp.Value.Latest is TValue v && state.EqualityCondition(kvp.Value.Item, v));
+                    observer.OnNext(any);
                 }
-                Recompute();
-            });
+                // Initial (empty) => false
+                observer.OnNext(false);
 
-            return Disposable.Create(() =>
-            {
-                outer.Dispose();
-                foreach (var d in innerSubs.Values) d.Dispose();
+                var outer = state.Source.Subscribe(changes =>
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                            case ChangeReason.Update:
+                                var existingLatest = itemStates.TryGetValue(change.Key, out var tuple) ? tuple.Latest : default;
+                                itemStates[change.Key] = (change.Current, existingLatest);
+                                if (!innerSubs.ContainsKey(change.Key))
+                                {
+                                    var obs = state.ObservableSelector(change.Current);
+                                    var innerState = new InnerSubscriptionState<TObject, TKey, TValue>(change.Current, change.Key, itemStates, state.EqualityCondition, Recompute);
+                                    innerSubs[change.Key] = obs.Subscribe(innerState, static (val, innerState) =>
+                                    {
+                                        innerState.ItemStates[innerState.Key] = (innerState.Current, val);
+                                        innerState.Recompute();
+                                    });
+                                }
+                                break;
+                            case ChangeReason.Remove:
+                                if (innerSubs.Remove(change.Key, out var disp)) disp.Dispose();
+                                itemStates.Remove(change.Key);
+                                break;
+                            case ChangeReason.Refresh:
+                                if (itemStates.TryGetValue(change.Key, out var existing))
+                                {
+                                    itemStates[change.Key] = (change.Current, existing.Latest);
+                                }
+                                break;
+                        }
+                    }
+                    Recompute();
+                });
+
+                return Disposable.Create(() =>
+                {
+                    outer.Dispose();
+                    foreach (var d in innerSubs.Values) d.Dispose();
+                });
             });
-        });
+    }
+
+    private sealed class TrueForAnyState<TObj, TK, TV>
+        where TObj : notnull where TK : notnull where TV : notnull
+    {
+        public readonly Observable<IChangeSet<TObj, TK>> Source;
+        public readonly Func<TObj, Observable<TV>> ObservableSelector;
+        public readonly Func<TObj, TV, bool> EqualityCondition;
+
+        public TrueForAnyState(Observable<IChangeSet<TObj, TK>> source, Func<TObj, Observable<TV>> observableSelector, Func<TObj, TV, bool> equalityCondition)
+        {
+            Source = source;
+            ObservableSelector = observableSelector;
+            EqualityCondition = equalityCondition;
+        }
+    }
+
+    private sealed class InnerSubscriptionState<TObj, TK, TV>
+        where TObj : notnull where TK : notnull where TV : notnull
+    {
+        public readonly TObj Current;
+        public readonly TK Key;
+        public readonly Dictionary<TK, (TObj Item, TV? Latest)> ItemStates;
+        public readonly Func<TObj, TV, bool> EqualityCondition;
+        public readonly Action Recompute;
+
+        public InnerSubscriptionState(TObj current, TK key, Dictionary<TK, (TObj Item, TV? Latest)> itemStates, Func<TObj, TV, bool> equalityCondition, Action recompute)
+        {
+            Current = current;
+            Key = key;
+            ItemStates = itemStates;
+            EqualityCondition = equalityCondition;
+            Recompute = recompute;
+        }
     }
 
     // ------------------ TrueForAll ------------------
@@ -456,59 +495,79 @@ public static partial class ObservableCacheEx
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (observableSelector is null) throw new ArgumentNullException(nameof(observableSelector));
         if (equalityCondition is null) throw new ArgumentNullException(nameof(equalityCondition));
-        return Observable.Create<bool>(observer =>
-        {
-            var itemStates = new Dictionary<TKey, (TObject Item, TValue? Latest)>();
-            var innerSubs = new Dictionary<TKey, IDisposable>();
-            void Recompute()
-            {
-                bool all = itemStates.Count == 0 || itemStates.All(kvp => kvp.Value.Latest is TValue v && equalityCondition(kvp.Value.Item, v));
-                observer.OnNext(all);
-            }
-            // Empty set vacuously true
-            observer.OnNext(true);
 
-            var outer = source.Subscribe(changes =>
+        var state = new TrueForAllState<TObject, TKey, TValue>(source, observableSelector, equalityCondition);
+        return Observable.Create<bool, TrueForAllState<TObject, TKey, TValue>>(
+            state,
+            static (observer, state) =>
             {
-                foreach (var change in changes)
+                var itemStates = new Dictionary<TKey, (TObject Item, TValue? Latest)>();
+                var innerSubs = new Dictionary<TKey, IDisposable>();
+                void Recompute()
                 {
-                    switch (change.Reason)
-                    {
-                        case ChangeReason.Add:
-                        case ChangeReason.Update:
-                            var existingLatest = itemStates.TryGetValue(change.Key, out var tuple) ? tuple.Latest : default;
-                            itemStates[change.Key] = (change.Current, existingLatest);
-                            if (!innerSubs.ContainsKey(change.Key))
-                            {
-                                var obs = observableSelector(change.Current);
-                                innerSubs[change.Key] = obs.Subscribe(val =>
-                                {
-                                    itemStates[change.Key] = (change.Current, val);
-                                    Recompute();
-                                });
-                            }
-                            break;
-                        case ChangeReason.Remove:
-                            if (innerSubs.Remove(change.Key, out var disp)) disp.Dispose();
-                            itemStates.Remove(change.Key);
-                            break;
-                        case ChangeReason.Refresh:
-                            if (itemStates.TryGetValue(change.Key, out var existing))
-                            {
-                                itemStates[change.Key] = (change.Current, existing.Latest);
-                            }
-                            break;
-                    }
+                    bool all = itemStates.Count == 0 || itemStates.All(kvp => kvp.Value.Latest is TValue v && state.EqualityCondition(kvp.Value.Item, v));
+                    observer.OnNext(all);
                 }
-                Recompute();
-            });
+                // Empty set vacuously true
+                observer.OnNext(true);
 
-            return Disposable.Create(() =>
-            {
-                outer.Dispose();
-                foreach (var d in innerSubs.Values) d.Dispose();
+                var outer = state.Source.Subscribe(changes =>
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                            case ChangeReason.Update:
+                                var existingLatest = itemStates.TryGetValue(change.Key, out var tuple) ? tuple.Latest : default;
+                                itemStates[change.Key] = (change.Current, existingLatest);
+                                if (!innerSubs.ContainsKey(change.Key))
+                                {
+                                    var obs = state.ObservableSelector(change.Current);
+                                    var innerState = new InnerSubscriptionState<TObject, TKey, TValue>(change.Current, change.Key, itemStates, state.EqualityCondition, Recompute);
+                                    innerSubs[change.Key] = obs.Subscribe(innerState, static (val, innerState) =>
+                                    {
+                                        innerState.ItemStates[innerState.Key] = (innerState.Current, val);
+                                        innerState.Recompute();
+                                    });
+                                }
+                                break;
+                            case ChangeReason.Remove:
+                                if (innerSubs.Remove(change.Key, out var disp)) disp.Dispose();
+                                itemStates.Remove(change.Key);
+                                break;
+                            case ChangeReason.Refresh:
+                                if (itemStates.TryGetValue(change.Key, out var existing))
+                                {
+                                    itemStates[change.Key] = (change.Current, existing.Latest);
+                                }
+                                break;
+                        }
+                    }
+                    Recompute();
+                });
+
+                return Disposable.Create(() =>
+                {
+                    outer.Dispose();
+                    foreach (var d in innerSubs.Values) d.Dispose();
+                });
             });
-        });
+    }
+
+    private sealed class TrueForAllState<TObj, TK, TV>
+        where TObj : notnull where TK : notnull where TV : notnull
+    {
+        public readonly Observable<IChangeSet<TObj, TK>> Source;
+        public readonly Func<TObj, Observable<TV>> ObservableSelector;
+        public readonly Func<TObj, TV, bool> EqualityCondition;
+
+        public TrueForAllState(Observable<IChangeSet<TObj, TK>> source, Func<TObj, Observable<TV>> observableSelector, Func<TObj, TV, bool> equalityCondition)
+        {
+            Source = source;
+            ObservableSelector = observableSelector;
+            EqualityCondition = equalityCondition;
+        }
     }
 
     // ------------------ QueryWhenChanged / ToCollection ------------------
