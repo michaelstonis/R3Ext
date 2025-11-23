@@ -72,7 +72,7 @@ public static partial class ObservableListEx
         this Observable<IChangeSet<T>> source,
         IList<T> target)
     {
-        return source.Subscribe(changeSet =>
+        return source.Subscribe(target, static (changeSet, target) =>
         {
             foreach (var change in changeSet)
             {
