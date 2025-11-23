@@ -13,11 +13,11 @@ internal sealed class RemoveIndex<T>
 
     public Observable<IChangeSet<T>> Run()
     {
-        return Observable.Create<IChangeSet<T>, Observable<IChangeSet<T>>>(
-            _source,
-            static (observer, source) =>
+        return Observable.Create<IChangeSet<T>, RemoveIndexState<T>>(
+            new RemoveIndexState<T>(_source),
+            static (observer, state) =>
             {
-                var disposable = source.Subscribe(
+                var disposable = state.Source.Subscribe(
                     observer,
                     static (changes, obs) =>
                     {
@@ -102,5 +102,15 @@ internal sealed class RemoveIndex<T>
 
                 return disposable;
             });
+    }
+
+    private readonly struct RemoveIndexState<TItem>
+    {
+        public readonly Observable<IChangeSet<TItem>> Source;
+
+        public RemoveIndexState(Observable<IChangeSet<TItem>> source)
+        {
+            Source = source;
+        }
     }
 }
