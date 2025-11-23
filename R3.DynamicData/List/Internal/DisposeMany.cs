@@ -16,45 +16,57 @@ internal sealed class DisposeMany<T>
 
     public Observable<IChangeSet<T>> Run()
     {
-        return Observable.Create<IChangeSet<T>>(observer =>
-        {
-            var current = new List<T>();
-            var disp = _source.Subscribe(
-                changes =>
-                {
-                    try
-                    {
-                        DisposeForChanges(changes, current);
-                        if (changes.Count > 0)
-                        {
-                            observer.OnNext(changes);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        observer.OnErrorResume(ex);
-                    }
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted);
-
-            return Disposable.Create(() =>
+        return Observable.Create<IChangeSet<T>, DisposeManyState<T>>(
+            new DisposeManyState<T>(_source, _disposeAction),
+            static (observer, state) =>
             {
-                // On unsubscribe, dispose any remaining items to mirror cache DisposeMany semantics.
-                DisposeRange(current);
-                current.Clear();
-                disp.Dispose();
+                var current = new List<T>();
+                var disp = state.Source.Subscribe(
+                    (observer, state, current),
+                    static (changes, tuple) =>
+                    {
+                        try
+                        {
+                            DisposeForChanges(changes, tuple.current, tuple.state.DisposeAction);
+                            if (changes.Count > 0)
+                            {
+                                tuple.observer.OnNext(changes);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            tuple.observer.OnErrorResume(ex);
+                        }
+                    },
+                    static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                    static (result, tuple) =>
+                    {
+                        if (result.IsSuccess)
+                        {
+                            tuple.observer.OnCompleted();
+                        }
+                        else
+                        {
+                            tuple.observer.OnCompleted(result);
+                        }
+                    });
+
+                return Disposable.Create((current, state), static tuple =>
+                {
+                    // On unsubscribe, dispose any remaining items to mirror cache DisposeMany semantics.
+                    DisposeRange(tuple.current, tuple.state.DisposeAction);
+                    tuple.current.Clear();
+                });
             });
-        });
     }
 
-    private void DisposeItem(T item)
+    private static void DisposeItem(T item, Action<T>? disposeAction)
     {
         try
         {
-            if (_disposeAction != null)
+            if (disposeAction != null)
             {
-                _disposeAction(item);
+                disposeAction(item);
                 return;
             }
 
@@ -69,15 +81,15 @@ internal sealed class DisposeMany<T>
         }
     }
 
-    private void DisposeRange(IEnumerable<T> items)
+    private static void DisposeRange(IEnumerable<T> items, Action<T>? disposeAction)
     {
         foreach (var i in items)
         {
-            DisposeItem(i);
+            DisposeItem(i, disposeAction);
         }
     }
 
-    private void DisposeForChanges(IChangeSet<T> changes, List<T> current)
+    private static void DisposeForChanges(IChangeSet<T> changes, List<T> current, Action<T>? disposeAction)
     {
         foreach (var change in changes)
         {
@@ -108,7 +120,7 @@ internal sealed class DisposeMany<T>
                     {
                         var removed = current[change.CurrentIndex];
                         current.RemoveAt(change.CurrentIndex);
-                        DisposeItem(removed);
+                        DisposeItem(removed, disposeAction);
                     }
 
                     break;
@@ -119,7 +131,7 @@ internal sealed class DisposeMany<T>
                         // RemoveRange always contiguous starting at CurrentIndex
                         var toRemove = current.Skip(change.CurrentIndex).Take(change.Range.Count).ToList();
                         current.RemoveRange(change.CurrentIndex, change.Range.Count);
-                        DisposeRange(toRemove);
+                        DisposeRange(toRemove, disposeAction);
                     }
                     else
                     {
@@ -127,7 +139,7 @@ internal sealed class DisposeMany<T>
                         {
                             var removed = current[change.CurrentIndex];
                             current.RemoveAt(change.CurrentIndex);
-                            DisposeItem(removed);
+                            DisposeItem(removed, disposeAction);
                         }
                     }
 
@@ -138,7 +150,7 @@ internal sealed class DisposeMany<T>
                     {
                         var old = current[change.CurrentIndex];
                         current[change.CurrentIndex] = change.Item;
-                        DisposeItem(old);
+                        DisposeItem(old, disposeAction);
                     }
 
                     break;
@@ -154,7 +166,7 @@ internal sealed class DisposeMany<T>
                     break;
 
                 case ListChangeReason.Clear:
-                    DisposeRange(current);
+                    DisposeRange(current, disposeAction);
                     current.Clear();
                     break;
 
@@ -162,6 +174,19 @@ internal sealed class DisposeMany<T>
                     // Refresh does not imply disposal
                     break;
             }
+        }
+    }
+
+    private readonly struct DisposeManyState<TItem>
+        where TItem : notnull
+    {
+        public readonly Observable<IChangeSet<TItem>> Source;
+        public readonly Action<TItem>? DisposeAction;
+
+        public DisposeManyState(Observable<IChangeSet<TItem>> source, Action<TItem>? disposeAction)
+        {
+            Source = source;
+            DisposeAction = disposeAction;
         }
     }
 }
