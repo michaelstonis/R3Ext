@@ -63,21 +63,30 @@ This document tracks all potential AOT (Ahead-of-Time) compilation, reflection, 
 ---
 
 ### 3. BindingRegistry Runtime Type Dispatch
-**Status:** ⏳ Pending  
+**Status:** ✅ Fixed (Commit 4211ee1)  
 **Severity:** High  
 **AOT Impact:** GetType() and typeof() comparisons with dynamic dispatch
 
 #### Locations:
 1. **`R3Ext/BindingRegistry.cs`**
-   - Lines 65, 74-75, 84, 93-94, 103, 110: Multiple `typeof()` calls
-   - Lines 118-119, 139-140, 159: `GetType()` calls for runtime type resolution
+   - ~~Lines 65, 74-75, 84, 93-94, 103, 110: Multiple `typeof()` calls~~
+   - ~~Lines 118-119, 139-140, 159: `GetType()` calls for runtime type resolution~~
    - **Context:** Registry matches runtime types to find appropriate binding factories
 
-#### Solution Approach:
-- Generate registration code at compile time using source generators
-- Use generic constraints to resolve types at compile time
-- Create typed lookup dictionaries instead of object-based dispatch
-- Consider compile-time binding resolution
+#### Solution Implemented:
+- ✅ Replaced `GetType()` on runtime objects with `typeof()` on generic type parameters
+- ✅ Converted `PickBest()` methods to `PickBestExact<T>()` using generics
+- ✅ Eliminated `Distance()` method that navigated type hierarchy via `BaseType`
+- ✅ Changed from runtime `IsAssignableFrom()` checks to compile-time assignability
+- ✅ Exact type matching first, then compile-time assignable types as fallback
+- ✅ All 174 R3Ext tests passing
+
+#### Details:
+The refactoring maintains the same functionality while being AOT-compatible:
+- `TryCreateOneWay<TFrom, TTarget>()` - uses `typeof(TFrom)`, `typeof(TTarget)`
+- `TryCreateTwoWay<TFrom, TTarget>()` - uses `typeof(TFrom)`, `typeof(TTarget)`
+- `TryCreateWhenChanged<TObj>()` - uses `typeof(TObj)`
+- All type matching happens at compile-time through generic constraints
 
 #### Affected APIs:
 - `RegisterOneWay<TFrom, TTarget>()`
