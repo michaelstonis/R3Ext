@@ -18,98 +18,111 @@ internal sealed class DistinctValues<T, TValue>
 
     public Observable<IChangeSet<TValue>> Run()
     {
-        return Observable.Create<IChangeSet<TValue>>(observer =>
-        {
-            var distinct = new ChangeAwareList<TValue>();
-            var counts = new Dictionary<TValue, int>(_comparer);
+        return Observable.Create<IChangeSet<TValue>, DistinctValuesState<T, TValue>>(
+            new DistinctValuesState<T, TValue>(_source, _selector, _comparer),
+            static (observer, state) =>
+            {
+                var distinct = new ChangeAwareList<TValue>();
+                var counts = new Dictionary<TValue, int>(state.Comparer);
 
-            var disp = _source.Subscribe(
-                changes =>
-                {
-                    try
+                var disp = state.Source.Subscribe(
+                    (observer, distinct, counts, state),
+                    static (changes, tuple) =>
                     {
-                        foreach (var change in changes)
+                        try
                         {
-                            switch (change.Reason)
+                            foreach (var change in changes)
                             {
-                                case ListChangeReason.Add:
-                                    Add(_selector(change.Item), distinct, counts);
-                                    break;
-                                case ListChangeReason.AddRange:
-                                    if (change.Range.Count > 0)
-                                    {
-                                        foreach (var item in change.Range)
+                                switch (change.Reason)
+                                {
+                                    case ListChangeReason.Add:
+                                        Add(tuple.state.Selector(change.Item), tuple.distinct, tuple.counts);
+                                        break;
+                                    case ListChangeReason.AddRange:
+                                        if (change.Range.Count > 0)
                                         {
-                                            Add(_selector(item), distinct, counts);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        Add(_selector(change.Item), distinct, counts);
-                                    }
-
-                                    break;
-                                case ListChangeReason.Remove:
-                                    Remove(_selector(change.Item), distinct, counts);
-                                    break;
-                                case ListChangeReason.Replace:
-                                    if (change.PreviousItem != null)
-                                    {
-                                        var prev = _selector(change.PreviousItem);
-                                        var cur = _selector(change.Item);
-                                        if (!_comparer.Equals(prev, cur))
-                                        {
-                                            Remove(prev, distinct, counts);
-                                            Add(cur, distinct, counts);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        Add(_selector(change.Item), distinct, counts);
-                                    }
-
-                                    break;
-                                case ListChangeReason.Moved:
-                                    break;
-                                case ListChangeReason.Clear:
-                                    if (distinct.Count > 0)
-                                    {
-                                        // Force removal of each distinct value regardless of duplicate counts.
-                                        foreach (var v in distinct.ToList())
-                                        {
-                                            if (counts.ContainsKey(v))
+                                            foreach (var item in change.Range)
                                             {
-                                                counts[v] = 1; // ensure removal emitted
+                                                Add(tuple.state.Selector(item), tuple.distinct, tuple.counts);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Add(tuple.state.Selector(change.Item), tuple.distinct, tuple.counts);
+                                        }
+
+                                        break;
+                                    case ListChangeReason.Remove:
+                                        Remove(tuple.state.Selector(change.Item), tuple.distinct, tuple.counts);
+                                        break;
+                                    case ListChangeReason.Replace:
+                                        if (change.PreviousItem != null)
+                                        {
+                                            var prev = tuple.state.Selector(change.PreviousItem);
+                                            var cur = tuple.state.Selector(change.Item);
+                                            if (!tuple.state.Comparer.Equals(prev, cur))
+                                            {
+                                                Remove(prev, tuple.distinct, tuple.counts);
+                                                Add(cur, tuple.distinct, tuple.counts);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Add(tuple.state.Selector(change.Item), tuple.distinct, tuple.counts);
+                                        }
+
+                                        break;
+                                    case ListChangeReason.Moved:
+                                        break;
+                                    case ListChangeReason.Clear:
+                                        if (tuple.distinct.Count > 0)
+                                        {
+                                            // Force removal of each distinct value regardless of duplicate counts.
+                                            foreach (var v in tuple.distinct.ToList())
+                                            {
+                                                if (tuple.counts.ContainsKey(v))
+                                                {
+                                                    tuple.counts[v] = 1; // ensure removal emitted
+                                                }
+
+                                                Remove(v, tuple.distinct, tuple.counts);
                                             }
 
-                                            Remove(v, distinct, counts);
+                                            tuple.counts.Clear();
                                         }
 
-                                        counts.Clear();
-                                    }
+                                        break;
+                                    case ListChangeReason.Refresh:
+                                        break;
+                                }
+                            }
 
-                                    break;
-                                case ListChangeReason.Refresh:
-                                    break;
+                            var output = tuple.distinct.CaptureChanges();
+                            if (output.Count > 0)
+                            {
+                                tuple.observer.OnNext(output);
                             }
                         }
-
-                        var output = distinct.CaptureChanges();
-                        if (output.Count > 0)
+                        catch (Exception ex)
                         {
-                            observer.OnNext(output);
+                            tuple.observer.OnErrorResume(ex);
                         }
-                    }
-                    catch (Exception ex)
+                    },
+                    static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                    static (result, tuple) =>
                     {
-                        observer.OnErrorResume(ex);
-                    }
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted);
+                        if (result.IsSuccess)
+                        {
+                            tuple.observer.OnCompleted();
+                        }
+                        else
+                        {
+                            tuple.observer.OnCompleted(result);
+                        }
+                    });
 
-            return disp;
-        });
+                return disp;
+            });
     }
 
     private static void Add(TValue value, ChangeAwareList<TValue> distinct, Dictionary<TValue, int> counts)
@@ -142,6 +155,21 @@ internal sealed class DistinctValues<T, TValue>
         if (idx >= 0)
         {
             distinct.RemoveAt(idx);
+        }
+    }
+
+    private readonly struct DistinctValuesState<TItem, TVal>
+        where TVal : notnull
+    {
+        public readonly Observable<IChangeSet<TItem>> Source;
+        public readonly Func<TItem, TVal> Selector;
+        public readonly IEqualityComparer<TVal> Comparer;
+
+        public DistinctValuesState(Observable<IChangeSet<TItem>> source, Func<TItem, TVal> selector, IEqualityComparer<TVal> comparer)
+        {
+            Source = source;
+            Selector = selector;
+            Comparer = comparer;
         }
     }
 }
