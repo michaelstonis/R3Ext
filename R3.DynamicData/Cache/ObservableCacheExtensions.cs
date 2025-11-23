@@ -267,26 +267,44 @@ public static class ObservableCacheExtensions
 
         public Observable<Change<TObject, TKey>> Watch(TKey key)
         {
-            return Observable.Create<Change<TObject, TKey>>(observer =>
+            var state = new WatchState(_cache, key, _changesSubject);
+            return Observable.Create<Change<TObject, TKey>, WatchState>(state, static (observer, state) =>
             {
                 // Send initial value if present
-                if (_cache.TryGetValue(key, out var value))
+                if (state.Cache.TryGetValue(state.Key, out var value))
                 {
-                    observer.OnNext(new Change<TObject, TKey>(ChangeReason.Add, key, value));
+                    observer.OnNext(new Change<TObject, TKey>(ChangeReason.Add, state.Key, value));
                 }
 
                 // Subscribe to changes for this key
-                return _changesSubject.Subscribe(changeSet =>
+                return state.ChangesSubject.Subscribe(changeSet =>
                 {
                     foreach (var change in changeSet)
                     {
-                        if (EqualityComparer<TKey>.Default.Equals(change.Key, key))
+                        if (EqualityComparer<TKey>.Default.Equals(change.Key, state.Key))
                         {
                             observer.OnNext(change);
                         }
                     }
                 });
             });
+        }
+
+        private readonly struct WatchState
+        {
+            public readonly ConcurrentDictionary<TKey, TObject> Cache;
+            public readonly TKey Key;
+            public readonly Subject<IChangeSet<TObject, TKey>> ChangesSubject;
+
+            public WatchState(
+                ConcurrentDictionary<TKey, TObject> cache,
+                TKey key,
+                Subject<IChangeSet<TObject, TKey>> changesSubject)
+            {
+                Cache = cache;
+                Key = key;
+                ChangesSubject = changesSubject;
+            }
         }
 
         public void Dispose()
