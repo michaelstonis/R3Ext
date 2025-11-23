@@ -24,23 +24,26 @@ public static partial class ObservableCacheEx
         if (source is null) throw new ArgumentNullException(nameof(source));
         if (predicate is null) throw new ArgumentNullException(nameof(predicate));
 
-        return Observable.Create<IChangeSet<TObject, TKey>>(observer =>
-        {
-            var included = new HashSet<TKey>();
-
-            return source.Subscribe(changes =>
+        var state = new FilterCacheState<TObject, TKey>(source, predicate);
+        return Observable.Create<IChangeSet<TObject, TKey>, FilterCacheState<TObject, TKey>>(
+            state,
+            static (observer, state) =>
             {
-                try
-                {
-                    var outSet = new ChangeSet<TObject, TKey>();
+                var included = new HashSet<TKey>();
 
-                    foreach (var change in changes)
+                return state.Source.Subscribe(changes =>
+                {
+                    try
                     {
-                        switch (change.Reason)
+                        var outSet = new ChangeSet<TObject, TKey>();
+
+                        foreach (var change in changes)
+                        {
+                            switch (change.Reason)
                         {
                             case ChangeReason.Add:
                                 {
-                                    if (predicate(change.Current))
+                                    if (state.Predicate(change.Current))
                                     {
                                         included.Add(change.Key);
                                         outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, change.Key, change.Current));
@@ -50,7 +53,7 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Update:
                                 {
                                     var wasIncluded = included.Contains(change.Key);
-                                    var nowIncluded = predicate(change.Current);
+                                    var nowIncluded = state.Predicate(change.Current);
                                     if (wasIncluded && nowIncluded)
                                     {
                                         outSet.Add(new Change<TObject, TKey>(ChangeReason.Update, change.Key, change.Current, change.Previous.HasValue ? change.Previous.Value : change.Current));
@@ -80,7 +83,7 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Refresh:
                                 {
                                     var wasIncluded = included.Contains(change.Key);
-                                    var nowIncluded = predicate(change.Current);
+                                    var nowIncluded = state.Predicate(change.Current);
                                     if (wasIncluded && nowIncluded)
                                     {
                                         outSet.Add(new Change<TObject, TKey>(ChangeReason.Refresh, change.Key, change.Current));
@@ -100,18 +103,32 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Moved:
                                 break;
                         }
-                    }
+                        }
 
-                    if (outSet.Count > 0)
-                    {
-                        observer.OnNext(outSet);
+                        if (outSet.Count > 0)
+                        {
+                            observer.OnNext(outSet);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    observer.OnErrorResume(ex);
-                }
-            }, observer.OnErrorResume, observer.OnCompleted);
+                    catch (Exception ex)
+                    {
+                        observer.OnErrorResume(ex);
+                    }
+                }, observer.OnErrorResume, observer.OnCompleted);
         });
+    }
+
+    private readonly struct FilterCacheState<TObj, TK>
+        where TK : notnull
+        where TObj : notnull
+    {
+        public readonly Observable<IChangeSet<TObj, TK>> Source;
+        public readonly Func<TObj, bool> Predicate;
+
+        public FilterCacheState(Observable<IChangeSet<TObj, TK>> source, Func<TObj, bool> predicate)
+        {
+            Source = source;
+            Predicate = predicate;
+        }
     }
 }
