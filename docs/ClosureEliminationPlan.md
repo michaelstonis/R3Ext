@@ -283,43 +283,54 @@ sealed class TransformAsyncState<TSource, TDestination>
 
 ### Code Structure
 1. **Create Utility Types** (in R3.DynamicData/Utilities/):
-   - `RefInt.cs`: Mutable int wrapper
-   - `RefBool.cs`: Mutable bool wrapper
-   - `RefValue<T>.cs`: Generic mutable value wrapper
-   - State struct definitions for each operator
+   - `RefInt.cs`: Mutable int wrapper (sealed class for reference semantics)
+   - `RefBool.cs`: Mutable bool wrapper (sealed class for reference semantics)
+   - `RefValue<T>.cs`: Generic mutable value wrapper (sealed class for reference semantics)
+   - **Note**: These are classes, not structs, to maintain mutable reference semantics across lambdas
+   - State container structs defined within each operator file
 
 2. **Conversion Pattern**:
    ```csharp
-   // Step 1: Define state struct
-   readonly struct OperatorState<T>
+   // Step 1: Define readonly struct for state container (inside operator class)
+   private readonly struct OperatorState<T>
    {
-       public readonly Type1 Field1;
-       public readonly Type2 Field2;
+       public readonly Observable<IChangeSet<T>> Source;
+       public readonly Observer<IChangeSet<T>> Observer;
+       // Add mutable state as class references if needed:
+       // public readonly RefInt Counter;
        
-       public OperatorState(Type1 field1, Type2 field2)
+       public OperatorState(Observable<IChangeSet<T>> source)
        {
-           Field1 = field1;
-           Field2 = field2;
+           Source = source;
+           // Counter = new RefInt(0);
        }
    }
    
    // Step 2: Create state instance
-   var state = new OperatorState<T>(var1, var2);
+   var state = new OperatorState<T>(source);
    
-   // Step 3: Use closure-free overload
+   // Step 3: Use closure-free overload with readonly struct
    return Observable.Create<T, OperatorState<T>>(
        state,
        static (observer, state) =>
        {
-           // Use state.Field1, state.Field2 instead of captured variables
-           return source.Subscribe(
-               (observer, state),
-               static (value, tuple) =>
+           // Use state.Source, state.Observer instead of captured variables
+           // Mutable state accessed via state.Counter.Value
+           return state.Source.Subscribe(
+               observer,
+               static (value, obs) =>
                {
-                   // Process using tuple.state.Field1, etc.
+                   // Process using obs for observer
+                   // Access state via obs if needed (passed as state to Subscribe)
                });
        });
    ```
+
+3. **Performance Benefits**:
+   - **Readonly struct**: Passed by value on stack (if small enough) or by reference
+   - **No closure allocation**: Static lambdas eliminate display class
+   - **Ref types as fields**: Observable, Observer, etc. are references, so no copying
+   - **Mutable wrappers**: RefInt/RefBool/RefValue provide shared mutable state when needed
 
 ### Testing Strategy
 1. **Existing Tests**: All existing tests must continue to pass
