@@ -10,6 +10,7 @@
                 <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <converters:ListToStringConverter x:Key="ListToStringConverter" />
+            <converters:BoolToStrikethroughConverter x:Key="BoolToStrikethroughConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

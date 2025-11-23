@@ -148,22 +148,24 @@ internal sealed class Combiner<T>
                 break;
 
             case CombineOperator.Xor:
-                // Items in exactly one source
-                var itemCounts = new Dictionary<T, int>(_comparer);
-                foreach (var list in sourceLists)
+                // Items in exactly one source - need to check which sources contain each item
+                var itemToSources = new Dictionary<T, HashSet<int>>(_comparer);
+                for (int sourceIndex = 0; sourceIndex < sourceLists.Count; sourceIndex++)
                 {
-                    foreach (var item in list)
+                    var uniqueInSource = new HashSet<T>(sourceLists[sourceIndex], _comparer);
+                    foreach (var item in uniqueInSource)
                     {
-                        if (!itemCounts.ContainsKey(item))
+                        if (!itemToSources.ContainsKey(item))
                         {
-                            itemCounts[item] = 0;
+                            itemToSources[item] = new HashSet<int>();
                         }
 
-                        itemCounts[item]++;
+                        itemToSources[item].Add(sourceIndex);
                     }
                 }
 
-                foreach (var kvp in itemCounts.Where(kvp => kvp.Value == 1))
+                // XOR: include items that appear in exactly one source
+                foreach (var kvp in itemToSources.Where(kvp => kvp.Value.Count == 1))
                 {
                     resultSet.Add(kvp.Key);
                 }
@@ -171,11 +173,11 @@ internal sealed class Combiner<T>
                 break;
         }
 
-        // Create a change set with all items as adds (simplification)
-        int index = 0;
-        foreach (var item in resultSet)
+        // Emit Clear followed by AddRange to ensure clean state
+        changes.Add(new Change<T>(ListChangeReason.Clear, Array.Empty<T>(), 0));
+        if (resultSet.Count > 0)
         {
-            changes.Add(new Change<T>(ListChangeReason.Add, item, index++));
+            changes.Add(new Change<T>(ListChangeReason.AddRange, resultSet, 0));
         }
 
         return new ChangeSet<T>(changes);

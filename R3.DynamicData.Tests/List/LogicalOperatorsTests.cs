@@ -6,6 +6,35 @@ namespace R3.DynamicData.Tests.List;
 
 public sealed class LogicalOperatorsTests
 {
+    private static HashSet<T> CollectItems<T>(List<IChangeSet<T>> results)
+        where T : notnull
+    {
+        var allItems = new HashSet<T>();
+        foreach (var cs in results)
+        {
+            foreach (var change in cs)
+            {
+                if (change.Reason == ListChangeReason.Add)
+                {
+                    allItems.Add(change.Item);
+                }
+                else if (change.Reason == ListChangeReason.AddRange)
+                {
+                    foreach (var item in change.Range)
+                    {
+                        allItems.Add(item);
+                    }
+                }
+                else if (change.Reason == ListChangeReason.Clear)
+                {
+                    allItems.Clear();
+                }
+            }
+        }
+
+        return allItems;
+    }
+
     [Fact]
     public void And_ReturnsIntersectionOfTwoSources()
     {
@@ -17,17 +46,7 @@ public sealed class LogicalOperatorsTests
         source1.AddRange(new[] { 1, 2, 3 });
         source2.AddRange(new[] { 2, 3, 4 });
 
-        var allItems = new HashSet<int>();
-        foreach (var cs in results)
-        {
-            foreach (var change in cs)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Equal(2, allItems.Count);
         Assert.Contains(2, allItems);
@@ -47,9 +66,9 @@ public sealed class LogicalOperatorsTests
 
         source2.Add(1);
 
-        var adds = results.SelectMany(cs => cs).Where(c => c.Reason == ListChangeReason.Add).ToList();
-        Assert.Single(adds);
-        Assert.Equal(1, adds[0].Item);
+        var allItems = CollectItems(results);
+        Assert.Single(allItems);
+        Assert.Contains(1, allItems);
     }
 
     [Fact]
@@ -67,17 +86,7 @@ public sealed class LogicalOperatorsTests
         source1.Remove(1);
 
         // Combiner does full recomputation, so we get all items as Adds again
-        var allItems = new HashSet<int>();
-        foreach (var cs in results)
-        {
-            foreach (var change in cs)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         // After removing 1 from source1, intersection should only contain 2
         Assert.Single(allItems);
@@ -96,17 +105,7 @@ public sealed class LogicalOperatorsTests
         source1.AddRange(new[] { 1, 2, 3 });
         source2.AddRange(new[] { 3, 4, 5 });
 
-        var allItems = new HashSet<int>();
-        foreach (var cs in results)
-        {
-            foreach (var change in cs)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Equal(5, allItems.Count);
         Assert.Contains(1, allItems);
@@ -131,17 +130,7 @@ public sealed class LogicalOperatorsTests
         source1.Remove(1);
 
         // Combiner does full recomputation - 1 is still in source2, so it's in the result
-        var allItems = new HashSet<int>();
-        foreach (var cs in results)
-        {
-            foreach (var change in cs)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Contains(1, allItems);
 
@@ -176,18 +165,7 @@ public sealed class LogicalOperatorsTests
         source2.AddRange(new[] { 3, 4, 5 });
 
         // Look only at final changeset (Combiner does full recomputation)
-        var allItems = new HashSet<int>();
-        if (results.Count > 0)
-        {
-            var lastChangeSet = results[^1];
-            foreach (var change in lastChangeSet)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Equal(2, allItems.Count);
         Assert.Contains(1, allItems);
@@ -208,17 +186,7 @@ public sealed class LogicalOperatorsTests
         source2.Add(2);
 
         // Combiner does full recomputation - result should now be 1, 3 (excluding 2)
-        var allItems = new HashSet<int>();
-        foreach (var cs in results)
-        {
-            foreach (var change in cs)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Equal(2, allItems.Count);
         Assert.Contains(1, allItems);
@@ -238,18 +206,7 @@ public sealed class LogicalOperatorsTests
         source2.AddRange(new[] { 3, 4, 5 });
 
         // Look only at final changeset (Combiner does full recomputation)
-        var allItems = new HashSet<int>();
-        if (results.Count > 0)
-        {
-            var lastChangeSet = results[^1];
-            foreach (var change in lastChangeSet)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Equal(4, allItems.Count);
         Assert.Contains(1, allItems);
@@ -273,17 +230,7 @@ public sealed class LogicalOperatorsTests
         source2.Add(1);
 
         // Combiner does full recomputation - 1 is now in both sources, so result should be empty
-        var allItems = new HashSet<int>();
-        foreach (var cs in results)
-        {
-            foreach (var change in cs)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Empty(allItems);
     }
@@ -301,17 +248,7 @@ public sealed class LogicalOperatorsTests
         source2.AddRange(new[] { 2, 3, 7 });
         source3.AddRange(new[] { 3, 4, 7 });
 
-        var allItems = new HashSet<int>();
-        foreach (var cs in results)
-        {
-            foreach (var change in cs)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Single(allItems);
         Assert.Contains(7, allItems);
@@ -330,17 +267,7 @@ public sealed class LogicalOperatorsTests
         source2.AddRange(new[] { 3, 4 });
         source3.AddRange(new[] { 5, 6 });
 
-        var allItems = new HashSet<int>();
-        foreach (var cs in results)
-        {
-            foreach (var change in cs)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Equal(6, allItems.Count);
         for (int i = 1; i <= 6; i++)
@@ -363,18 +290,7 @@ public sealed class LogicalOperatorsTests
         source3.AddRange(new[] { 4 });
 
         // Look only at final changeset (Combiner does full recomputation)
-        var allItems = new HashSet<int>();
-        if (results.Count > 0)
-        {
-            var lastChangeSet = results[^1];
-            foreach (var change in lastChangeSet)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Equal(2, allItems.Count);
         Assert.Contains(1, allItems);
@@ -392,17 +308,7 @@ public sealed class LogicalOperatorsTests
         source1.AddRange(new[] { 1, 2, 3 });
         source2.AddRange(new[] { 4, 5, 6 });
 
-        var allItems = new HashSet<int>();
-        foreach (var cs in results)
-        {
-            foreach (var change in cs)
-            {
-                if (change.Reason == ListChangeReason.Add)
-                {
-                    allItems.Add(change.Item);
-                }
-            }
-        }
+        var allItems = CollectItems(results);
 
         Assert.Empty(allItems);
     }

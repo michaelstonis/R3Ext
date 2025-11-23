@@ -1,5 +1,7 @@
 // Port of DynamicData to R3.
 
+using System.Collections.Generic;
+using System.Linq;
 using R3;
 
 namespace R3.DynamicData.List.Internal;
@@ -22,31 +24,115 @@ internal sealed class AutoRefresh<TObject, TAny>
 
     public Observable<IChangeSet<TObject>> Run()
     {
-        // Create a stream of refresh-only change sets triggered by the reevaluator observables.
-        var refreshes = _source
-            .Select(changeSet =>
-            {
-                var itemObservables = changeSet
-                    .Where(change => change.Reason == ListChangeReason.Add || change.Reason == ListChangeReason.Replace)
-                    .Select(change => _reEvaluator(change.Current));
+        return Observable.Defer(() =>
+        {
+            var currentList = new List<TObject>();
+            var itemSubscriptions = new Dictionary<TObject, IDisposable>();
 
-                return itemObservables.Merge();
-            })
-            .Merge()
-            .Select(_ =>
-            {
-                var refreshChange = Change<TObject>.Refresh;
-                return (IChangeSet<TObject>)new ChangeSet<TObject>(new[] { refreshChange });
-            });
+            var refreshSubject = new Subject<TObject>();
 
-        var bufferedRefreshes = ApplyBufferIfNeeded(refreshes);
+            // Create buffered refresh stream if needed
+            var bufferedRefreshes = ApplyBufferIfNeeded(refreshSubject);
 
-        // Merge original change sets with refresh notifications so downstream
-        // operators still see Adds/Removes while also reacting to Refresh.
-        return _source.Merge(bufferedRefreshes);
+            // Convert individual item refreshes to changesets with proper indices
+            var refreshChangeSets = bufferedRefreshes
+                .Select(item =>
+                {
+                    var index = currentList.IndexOf(item);
+                    if (index >= 0)
+                    {
+                        var refreshChange = new Change<TObject>(ListChangeReason.Refresh, item, index);
+                        return (IChangeSet<TObject>)new ChangeSet<TObject>(new[] { refreshChange });
+                    }
+
+                    return (IChangeSet<TObject>)new ChangeSet<TObject>(Array.Empty<Change<TObject>>());
+                });
+
+            // Process source changesets and manage subscriptions
+            var processedSource = _source
+                .Do(changeSet =>
+                {
+                    foreach (var change in changeSet)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ListChangeReason.Add:
+                                currentList.Insert(change.CurrentIndex, change.Current);
+                                SubscribeToItem(change.Current, itemSubscriptions, refreshSubject);
+                                break;
+
+                            case ListChangeReason.AddRange:
+                                var rangeItems = change.Range.ToList();
+                                currentList.InsertRange(change.CurrentIndex, rangeItems);
+                                foreach (var rangeItem in rangeItems)
+                                {
+                                    SubscribeToItem(rangeItem, itemSubscriptions, refreshSubject);
+                                }
+
+                                break;
+
+                            case ListChangeReason.Replace:
+                                UnsubscribeFromItem(currentList[change.CurrentIndex], itemSubscriptions);
+                                currentList[change.CurrentIndex] = change.Current;
+                                SubscribeToItem(change.Current, itemSubscriptions, refreshSubject);
+                                break;
+
+                            case ListChangeReason.Remove:
+                                UnsubscribeFromItem(currentList[change.CurrentIndex], itemSubscriptions);
+                                currentList.RemoveAt(change.CurrentIndex);
+                                break;
+
+                            case ListChangeReason.RemoveRange:
+                                for (int i = 0; i < change.Range.Count; i++)
+                                {
+                                    UnsubscribeFromItem(currentList[change.CurrentIndex], itemSubscriptions);
+                                    currentList.RemoveAt(change.CurrentIndex);
+                                }
+
+                                break;
+
+                            case ListChangeReason.Moved:
+                                var movedItem = currentList[change.PreviousIndex];
+                                currentList.RemoveAt(change.PreviousIndex);
+                                currentList.Insert(change.CurrentIndex, movedItem);
+                                break;
+
+                            case ListChangeReason.Clear:
+                                foreach (var clearItem in currentList)
+                                {
+                                    UnsubscribeFromItem(clearItem, itemSubscriptions);
+                                }
+
+                                currentList.Clear();
+                                break;
+                        }
+                    }
+                });
+
+            // Merge original changesets with refresh changesets
+            return processedSource.Merge(refreshChangeSets);
+        });
     }
 
-    private Observable<IChangeSet<TObject>> ApplyBufferIfNeeded(Observable<IChangeSet<TObject>> source)
+    private void SubscribeToItem(TObject item, Dictionary<TObject, IDisposable> subscriptions, Subject<TObject> refreshSubject)
+    {
+        if (!subscriptions.ContainsKey(item))
+        {
+            var subscription = _reEvaluator(item).Subscribe(_ => refreshSubject.OnNext(item));
+            subscriptions[item] = subscription;
+        }
+    }
+
+    private void UnsubscribeFromItem(TObject item, Dictionary<TObject, IDisposable> subscriptions)
+    {
+        if (subscriptions.TryGetValue(item, out var subscription))
+        {
+            subscription.Dispose();
+            subscriptions.Remove(item);
+        }
+    }
+
+    private Observable<TObject> ApplyBufferIfNeeded(Observable<TObject> source)
     {
         if (_buffer.HasValue)
         {

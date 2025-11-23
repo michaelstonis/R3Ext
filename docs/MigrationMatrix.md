@@ -42,10 +42,10 @@ Legend:
 | Lifecycle               | ExpireAfter                                          | Cache              | Implemented | Passing |                                                                                                                                |
 | Lifecycle               | LimitSizeTo                                          | List               | Implemented | Passing | Cache size/time combos pending                                                                                                 |
 | Lifecycle               | EnsureUniqueKeys                                     | Cache              | Implemented | Passing |                                                                                                                                |
-| Batching                | Batch / BatchIf                                      | Cache              | Implemented | Passing | 8 tests covering time-based batching with FakeTimeProvider and conditional batching with pause/resume signals                 |
+| Batching                | Batch / BatchIf                                      | Cache              | Implemented | Passing | 8 tests covering time-based batching with FakeTimeProvider and conditional batching with pause/resume signals                  |
 | Batching                | BufferIf                                             | List               | Implemented | Passing | Add timeout variant parity                                                                                                     |
 | Paging / Virtualisation | Virtualise / Page / Top                              | List               | Implemented | Passing | Cache variants not needed for current use cases                                                                                |
-| Paging / Virtualisation | Virtualise / Page / Top                              | Cache              | Implemented | Passing | 13 tests covering virtualize, page, and top operators; requires sorted cache for meaningful windowing                         |
+| Paging / Virtualisation | Virtualise / Page / Top                              | Cache              | Implemented | Passing | 13 tests covering virtualize, page, and top operators; requires sorted cache for meaningful windowing                          |
 | Query                   | QueryWhenChanged                                     | Cache/List         | Implemented | Passing | Add projection overload variants                                                                                               |
 | Query                   | ToCollection / ToSortedCollection                    | Cache/List         | Implemented | Passing | ToCollection implemented for both; ToSortedCollection via Sort + ToCollection                                                  |
 | Merge                   | MergeMany / MergeChangeSets                          | Cache/List         | Implemented | Passing | Core functionality complete; custom IEqualityComparer overloads optional                                                       |
@@ -69,26 +69,29 @@ Legend:
 
 **Status as of November 22, 2025:**
 
-- **Total Operators**: 62 operator categories tracked
-- **Implemented**: 58 operators (93.5%)
-- **Optimized**: 3 operators (4.8%)
-- **Deferred**: 1 operator (1.6%)
-- **Not Started**: 2 operators (3.2%)
+-   **Total Operators**: 62 operator categories tracked
+-   **Implemented**: 58 operators (93.5%)
+-   **Optimized**: 3 operators (4.8%)
+-   **Deferred**: 1 operator (1.6%)
+-   **Not Started**: 2 operators (3.2%)
 
 **Test Coverage:**
-- **Total Tests**: 274
-- **Passing**: 274 (100%)
+
+-   **Total Tests**: 274
+-   **Passing**: 274 (100%)
 
 **Remaining Work:**
+
 1. **Combine dynamic collections** (Cache/List) - Complex DynamicCombiner equivalents for dynamic observable collections
 2. **InvokeEvaluate** (Cache) - IEvaluateAware interface support for custom evaluation logic
 
 **Optional Enhancements:**
-- Cache variants of aggregation operators (Count, Sum, Max/Min, Avg, StdDev)
-- List variants of TrueForAll/TrueForAny
-- List variants of WhenValueChanged/WhenValueChangedWithPrevious
-- Custom IEqualityComparer overloads for various operators
-- Projection overload variants for QueryWhenChanged
+
+-   Cache variants of aggregation operators (Count, Sum, Max/Min, Avg, StdDev)
+-   List variants of TrueForAll/TrueForAny
+-   List variants of WhenValueChanged/WhenValueChangedWithPrevious
+-   Custom IEqualityComparer overloads for various operators
+-   Projection overload variants for QueryWhenChanged
 
 ### Notes
 
