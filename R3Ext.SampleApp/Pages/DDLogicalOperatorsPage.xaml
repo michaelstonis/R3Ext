@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="R3Ext.SampleApp.DDLogicalOperatorsPage"
+             Title="Logical Operators">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="DynamicData Logical Operators"
+                   Style="{StaticResource Headline}" />
+            <Label Text="Demonstrates And, Or, Except, and Xor combinators."
+                   TextColor="Gray" />
+
+            <!-- Control Lists -->
+            <Grid RowDefinitions="Auto,*" ColumnDefinitions="*,*" RowSpacing="8" ColumnSpacing="8">
+                <Label Text="List A" FontAttributes="Bold" />
+                <Label Text="List B" FontAttributes="Bold" Grid.Column="1" />
+
+                <Frame Grid.Row="1" Padding="8">
+                    <VerticalStackLayout Spacing="4">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                            <Entry x:Name="ListAEntry" Placeholder="Number" Keyboard="Numeric" />
+                            <Button Text="+" Grid.Column="1" Clicked="OnAddToListA" />
+                        </Grid>
+                        <CollectionView x:Name="ListAView" MaximumHeightRequest="120">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="4" ColumnDefinitions="*,Auto">
+                                        <Label Text="{Binding}" />
+                                        <Button Text="✕" Grid.Column="1" FontSize="10" Padding="4"
+                                                CommandParameter="{Binding}" Clicked="OnRemoveFromListA" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                        <Button Text="Clear" Clicked="OnClearListA" BackgroundColor="DarkRed" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <Frame Grid.Row="1" Grid.Column="1" Padding="8">
+                    <VerticalStackLayout Spacing="4">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                            <Entry x:Name="ListBEntry" Placeholder="Number" Keyboard="Numeric" />
+                            <Button Text="+" Grid.Column="1" Clicked="OnAddToListB" />
+                        </Grid>
+                        <CollectionView x:Name="ListBView" MaximumHeightRequest="120">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Padding="4" ColumnDefinitions="*,Auto">
+                                        <Label Text="{Binding}" />
+                                        <Button Text="✕" Grid.Column="1" FontSize="10" Padding="4"
+                                                CommandParameter="{Binding}" Clicked="OnRemoveFromListB" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                        <Button Text="Clear" Clicked="OnClearListB" BackgroundColor="DarkRed" />
+                    </VerticalStackLayout>
+                </Frame>
+            </Grid>
+
+            <!-- Results -->
+            <Label Text="Results:" FontAttributes="Bold" Margin="0,8,0,0" />
+
+            <Frame BorderColor="Green" Padding="8">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="AND (Items in both A and B):" FontAttributes="Bold" FontSize="14" />
+                    <Label x:Name="AndResultLabel" Text="" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame BorderColor="Blue" Padding="8">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="OR (Items in A or B or both):" FontAttributes="Bold" FontSize="14" />
+                    <Label x:Name="OrResultLabel" Text="" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame BorderColor="Orange" Padding="8">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="EXCEPT (Items in A but not in B):" FontAttributes="Bold" FontSize="14" />
+                    <Label x:Name="ExceptResultLabel" Text="" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <Frame BorderColor="Purple" Padding="8">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="XOR (Items in A or B but not both):" FontAttributes="Bold" FontSize="14" />
+                    <Label x:Name="XorResultLabel" Text="" />
+                </VerticalStackLayout>
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -18,7 +18,7 @@ public static class CombineExtensions
         }
 
         IList<Observable<bool>> list = sources as IList<Observable<bool>> ?? new List<Observable<bool>>(sources);
-        return Observable.CombineLatest(list).Select(values =>
+        return Observable.CombineLatest(list).Select(static values =>
         {
             bool all = true;
             for (int i = 0; i < values.Length; i++)
@@ -45,7 +45,7 @@ public static class CombineExtensions
         }
 
         IList<Observable<bool>> list = sources as IList<Observable<bool>> ?? new List<Observable<bool>>(sources);
-        return Observable.CombineLatest(list).Select(values =>
+        return Observable.CombineLatest(list).Select(static values =>
         {
             bool allFalse = true;
             for (int i = 0; i < values.Length; i++)

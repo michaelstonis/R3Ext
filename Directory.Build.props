@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <Project>
     <PropertyGroup>
         <!-- Version from Git tags or default -->
@@ -15,6 +15,7 @@
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageIcon>logo.png</PackageIcon>
         <PackageTags>R3;Reactive;Observable;MVVM;Extensions;ReactiveUI;Command;Bindings;SourceGenerator</PackageTags>
         <Description>Extensions and utilities for R3 reactive library including RxCommand, RxObject, data binding source generators, and ReactiveUI-compatible helpers.</Description>
         <!-- Build Settings -->
@@ -46,13 +47,17 @@
         <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json"
                          Link="stylecop.json" />
     </ItemGroup>
-
-    <!-- Ensure README.md from repo root is included in all packages -->
+    <!-- Ensure README.md and logo from repo root are included in all packages -->
     <ItemGroup>
         <None Include="$(MSBuildThisFileDirectory)README.md"
               Pack="true"
               PackagePath="\"
               Link="README.md"
               Condition="Exists('$(MSBuildThisFileDirectory)README.md')" />
+        <None Include="$(MSBuildThisFileDirectory)logo.png"
+              Pack="true"
+              PackagePath="\"
+              Link="logo.png"
+              Condition="Exists('$(MSBuildThisFileDirectory)logo.png')" />
     </ItemGroup>
 </Project>

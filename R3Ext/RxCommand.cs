@@ -25,7 +25,7 @@ public sealed class RxCommand<TInput, TOutput> : ICommand, IObservable<TOutput>,
         _outputScheduler = outputScheduler;
         _canExecute
             .DistinctUntilChanged()
-            .Subscribe(_ => this.CanExecuteChanged?.Invoke(this, EventArgs.Empty))
+            .Subscribe(this, static (_, state) => state.CanExecuteChanged?.Invoke(state, EventArgs.Empty))
             .AddTo(ref _disposables);
     }
 
@@ -121,7 +121,7 @@ public sealed class RxCommand<TInput, TOutput> : ICommand, IObservable<TOutput>,
         }
 
         TInput typed = parameter is TInput p ? p : default!;
-        this.Execute(typed).Subscribe(_ => { });
+        this.Execute(typed).Subscribe(static _ => { });
     }
 
     IDisposable IObservable<TOutput>.Subscribe(IObserver<TOutput> observer)
@@ -133,17 +133,18 @@ public sealed class RxCommand<TInput, TOutput> : ICommand, IObservable<TOutput>,
         }
 
         return _executionResults.Subscribe(
-            value => observer.OnNext(value),
-            ex => observer.OnError(ex),
-            result =>
+            observer,
+            static (value, state) => state.OnNext(value),
+            static (ex, state) => state.OnError(ex),
+            static (result, state) =>
             {
                 if (result.IsSuccess)
                 {
-                    observer.OnCompleted();
+                    state.OnCompleted();
                 }
                 else if (result.Exception != null)
                 {
-                    observer.OnError(result.Exception);
+                    state.OnError(result.Exception);
                 }
             });
     }
@@ -295,6 +296,11 @@ public static class RxCommand
 
 public static class ReactiveCommandExtensions
 {
+    private static class DiscardAction<T>
+    {
+        public static readonly Action<T> Instance = static _ => { };
+    }
+
     public static IDisposable InvokeCommand<TInput, TOutput>(
         this IObservable<TInput> source,
         RxCommand<TInput, TOutput> command)
@@ -312,7 +318,7 @@ public static class ReactiveCommandExtensions
         return source.ToObservable()
             .WithLatestFrom(command.CanExecute, (value, can) => (value, can))
             .Where(x => x.can)
-            .Subscribe(x => command.Execute(x.value).Subscribe(_ => { }));
+            .Subscribe(command, static (x, cmd) => cmd.Execute(x.value).Subscribe(DiscardAction<TOutput>.Instance));
     }
 
     public static IDisposable InvokeCommand<T>(
@@ -332,6 +338,6 @@ public static class ReactiveCommandExtensions
         return source.ToObservable()
             .WithLatestFrom(command.CanExecute, (value, can) => (value, can))
             .Where(x => x.can)
-            .Subscribe(_ => command.Execute().Subscribe(_ => { }));
+            .Subscribe(command, static (_, cmd) => cmd.Execute().Subscribe(DiscardAction<Unit>.Instance));
     }
 }

@@ -9,6 +9,11 @@ namespace R3Ext;
 /// </summary>
 public static class RxCommandMixins
 {
+    private static class DiscardAction<T>
+    {
+        public static readonly Action<T> Instance = static _ => { };
+    }
+
     /// <summary>
     /// Pipes each element of the source observable into a plain <see cref="ICommand"/> after checking <c>CanExecute</c>.
     /// </summary>
@@ -25,8 +30,8 @@ public static class RxCommandMixins
         }
 
         return source
-            .Where(v => command.CanExecute(v))
-            .Subscribe(v => command.Execute(v));
+            .Where(command, static (v, cmd) => cmd.CanExecute(v))
+            .Subscribe(command, static (v, cmd) => cmd.Execute(v));
     }
 
     /// <summary>
@@ -45,9 +50,9 @@ public static class RxCommandMixins
         }
 
         return source
-            .WithLatestFrom(command.CanExecute, (v, can) => can)
-            .Where(can => can)
-            .Subscribe(_ => command.Execute().Subscribe(_ => { }));
+            .WithLatestFrom(command.CanExecute, static (_, can) => can)
+            .Where(static can => can)
+            .Subscribe(command, static (_, cmd) => cmd.Execute().Subscribe(DiscardAction<Unit>.Instance));
     }
 
     /// <summary>
@@ -66,9 +71,9 @@ public static class RxCommandMixins
         }
 
         return source
-            .WithLatestFrom(command.CanExecute, (v, can) => (v, can))
-            .Where(x => x.can)
-            .Subscribe(x => command.Execute(x.v).Subscribe(_ => { }, _ => { }));
+            .WithLatestFrom(command.CanExecute, static (v, can) => (v, can))
+            .Where(static x => x.can)
+            .Subscribe(command, static (x, cmd) => cmd.Execute(x.v).Subscribe(DiscardAction<TOutput>.Instance));
     }
 
     /// <summary>
@@ -96,9 +101,9 @@ public static class RxCommandMixins
 
         return source
             .Select(selector)
-            .WithLatestFrom(command.CanExecute, (param, can) => (param, can))
-            .Where(x => x.can)
-            .Subscribe(x => command.Execute(x.param).Subscribe(_ => { }, _ => { }));
+            .WithLatestFrom(command.CanExecute, static (param, can) => (param, can))
+            .Where(static x => x.can)
+            .Subscribe(command, static (x, cmd) => cmd.Execute(x.param).Subscribe(DiscardAction<TOutput>.Instance));
     }
 
     /// <summary>

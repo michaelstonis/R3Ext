@@ -28,7 +28,7 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
             throw new ArgumentNullException(nameof(handler));
         }
 
-        return this.RegisterHandler(ctx => Observable.FromAsync(async ct => { await handler(ctx); }));
+        return this.RegisterHandler(ctx => Observable.FromAsync(_ => new ValueTask(handler(ctx))));
     }
 
     public IDisposable RegisterHandler<TDontCare>(Func<IInteractionContext<TInput, TOutput>, Observable<TDontCare>> handler)

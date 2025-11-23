@@ -5,7 +5,7 @@ namespace R3Ext.SampleApp;
 
 public partial class BasicsPage : ContentPage
 {
-    private readonly SampleViewModel _vm = new();
+    private readonly SampleViewModel2 _vm = new();
     private DisposableBag _bindings;
 
     public BasicsPage()
@@ -22,7 +22,7 @@ public partial class BasicsPage : ContentPage
 
         // One-way binding Person.Name -> NameLabel.Text
         _vm.BindOneWay(NameLabel, v => v.Person.Name, l => l.Text)
-            .AddTo(ref _bindings);
+        .AddTo(ref _bindings);
 
         // Reactive transformation of name to upper
         _vm.WhenChanged(v => v.EditableName)

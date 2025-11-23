@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="R3Ext.SampleApp.DynamicDataOperatorsPage"
+             Title="Advanced Operators">
+    <ScrollView>
+        <VerticalStackLayout Padding="20"
+                             Spacing="16">
+            <Label Text="Advanced DynamicData Operators"
+                   Style="{StaticResource Headline}" />
+            <!-- Source Data Controls -->
+            <Frame BorderColor="LightBlue"
+                   Padding="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Source Data"
+                           FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,*,*"
+                          ColumnSpacing="8">
+                        <Button Text="Add Person"
+                                Clicked="OnAddPerson" />
+                        <Button Text="Add 5"
+                                Grid.Column="1"
+                                Clicked="OnAddMultiple" />
+                        <Button Text="Clear"
+                                Grid.Column="2"
+                                Clicked="OnClear"
+                                BackgroundColor="DarkRed" />
+                    </Grid>
+                    <Label x:Name="SourceCountLabel"
+                           Text="Source: 0 people"
+                           FontSize="12" />
+                </VerticalStackLayout>
+            </Frame>
+            <!-- Transform Operator -->
+            <Frame BorderColor="Purple"
+                   Padding="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Transform: Person → DisplayName"
+                           FontAttributes="Bold" />
+                    <Label Text="Transforms each person into a display string"
+                           FontSize="12"
+                           TextColor="Gray" />
+                    <CollectionView x:Name="TransformView"
+                                    HeightRequest="120">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Padding="8"
+                                       Margin="0,2"
+                                       HasShadow="False"
+                                       BorderColor="Purple">
+                                    <Label Text="{Binding .}" />
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+            <!-- Group Operator -->
+            <Frame BorderColor="Orange"
+                   Padding="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Group: By City"
+                           FontAttributes="Bold" />
+                    <Label Text="Groups people by their city"
+                           FontSize="12"
+                           TextColor="Gray" />
+                    <CollectionView x:Name="GroupView"
+                                    HeightRequest="150">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Padding="8"
+                                       Margin="0,2"
+                                       HasShadow="False"
+                                       BorderColor="Orange">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label Text="{Binding Key}"
+                                               FontAttributes="Bold" />
+                                        <Label Text="{Binding Items.Count, StringFormat='Count: {0}'}"
+                                               FontSize="12"
+                                               TextColor="Gray" />
+                                    </VerticalStackLayout>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+            <!-- DistinctValues Operator -->
+            <Frame BorderColor="Green"
+                   Padding="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="DistinctValues: Unique Cities"
+                           FontAttributes="Bold" />
+                    <Label Text="Extracts distinct cities from all people"
+                           FontSize="12"
+                           TextColor="Gray" />
+                    <FlexLayout x:Name="DistinctCitiesLayout"
+                                Wrap="Wrap"
+                                JustifyContent="Start"
+                                AlignContent="Start" />
+                </VerticalStackLayout>
+            </Frame>
+            <!-- TransformMany Operator -->
+            <Frame BorderColor="DarkBlue"
+                   Padding="12">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="TransformMany: All Hobbies (flattened)"
+                           FontAttributes="Bold" />
+                    <Label Text="Flattens hobbies from all people into one list"
+                           FontSize="12"
+                           TextColor="Gray" />
+                    <CollectionView x:Name="HobbiesView"
+                                    HeightRequest="100">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame Padding="6"
+                                       Margin="2"
+                                       HasShadow="False"
+                                       BorderColor="DarkBlue">
+                                    <Label Text="{Binding .}"
+                                           FontSize="12" />
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+            </Frame>
+            <!-- Count Summary -->
+            <Frame BorderColor="Gray"
+                   Padding="12">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Live Counts"
+                           FontAttributes="Bold" />
+                    <Label x:Name="TransformCountLabel"
+                           Text="Transformed: 0"
+                           FontSize="12" />
+                    <Label x:Name="GroupCountLabel"
+                           Text="Groups: 0"
+                           FontSize="12" />
+                    <Label x:Name="DistinctCountLabel"
+                           Text="Unique Cities: 0"
+                           FontSize="12" />
+                    <Label x:Name="HobbiesCountLabel"
+                           Text="Total Hobbies: 0"
+                           FontSize="12" />
+                </VerticalStackLayout>
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

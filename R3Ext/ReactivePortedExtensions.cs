@@ -54,15 +54,15 @@ public static IDisposable SubscribeAsync<T>(this Observable<T> source,
 /// </summary>
 public static Observable<T> FromArray<T>(params T[] items)
 {
-    items ??= Array.Empty<T>();
-    return Observable.Create<T>(observer =>
+    return Observable.Create<T, T[]>(items, static (observer, state) =>
     {
-        for (int i = 0; i < items.Length; i++)
+        for (int i = 0; i < state.Length; i++)
         {
-            observer.OnNext(items[i]);
+            observer.OnNext(state[i]);
         }
+
         observer.OnCompleted();
-        return Disposable.Create(() => { });
+        return Disposable.Empty;
     });
 }
 
@@ -73,31 +73,31 @@ public static Observable<T> FromArray<T>(params T[] items)
 public static Observable<T> ForEach<T, TEnumerable>(this Observable<TEnumerable> source)
     where TEnumerable : System.Collections.Generic.IEnumerable<T>
 {
-    if (source is null) throw new ArgumentNullException(nameof(source));
-    return Observable.Create<T>(observer =>
+    return Observable.Create<T, Observable<TEnumerable>>(source, static (observer, state) =>
     {
-        return source.Subscribe(seq =>
-        {
-            if (seq is null) return;
-            // Fast path for arrays
-            if (seq is T[] arr)
+        return state.Subscribe(
+            seq =>
             {
-                for (int i = 0; i < arr.Length; i++) observer.OnNext(arr[i]);
-                return;
-            }
-            // Fast path for IList
-            if (seq is System.Collections.Generic.IList<T> list)
-            {
-                for (int i = 0; i < list.Count; i++) observer.OnNext(list[i]);
-                return;
-            }
-            foreach (var item in seq)
-            {
-                observer.OnNext(item);
-            }
-        },
-        observer.OnErrorResume,
-        observer.OnCompleted);
+                if (seq is null) return;
+                // Fast path for arrays
+                if (seq is T[] arr)
+                {
+                    for (int i = 0; i < arr.Length; i++) observer.OnNext(arr[i]);
+                    return;
+                }
+                // Fast path for IList
+                if (seq is System.Collections.Generic.IList<T> list)
+                {
+                    for (int i = 0; i < list.Count; i++) observer.OnNext(list[i]);
+                    return;
+                }
+                foreach (var item in seq)
+                {
+                    observer.OnNext(item);
+                }
+            },
+            observer.OnErrorResume,
+            observer.OnCompleted);
     });
 }
 
@@ -106,16 +106,16 @@ public static Observable<T> ForEach<T, TEnumerable>(this Observable<TEnumerable>
 /// </summary>
 public static Observable<T> ForEach<T>(this Observable<T[]> source)
 {
-    if (source is null) throw new ArgumentNullException(nameof(source));
-    return Observable.Create<T>(observer =>
+    return Observable.Create<T, Observable<T[]>>(source, static (observer, state) =>
     {
-        return source.Subscribe(arr =>
-        {
-            if (arr is null) return;
-            for (int i = 0; i < arr.Length; i++) observer.OnNext(arr[i]);
-        },
-        observer.OnErrorResume,
-        observer.OnCompleted);
+        return state.Subscribe(
+            arr =>
+            {
+                if (arr is null) return;
+                for (int i = 0; i < arr.Length; i++) observer.OnNext(arr[i]);
+            },
+            observer.OnErrorResume,
+            observer.OnCompleted);
     });
 }
 
@@ -124,16 +124,16 @@ public static Observable<T> ForEach<T>(this Observable<T[]> source)
 /// </summary>
 public static Observable<T> ForEach<T>(this Observable<System.Collections.Generic.IList<T>> source)
 {
-    if (source is null) throw new ArgumentNullException(nameof(source));
-    return Observable.Create<T>(observer =>
+    return Observable.Create<T, Observable<System.Collections.Generic.IList<T>>>(source, static (observer, state) =>
     {
-        return source.Subscribe(list =>
-        {
-            if (list is null) return;
-            for (int i = 0; i < list.Count; i++) observer.OnNext(list[i]);
-        },
-        observer.OnErrorResume,
-        observer.OnCompleted);
+        return state.Subscribe(
+            list =>
+            {
+                if (list is null) return;
+                for (int i = 0; i < list.Count; i++) observer.OnNext(list[i]);
+            },
+            observer.OnErrorResume,
+            observer.OnCompleted);
     });
 }
 
@@ -177,7 +177,7 @@ public static Observable<TResult> Using<TResource, TResult>(Func<TResource> reso
 public static Observable<bool> Not(this Observable<bool> source)
 {
     if (source is null) throw new ArgumentNullException(nameof(source));
-    return source.Select(x => !x);
+    return source.Select(static x => !x);
 }
 
 /// <summary>
@@ -186,7 +186,7 @@ public static Observable<bool> Not(this Observable<bool> source)
 public static Observable<bool> WhereTrue(this Observable<bool> source)
 {
     if (source is null) throw new ArgumentNullException(nameof(source));
-    return source.Where(x => x);
+    return source.Where(static x => x);
 }
 
 /// <summary>
@@ -195,7 +195,7 @@ public static Observable<bool> WhereTrue(this Observable<bool> source)
 public static Observable<bool> WhereFalse(this Observable<bool> source)
 {
     if (source is null) throw new ArgumentNullException(nameof(source));
-    return source.Where(x => !x);
+    return source.Where(static x => !x);
 }
 
 /// <summary>
@@ -699,13 +699,13 @@ public static Observable<T> Conflate<T>(this Observable<T> source, TimeSpan peri
 /// </summary>
 public static Observable<Unit> Start(Action action, bool configureAwait = true)
 {
-    if (action is null) throw new ArgumentNullException(nameof(action));
-    return Observable.FromAsync(async ct =>
-    {
-        action();
-        await ValueTask.CompletedTask;
-    }, configureAwait);
-}
+    return Observable.FromAsync(
+        _ =>
+        {
+            action();
+            return default(ValueTask);
+        },
+        configureAwait);
 
 /// <summary>
 /// Starts a function asynchronously and emits its result, then completes.
@@ -723,7 +723,7 @@ public static Observable<bool> CombineLatestValuesAreAllTrue(this System.Collect
 {
     if (sources is null) throw new ArgumentNullException(nameof(sources));
     var list = sources as System.Collections.Generic.IList<Observable<bool>> ?? new System.Collections.Generic.List<Observable<bool>>(sources);
-    return Observable.CombineLatest(list).Select(values =>
+    return Observable.CombineLatest(list).Select(static values =>
     {
         var all = true;
         for (int i = 0; i < values.Length; i++)
@@ -741,7 +741,7 @@ public static Observable<bool> CombineLatestValuesAreAllFalse(this System.Collec
 {
     if (sources is null) throw new ArgumentNullException(nameof(sources));
     var list = sources as System.Collections.Generic.IList<Observable<bool>> ?? new System.Collections.Generic.List<Observable<bool>>(sources);
-    return Observable.CombineLatest(list).Select(values =>
+    return Observable.CombineLatest(list).Select(static values =>
     {
         var allFalse = true;
         for (int i = 0; i < values.Length; i++)
@@ -851,7 +851,7 @@ public static Observable<string> Filter(this Observable<string> source, string p
     if (source is null) throw new ArgumentNullException(nameof(source));
     if (pattern is null) throw new ArgumentNullException(nameof(pattern));
     var regex = new System.Text.RegularExpressions.Regex(pattern, options);
-    return source.Where(s => s != null && regex.IsMatch(s));
+    return source.Where(regex, static (s, rx) => s != null && rx.IsMatch(s));
 }
 
 /// <summary>
@@ -1345,14 +1345,15 @@ public class ReactiveUICompatibleCommand<TInput, TOutput> : ICommand, IObservabl
 
         // Bridge R3.Subject to System.IObserver
         return _executionResults.Subscribe(
-            onNext: value => observer.OnNext(value),
-            onErrorResume: ex => observer.OnError(ex),
-            onCompleted: result =>
+            observer,
+            static (value, obs) => obs.OnNext(value),
+            static (ex, obs) => obs.OnError(ex),
+            static (result, obs) =>
             {
                 if (result.IsSuccess)
-                    observer.OnCompleted();
+                    obs.OnCompleted();
                 else if (result.Exception != null)
-                    observer.OnError(result.Exception);
+                    obs.OnError(result.Exception);
             });
     }
 
@@ -1461,7 +1462,7 @@ public class ReactiveUICompatibleCommand<TInput, TOutput> : ICommand, IObservabl
 
         // Combine CanExecute from all child commands - can only execute when ALL can execute
         var combinedCanExecute = childCommands
-            .Select(cmd => cmd.CanExecute)
+            .Select(static cmd => cmd.CanExecute)
             .CombineLatestValuesAreAllTrue();
 
         return new ReactiveUICompatibleCommand<TInput, TOutput[]>(
@@ -1578,6 +1579,11 @@ public static class ReactiveUICompatibleCommand
 /// </summary>
 public static class ReactiveCommandExtensions
 {
+    private static class DiscardAction<T>
+    {
+        public static readonly Action<T> Instance = static _ => { };
+    }
+
     /// <summary>
     /// Executes the command whenever the source observable emits a value,
     /// passing that value as the command parameter
@@ -1591,9 +1597,9 @@ public static class ReactiveCommandExtensions
 
         return source
             .ToObservable()
-            .WithLatestFrom(command.CanExecute, (value, canExecute) => (value, canExecute))
-            .Where(x => x.canExecute)
-            .Subscribe(x => command.Execute(x.value).Subscribe(_ => { }));
+            .WithLatestFrom(command.CanExecute, static (value, canExecute) => (value, canExecute))
+            .Where(static x => x.canExecute)
+            .Subscribe(command, static (x, cmd) => cmd.Execute(x.value).Subscribe(DiscardAction<TOutput>.Instance));
     }
 
     /// <summary>
@@ -1608,8 +1614,8 @@ public static class ReactiveCommandExtensions
 
         return source
             .ToObservable()
-            .WithLatestFrom(command.CanExecute, (value, canExecute) => (value, canExecute))
-            .Where(x => x.canExecute)
-            .Subscribe(_ => command.Execute().Subscribe(_ => { }));
+            .WithLatestFrom(command.CanExecute, static (value, canExecute) => (value, canExecute))
+            .Where(static x => x.canExecute)
+            .Subscribe(command, static (_, cmd) => cmd.Execute().Subscribe(DiscardAction<Unit>.Instance));
     }
 }

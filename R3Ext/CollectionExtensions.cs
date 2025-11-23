@@ -19,9 +19,9 @@ public static class CollectionExtensions
             throw new ArgumentNullException(nameof(source));
         }
 
-        return Observable.Create<T>(observer =>
+        return Observable.Create<T, Observable<TEnumerable>>(source, static (observer, state) =>
         {
-            return source.Subscribe(
+            return state.Subscribe(
                 seq =>
                 {
                     if (seq is null)
@@ -71,9 +71,9 @@ public static class CollectionExtensions
             throw new ArgumentNullException(nameof(source));
         }
 
-        return Observable.Create<T>(observer =>
+        return Observable.Create<T, Observable<T[]>>(source, static (observer, state) =>
         {
-            return source.Subscribe(
+            return state.Subscribe(
                 arr =>
                 {
                     if (arr is null)
@@ -101,9 +101,9 @@ public static class CollectionExtensions
             throw new ArgumentNullException(nameof(source));
         }
 
-        return Observable.Create<T>(observer =>
+        return Observable.Create<T, Observable<IList<T>>>(source, static (observer, state) =>
         {
-            return source.Subscribe(
+            return state.Subscribe(
                 list =>
                 {
                     if (list is null)
@@ -131,9 +131,9 @@ public static class CollectionExtensions
             throw new ArgumentNullException(nameof(source));
         }
 
-        return Observable.Create<T>(observer =>
+        return Observable.Create<T, Observable<List<T>>>(source, static (observer, state) =>
         {
-            return source.Subscribe(
+            return state.Subscribe(
                 list =>
                 {
                     if (list is null)

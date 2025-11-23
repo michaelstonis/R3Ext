@@ -66,7 +66,7 @@ public static class ObserverExtensions
         }
 
         Observable<T> t = source.Where(predicate);
-        Observable<T> f = source.Where(x => !predicate(x));
+        Observable<T> f = source.Where(predicate, static (x, pred) => !pred(x));
         return (t, f);
     }
 
