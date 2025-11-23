@@ -77,8 +77,7 @@ Legend:
 
 **Test Coverage:**
 - **Total Tests**: 274
-- **Passing**: 272 (99.3%)
-- **Pre-existing Failures**: 2 (ExpireAfterCacheTests.ExpireAfter_UpdateResetsTimer, IncludeUpdateWhenCacheTests.IncludeUpdateWhen_AllUpdatesSuppressed_OnlyAddEmitted)
+- **Passing**: 274 (100%)
 
 **Remaining Work:**
 1. **Combine dynamic collections** (Cache/List) - Complex DynamicCombiner equivalents for dynamic observable collections

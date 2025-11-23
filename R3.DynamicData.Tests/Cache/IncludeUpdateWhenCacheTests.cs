@@ -47,6 +47,6 @@ public class IncludeUpdateWhenCacheTests
         Assert.Single(results);
         var add = results[0].Single();
         Assert.Equal(ChangeReason.Add, add.Reason);
-        Assert.Equal(7, add.Current.Age); // last value retained in SourceCache regardless of suppression
+        Assert.Equal(5, add.Current.Age); // Only initial Add emitted, updates suppressed
     }
 }

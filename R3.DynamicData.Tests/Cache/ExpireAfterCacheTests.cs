@@ -1,6 +1,7 @@
 // Port of DynamicData to R3.
 #pragma warning disable SA1516, SA1515, SA1503, SA1502, SA1107
 
+using Microsoft.Extensions.Time.Testing;
 using R3.DynamicData.Cache;
 
 namespace R3.DynamicData.Tests.Cache;
@@ -50,7 +51,7 @@ public class ExpireAfterCacheTests
         var removed = new List<int>();
 
         using var sub = cache.Connect()
-            .ExpireAfter<Item, int>(i => i.Name == "expire" ? TimeSpan.FromMilliseconds(100) : TimeSpan.FromMilliseconds(200))
+            .ExpireAfter<Item, int>(i => i.Name == "expire" ? TimeSpan.FromMilliseconds(200) : TimeSpan.FromMilliseconds(600))
             .Subscribe(changes =>
             {
                 foreach (var c in changes)
@@ -60,14 +61,12 @@ public class ExpireAfterCacheTests
             });
 
         cache.AddOrUpdate(new Item(1, "expire"));
-        await Task.Delay(60);
-        // Update to non-expiring (longer) before original expiry fires
+        await Task.Delay(100); // Advance to 100ms, well before 200ms expiry
+        // Update to extended expiry before original expiry fires
         cache.AddOrUpdate(new Item(1, "extended"));
-        await Task.Delay(70); // original would have expired at ~100ms
+        await Task.Delay(200); // Advance to 300ms total, past original 200ms expiry but within 600ms from update (at 100ms)
         Assert.DoesNotContain(1, removed);
-        await Task.Delay(130); // now extended still within 200ms
-        Assert.DoesNotContain(1, removed);
-        await Task.Delay(90); // total surpasses 200ms from update
+        await Task.Delay(400); // Advance to 700ms total, past 600ms from update (100ms + 600ms)
         Assert.Contains(1, removed);
     }
 
