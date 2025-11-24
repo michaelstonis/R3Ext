@@ -95,7 +95,7 @@ public class DynamicDataSortTests
         public static readonly IComparer<TestPerson> Descending = Comparer<TestPerson>.Create((a, b) => string.Compare(b.Name, a.Name, StringComparison.OrdinalIgnoreCase));
     }
 
-    private sealed class TestPerson : INotifyPropertyChanged
+    internal sealed class TestPerson : INotifyPropertyChanged
     {
         private string _name;
 

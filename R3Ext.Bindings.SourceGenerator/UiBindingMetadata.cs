@@ -1,8 +1,18 @@
 using System.Collections.Immutable;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.CodeAnalysis;
 
 namespace R3Ext.Bindings.SourceGenerator;
+
+// AOT-compatible JSON serialization context
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+[JsonSerializable(typeof(UiBindingMetadata))]
+[JsonSerializable(typeof(UiControlType))]
+[JsonSerializable(typeof(UiControlField))]
+internal partial class UiBindingMetadataJsonContext : JsonSerializerContext
+{
+}
 
 internal sealed class UiBindingMetadata
 {
@@ -22,7 +32,7 @@ internal sealed class UiBindingMetadata
                 return null;
             }
 
-            return JsonSerializer.Deserialize<UiBindingMetadata>(stream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true, });
+            return JsonSerializer.Deserialize(stream, UiBindingMetadataJsonContext.Default.UiBindingMetadata);
         }
         catch
         {

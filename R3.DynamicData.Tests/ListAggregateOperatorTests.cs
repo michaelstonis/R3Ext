@@ -8,7 +8,7 @@ namespace R3.DynamicData.Tests;
 
 public class ListAggregateOperatorTests
 {
-    private class Person : INotifyPropertyChanged
+    internal class Person : INotifyPropertyChanged
     {
         private int age;
 

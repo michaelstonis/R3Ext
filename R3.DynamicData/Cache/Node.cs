@@ -153,12 +153,12 @@ public class Node<TObject, TKey> : IDisposable, IEquatable<Node<TObject, TKey>>
             return true;
         }
 
-        if (obj.GetType() != GetType())
+        if (obj is not Node<TObject, TKey> other)
         {
             return false;
         }
 
-        return Equals((Node<TObject, TKey>)obj);
+        return Equals(other);
     }
 
     /// <summary>Serves as the default hash function. </summary>

@@ -87,9 +87,14 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             ImmutableArray<InvocationModel> all = models!.OfType<InvocationModel>().ToImmutableArray();
 
             // Debug logging - write to generated file as comments
-            // Debug logging - commented out after confirming deduplication fix
+            // Commented out after confirming WhenValueChanged deduplication fix
             // var debugInfo = new StringBuilder();
             // debugInfo.AppendLine($"// DEBUG: Assembly={asmName}, InvocationModels={all.Length}, Filtered={filteredCount}");
+            // debugInfo.AppendLine($"// DEBUG: All invocations by Kind:");
+            // foreach (var inv in all)
+            // {
+            //     debugInfo.AppendLine($"//   - Kind={inv.Kind}, WhenPath={inv.WhenPath ?? "NULL"}, FromPath={inv.FromPath ?? "NULL"}, ToPath={inv.ToPath ?? "NULL"}, Loc={inv.Location.GetLineSpan()}");
+            // }
             // debugInfo.AppendLine($"// DEBUG: WhenChanged invocations BEFORE deduplication: {all.Count(m => m.Kind == "WhenChanged")}");
             // foreach (var inv in all.Where(m => m.Kind == "WhenChanged"))
             // {
@@ -109,6 +114,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             // {
             //     debugInfo.AppendLine($"//   - Filtered at {item.Location.GetLineSpan()}: {item.Reason}");
             // }
+            // debugInfo.AppendLine("// DEBUG: End of debug output");
 
             // Post-process unresolved target chains using UI metadata (now that we have compilation + lookup)
             foreach (InvocationModel? m in all)
@@ -159,7 +165,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                         spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve 'to' property chain"));
                     }
                 }
-                else if (m.Kind == "WhenChanged" && m.FromSegments.Count == 0)
+                else if ((m.Kind == "WhenChanged" || m.Kind == "WhenValueChanged" || m.Kind == "AutoRefresh") && m.FromSegments.Count == 0)
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve monitored property chain"));
 
@@ -174,7 +180,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             // Populate type name metadata BEFORE deduplication so we can use root type in the key
             foreach (InvocationModel? m in all)
             {
-                if (m.Kind == "WhenChanged")
+                if (m.Kind == "WhenChanged" || m.Kind == "WhenValueChanged" || m.Kind == "AutoRefresh")
                 {
                     if (m.FromSegments.Count > 0)
                     {
@@ -214,6 +220,8 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     "BindOneWay" => $"{m.Kind}|{m.RootFromTypeName}|{m.FromPath}|{m.RootTargetTypeName}|{m.ToPath}",
                     "BindTwoWay" => $"{m.Kind}|{m.RootFromTypeName}|{m.FromPath}|{m.RootTargetTypeName}|{m.ToPath}",
                     "WhenChanged" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
+                    "WhenValueChanged" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
+                    "AutoRefresh" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
                     _ => m.Kind,
                 };
             }
@@ -233,13 +241,14 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             string source = emitter.Emit(distinct.ToImmutableArray(), asmName);
 
             // Prepend debug info
+            // var debugInfo = new StringBuilder();
             // debugInfo.AppendLine($"// DEBUG: After deduplication: {distinct.Count} distinct invocations");
             // foreach (var inv in distinct.Where(m => m.Kind == "WhenChanged"))
             // {
             //     debugInfo.AppendLine($"//   - KEPT: Path={inv.WhenPath}, Loc={inv.Location.GetLineSpan()}");
             // }
-
             // var finalSource = debugInfo.ToString() + source;
+
             spc.AddSource("R3Ext_BindingGeneratorV2.g.cs", SourceText.From(source, Encoding.UTF8));
         });
     }
@@ -249,7 +258,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         if (ies.Expression is MemberAccessExpressionSyntax maes)
         {
             string name = maes.Name.Identifier.ValueText;
-            return name is "BindTwoWay" or "BindOneWay" or "WhenChanged";
+            return name is "BindTwoWay" or "BindOneWay" or "WhenChanged" or "WhenValueChanged" or "AutoRefresh";
         }
 
         return false;
@@ -283,7 +292,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             return new FilteredInvocation(location, reason, ies.ToString());
         }
 
-        if (symbol.Name is not ("BindTwoWay" or "BindOneWay" or "WhenChanged"))
+        if (symbol.Name is not ("BindTwoWay" or "BindOneWay" or "WhenChanged" or "WhenValueChanged" or "AutoRefresh"))
         {
             return new FilteredInvocation(location, $"method name '{symbol.Name}' is not a recognized binding method", ies.ToString());
         }
@@ -305,7 +314,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         string? inferredTargetRootTypeNameFromHeuristic = null;
         List<(string, string, string)> failures = new();
 
-        if (symbol.Name == "WhenChanged")
+        if (symbol.Name == "WhenChanged" || symbol.Name == "WhenValueChanged" || symbol.Name == "AutoRefresh")
         {
             if (args.Count < 1)
             {
@@ -413,7 +422,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 ContainingTypeName = capturedContainingTypeName,
                 SymbolResolutionFailures = failures,
             };
-        if (symbol.Name != "WhenChanged")
+        if (symbol.Name != "WhenChanged" && symbol.Name != "WhenValueChanged" && symbol.Name != "AutoRefresh")
         {
             ITypeSymbol? ta = null;
             if (symbol.IsGenericMethod && symbol.TypeArguments.Length >= 3)
@@ -907,7 +916,7 @@ internal sealed class CodeEmitter
             EmitUnsafeAccessors(invocations, sb);
             this.EmitBindOneWay(invocations.Where(i => i.Kind == "BindOneWay").ToImmutableArray(), sb);
             this.EmitBindTwoWay(invocations.Where(i => i.Kind == "BindTwoWay").ToImmutableArray(), sb);
-            this.EmitWhenChanged(invocations.Where(i => i.Kind == "WhenChanged").ToImmutableArray(), sb);
+            this.EmitWhenChanged(invocations.Where(i => i.Kind == "WhenChanged" || i.Kind == "WhenValueChanged" || i.Kind == "AutoRefresh").ToImmutableArray(), sb);
             sb.AppendLine("}");
         }
         else
@@ -919,7 +928,7 @@ internal sealed class CodeEmitter
             EmitUnsafeAccessors(invocations, sb);
             int owCount = invocations.Count(i => i.Kind == "BindOneWay");
             int twCount = invocations.Count(i => i.Kind == "BindTwoWay");
-            int wcCount = invocations.Count(i => i.Kind == "WhenChanged");
+            int wcCount = invocations.Count(i => i.Kind == "WhenChanged" || i.Kind == "WhenValueChanged" || i.Kind == "AutoRefresh");
             sb.AppendLine($"    // Generator summary for {asm}: OW={owCount}, TW={twCount}, WC={wcCount}");
 
             // Debug: list invocations and metadata readiness
@@ -951,7 +960,7 @@ internal sealed class CodeEmitter
                     sb.AppendLine(
                         $"        BindingRegistry.RegisterTwoWay<{inv.RootFromTypeName},{inv.FromLeafTypeName},{inv.RootTargetTypeName},{inv.TargetLeafTypeName}>(\"{Escape(inv.FromPath)}\", \"{Escape(inv.ToPath)}\", (f,t,ht,th) => __RegBindTwoWay_{id}(f,t,ht,th));");
                 }
-                else if (inv.Kind == "WhenChanged" && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
+                else if ((inv.Kind == "WhenChanged" || inv.Kind == "WhenValueChanged" || inv.Kind == "AutoRefresh") && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
                 {
                     string id = Hash(inv.WhenRootTypeName + "|" + inv.WhenPath);
                     string simple = Simple(inv.WhenRootTypeName);
@@ -983,7 +992,7 @@ internal sealed class CodeEmitter
                         this.EmitTwoWayRegistrationBody(id, inv, sb);
                     }
                 }
-                else if (inv.Kind == "WhenChanged" && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
+                else if ((inv.Kind == "WhenChanged" || inv.Kind == "WhenValueChanged" || inv.Kind == "AutoRefresh") && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
                 {
                     string id = Hash(inv.WhenRootTypeName + "|" + inv.WhenPath);
                     if (emitted.Add("wc" + id))
@@ -1124,6 +1133,7 @@ internal sealed class CodeEmitter
 
     private void EmitWhenChanged(ImmutableArray<InvocationModel> models, StringBuilder sb)
     {
+        // Public overload with CallerArgumentExpression
         sb.AppendLine(
             "    public static partial Observable<TReturn> WhenChanged<TObj,TReturn>(this TObj objectToMonitor, Expression<Func<TObj,TReturn>> propertyExpression, [CallerArgumentExpression(\"propertyExpression\")] string? propertyExpressionPath = null)");
         sb.AppendLine("    {");
@@ -1148,6 +1158,15 @@ internal sealed class CodeEmitter
         }
 
         sb.AppendLine("        throw new NotSupportedException(\"No generated WhenChanged for provided property expression.\");");
+        sb.AppendLine("    }");
+
+        // Internal overload that accepts explicit expression path (for WhenValueChanged integration)
+        sb.AppendLine(
+            "    public static Observable<TReturn> WhenChangedWithPath<TObj,TReturn>(this TObj objectToMonitor, Expression<Func<TObj,TReturn>> propertyExpression, string explicitPath)");
+        sb.AppendLine("    {");
+        sb.AppendLine(
+            "        var __key = typeof(TObj).Name + \"|\" + explicitPath; if (BindingRegistry.TryCreateWhenChanged<TObj,TReturn>(__key, objectToMonitor, out var __obs)) return __obs;");
+        sb.AppendLine("        throw new NotSupportedException($\"No generated WhenChanged for provided property expression with explicit path: {explicitPath}\");");
         sb.AppendLine("    }");
 
         foreach (InvocationModel? m in models)

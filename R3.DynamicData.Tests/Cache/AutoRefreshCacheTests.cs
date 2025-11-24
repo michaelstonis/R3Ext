@@ -8,7 +8,7 @@ namespace R3.DynamicData.Tests.Cache;
 
 public class AutoRefreshCacheTests
 {
-    private sealed class Person : INotifyPropertyChanged
+    internal sealed class Person : INotifyPropertyChanged
     {
         private int age;
         public int Id { get; }
