@@ -9,6 +9,9 @@ using R3.DynamicData.List.Internal;
 
 namespace R3.DynamicData.List;
 
+/// <summary>
+/// Extension methods for observable list change sets.
+/// </summary>
 public static partial class ObservableListEx
 {
     /// <summary>
@@ -881,6 +884,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// Converts the change set into a fully formed collection. Each change in the source results in a new collection.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the collection.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <returns>An observable that emits read-only lists containing all current items.</returns>
     public static Observable<IReadOnlyList<TObject>> ToCollection<TObject>(
         this Observable<IChangeSet<TObject>> source)
         where TObject : notnull
@@ -891,6 +897,11 @@ public static partial class ObservableListEx
     /// <summary>
     /// The latest copy of the cache is exposed for querying after each modification to the underlying data.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the source.</typeparam>
+    /// <typeparam name="TDestination">The type of the query result.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="resultSelector">Function to transform the current list into the desired result.</param>
+    /// <returns>An observable that emits query results after each change.</returns>
     public static Observable<TDestination> QueryWhenChanged<TObject, TDestination>(
         this Observable<IChangeSet<TObject>> source,
         Func<IReadOnlyList<TObject>, TDestination> resultSelector)
@@ -912,6 +923,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// The latest copy of the cache is exposed for querying i) after each modification to the underlying data ii) upon subscription.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <returns>An observable that emits the current list after each change.</returns>
     public static Observable<IReadOnlyList<T>> QueryWhenChanged<T>(
         this Observable<IChangeSet<T>> source)
         where T : notnull
@@ -927,6 +941,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// List equivalent to Publish().RefCount(). The source is cached so long as there is at least 1 subscriber.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <returns>An observable that shares a single subscription to the source.</returns>
     public static Observable<IChangeSet<T>> RefCount<T>(
         this Observable<IChangeSet<T>> source)
         where T : notnull
@@ -942,6 +959,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Limits the size of the result set to the specified number of items.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="numberOfItems">The maximum number of items to include.</param>
+    /// <returns>An observable that emits change sets limited to the specified number of items.</returns>
     public static Observable<IChangeSet<T>> Top<T>(
         this Observable<IChangeSet<T>> source,
         int numberOfItems)
@@ -963,6 +984,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Virtualises the source using parameters provided via the requests observable.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="requests">Observable that emits virtualization requests specifying which items to show.</param>
+    /// <returns>An observable that emits change sets containing only the virtualized window of items.</returns>
     public static Observable<IChangeSet<T>> Virtualise<T>(
         this Observable<IChangeSet<T>> source,
         Observable<VirtualRequest> requests)
@@ -984,6 +1009,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Populates the source list into the destination list.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="destination">The destination list to populate with changes.</param>
+    /// <returns>A disposable that terminates the population when disposed.</returns>
     public static IDisposable PopulateInto<T>(
         this Observable<IChangeSet<T>> source,
         ISourceList<T> destination)
@@ -1053,6 +1082,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Apply a logical And operator between the collections. Items which are in all of the sources are included in the result.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="others">Additional observables to combine with And logic.</param>
+    /// <returns>An observable that emits items present in all sources.</returns>
     public static Observable<IChangeSet<T>> And<T>(
         this Observable<IChangeSet<T>> source,
         params Observable<IChangeSet<T>>[] others)
@@ -1069,6 +1102,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Apply a logical Or operator between the collections. Items which are in any of the sources are included in the result.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="others">Additional observables to combine with Or logic.</param>
+    /// <returns>An observable that emits items present in any source.</returns>
     public static Observable<IChangeSet<T>> Or<T>(
         this Observable<IChangeSet<T>> source,
         params Observable<IChangeSet<T>>[] others)
@@ -1085,6 +1122,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Apply a logical Except operator between the collections. Items which are in the source and not in the others are included in the result.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="others">Observables whose items should be excluded.</param>
+    /// <returns>An observable that emits items in source but not in others.</returns>
     public static Observable<IChangeSet<T>> Except<T>(
         this Observable<IChangeSet<T>> source,
         params Observable<IChangeSet<T>>[] others)
@@ -1101,6 +1142,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Apply a logical Xor operator between the collections. Items which are only in one of the sources are included in the result.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="others">Additional observables to combine with Xor logic.</param>
+    /// <returns>An observable that emits items present in exactly one source.</returns>
     public static Observable<IChangeSet<T>> Xor<T>(
         this Observable<IChangeSet<T>> source,
         params Observable<IChangeSet<T>>[] others)
@@ -1144,6 +1189,10 @@ public static partial class ObservableListEx
     /// Batches the underlying updates if a pause signal (i.e when the buffer selector return true) has been received.
     /// When a resume signal has been received the batched updates will be fired.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="pauseIfTrueSelector">Observable that signals when to pause (true) or resume (false) updates.</param>
+    /// <returns>An observable that emits buffered change sets.</returns>
     public static Observable<IChangeSet<T>> BufferIf<T>(
         this Observable<IChangeSet<T>> source,
         Observable<bool> pauseIfTrueSelector)
@@ -1156,6 +1205,11 @@ public static partial class ObservableListEx
     /// Batches the underlying updates if a pause signal (i.e when the buffer selector return true) has been received.
     /// When a resume signal has been received the batched updates will be fired.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="pauseIfTrueSelector">Observable that signals when to pause (true) or resume (false) updates.</param>
+    /// <param name="initialPauseState">Initial state indicating whether buffering should start paused.</param>
+    /// <returns>An observable that emits buffered change sets.</returns>
     public static Observable<IChangeSet<T>> BufferIf<T>(
         this Observable<IChangeSet<T>> source,
         Observable<bool> pauseIfTrueSelector,
@@ -1169,6 +1223,11 @@ public static partial class ObservableListEx
     /// Batches the underlying updates if a pause signal (i.e when the buffer selector return true) has been received.
     /// When a resume signal has been received the batched updates will be fired.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="pauseIfTrueSelector">Observable that signals when to pause (true) or resume (false) updates.</param>
+    /// <param name="timeOut">Optional timeout period after which buffered changes will be emitted.</param>
+    /// <returns>An observable that emits buffered change sets.</returns>
     public static Observable<IChangeSet<T>> BufferIf<T>(
         this Observable<IChangeSet<T>> source,
         Observable<bool> pauseIfTrueSelector,
@@ -1182,6 +1241,12 @@ public static partial class ObservableListEx
     /// Batches the underlying updates if a pause signal (i.e when the buffer selector return true) has been received.
     /// When a resume signal has been received the batched updates will be fired.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="pauseIfTrueSelector">Observable that signals when to pause (true) or resume (false) updates.</param>
+    /// <param name="initialPauseState">Initial state indicating whether buffering should start paused.</param>
+    /// <param name="timeOut">Optional timeout period after which buffered changes will be emitted.</param>
+    /// <returns>An observable that emits buffered change sets.</returns>
     public static Observable<IChangeSet<T>> BufferIf<T>(
         this Observable<IChangeSet<T>> source,
         Observable<bool> pauseIfTrueSelector,
@@ -1205,6 +1270,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Buffers changes for an initial period only. After the period has elapsed, no further buffering occurs.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="initialBuffer">The time period for which to buffer initial changes.</param>
+    /// <returns>An observable that emits buffered changes after the initial period, then emits subsequent changes immediately.</returns>
     public static Observable<IChangeSet<TObject>> BufferInitial<TObject>(
         this Observable<IChangeSet<TObject>> source,
         TimeSpan initialBuffer)
@@ -1275,6 +1344,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// Transforms an observable sequence of observable change sets into a single observable change set.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="sources">Observable sequence of observable change sets to switch between.</param>
+    /// <returns>An observable that emits changes from the most recent source observable.</returns>
     public static Observable<IChangeSet<T>> Switch<T>(
         this Observable<Observable<IChangeSet<T>>> sources)
         where T : notnull
@@ -1290,6 +1362,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// Converts an observable sequence of items into an observable change set.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the sequence.</typeparam>
+    /// <param name="source">The source observable sequence.</param>
+    /// <returns>An observable change set where each item from the source is added to the set.</returns>
     public static Observable<IChangeSet<TObject>> ToObservableChangeSet<TObject>(
         this Observable<TObject> source)
         where TObject : notnull
@@ -1305,6 +1380,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Converts an observable sequence of items into an observable change set, with size limit.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the sequence.</typeparam>
+    /// <param name="source">The source observable sequence.</param>
+    /// <param name="limitSizeTo">Maximum number of items to keep in the change set.</param>
+    /// <returns>An observable change set where each item from the source is added, maintaining the size limit.</returns>
     public static Observable<IChangeSet<TObject>> ToObservableChangeSet<TObject>(
         this Observable<TObject> source,
         int limitSizeTo)
@@ -1321,6 +1400,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Converts an observable sequence of items into an observable change set, with expiry.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the sequence.</typeparam>
+    /// <param name="source">The source observable sequence.</param>
+    /// <param name="expireAfter">Function that determines how long each item should remain in the set.</param>
+    /// <returns>An observable change set where items are automatically removed after their expiry time.</returns>
     public static Observable<IChangeSet<TObject>> ToObservableChangeSet<TObject>(
         this Observable<TObject> source,
         Func<TObject, TimeSpan?> expireAfter)
@@ -1342,6 +1425,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// Converts an observable sequence of collections into an observable change set.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the collections.</typeparam>
+    /// <param name="source">The source observable sequence of collections.</param>
+    /// <returns>An observable change set where each collection from the source replaces the previous contents.</returns>
     public static Observable<IChangeSet<TObject>> ToObservableChangeSet<TObject>(
         this Observable<IEnumerable<TObject>> source)
         where TObject : notnull
@@ -1357,6 +1443,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Converts an observable sequence of collections into an observable change set, with size limit.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the collections.</typeparam>
+    /// <param name="source">The source observable sequence of collections.</param>
+    /// <param name="limitSizeTo">Maximum number of items to keep in the change set.</param>
+    /// <returns>An observable change set where each collection from the source replaces the previous contents, maintaining the size limit.</returns>
     public static Observable<IChangeSet<TObject>> ToObservableChangeSet<TObject>(
         this Observable<IEnumerable<TObject>> source,
         int limitSizeTo)
@@ -1373,6 +1463,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Converts an observable sequence of collections into an observable change set, with expiry.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the collections.</typeparam>
+    /// <param name="source">The source observable sequence of collections.</param>
+    /// <param name="expireAfter">Function that determines how long each item should remain in the set.</param>
+    /// <returns>An observable change set where items are automatically removed after their expiry time.</returns>
     public static Observable<IChangeSet<TObject>> ToObservableChangeSet<TObject>(
         this Observable<IEnumerable<TObject>> source,
         Func<TObject, TimeSpan?> expireAfter)

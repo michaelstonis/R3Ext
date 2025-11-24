@@ -11,6 +11,9 @@ using R3Ext;
 
 namespace R3.DynamicData.Cache;
 
+/// <summary>
+/// Extension methods for observable cache change sets.
+/// </summary>
 public static partial class ObservableCacheEx
 {
     /// <summary>

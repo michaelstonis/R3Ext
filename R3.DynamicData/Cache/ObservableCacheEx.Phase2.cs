@@ -10,6 +10,10 @@ namespace R3.DynamicData.Cache;
 
 // Phase 2 cache operators for R3 port.
 // NOTE: Adapted from DynamicData concepts; simplified to match R3's Observable<T> (not System.IObservable<T>). Inner observable completions NEVER complete outer streams.
+
+/// <summary>
+/// Extension methods for observable cache change sets.
+/// </summary>
 public static partial class ObservableCacheEx
 {
     // ------------------ AddKey ------------------

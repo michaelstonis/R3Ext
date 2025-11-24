@@ -19,6 +19,13 @@ public static partial class ObservableCacheEx
     /// <summary>
     /// Extracts distinct values from the cache using a value selector, emitting change sets of unique values.
     /// </summary>
+    /// <typeparam name="TObject">The type of objects in the cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TValue">The type of values to extract.</typeparam>
+    /// <param name="source">The source observable cache.</param>
+    /// <param name="valueSelector">Function to extract values from each object.</param>
+    /// <param name="comparer">Optional comparer for value equality.</param>
+    /// <returns>An observable that emits change sets of distinct values.</returns>
     public static Observable<IChangeSet<TValue>> DistinctValues<TObject, TKey, TValue>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, TValue> valueSelector,
@@ -156,6 +163,13 @@ public static partial class ObservableCacheEx
     /// reference counted so that an item is only removed when the last source occurrence disappears.
     /// If no comparer is provided, all duplicates are emitted (previous behavior).
     /// </summary>
+    /// <typeparam name="TObject">The type of objects in the cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TDestination">The type of items in the resulting change set.</typeparam>
+    /// <param name="source">The source observable cache.</param>
+    /// <param name="manySelector">Function that extracts a collection of items from each cache object.</param>
+    /// <param name="comparer">Optional comparer for deduplicating items across all source objects.</param>
+    /// <returns>An observable that emits change sets containing all flattened items.</returns>
     public static Observable<IChangeSet<TDestination>> TransformMany<TObject, TKey, TDestination>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, IEnumerable<TDestination>> manySelector,

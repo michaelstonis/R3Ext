@@ -20,6 +20,9 @@ public enum LimitSizeToEviction
     RemoveNewest,
 }
 
+/// <summary>
+/// Extension methods for observable list change sets.
+/// </summary>
 public static partial class ObservableListEx
 {
     /// <summary>

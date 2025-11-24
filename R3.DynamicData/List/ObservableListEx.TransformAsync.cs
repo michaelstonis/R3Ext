@@ -2,6 +2,9 @@
 
 namespace R3.DynamicData.List;
 
+/// <summary>
+/// Extension methods for observable list change sets.
+/// </summary>
 public static partial class ObservableListEx
 {
     /// <summary>

@@ -4,6 +4,9 @@ using R3.DynamicData.Kernel;
 
 namespace R3.DynamicData.Cache;
 
+/// <summary>
+/// Extension methods for observable cache change sets.
+/// </summary>
 public static partial class ObservableCacheEx
 {
     /// <summary>
@@ -791,5 +794,11 @@ public static partial class ObservableCacheEx
 /// <summary>
 /// Placeholder for future Full/Left/Right join result modeling.
 /// </summary>
+/// <typeparam name="TKey">The type of the join key.</typeparam>
+/// <typeparam name="TLeft">The type of objects from the left source.</typeparam>
+/// <typeparam name="TRight">The type of objects from the right source.</typeparam>
+/// <param name="Key">The join key.</param>
+/// <param name="Left">The left object value.</param>
+/// <param name="Right">The right object value.</param>
 public readonly record struct JoinPair<TKey, TLeft, TRight>(TKey Key, TLeft Left, TRight Right)
     where TKey : notnull;

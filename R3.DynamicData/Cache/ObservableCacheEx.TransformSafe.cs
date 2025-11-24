@@ -4,6 +4,9 @@ using R3.DynamicData.Kernel;
 
 namespace R3.DynamicData.Cache;
 
+/// <summary>
+/// Extension methods for observable cache change sets.
+/// </summary>
 public static partial class ObservableCacheEx
 {
     /// <summary>
