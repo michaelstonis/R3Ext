@@ -40,18 +40,20 @@ public static partial class ObservableCacheEx
     /// <typeparam name="TValue">The type of the property value.</typeparam>
     /// <param name="source">The source cache observable.</param>
     /// <param name="propertyAccessor">Expression to access the property (e.g., x => x.Name).</param>
+    /// <param name="keySelector">Function to extract the key from an object.</param>
     /// <param name="notifyOnInitialValue">If true, emits initial property value for each object.</param>
     /// <returns>Observable that emits property change notifications.</returns>
     public static Observable<PropertyValue<TObject, TValue>> WhenValueChanged<TObject, TKey, TValue>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Expression<Func<TObject, TValue>> propertyAccessor,
+        Func<TObject, TKey> keySelector,
         bool notifyOnInitialValue = true)
         where TObject : INotifyPropertyChanged
         where TKey : notnull
     {
         // Extract property path from expression for source generator matching
         var expressionPath = ExtractPropertyPath(propertyAccessor);
-        return new WhenValueChangedOperator<TObject, TKey, TValue>(source, propertyAccessor, notifyOnInitialValue, expressionPath);
+        return new WhenValueChangedOperator<TObject, TKey, TValue>(source, propertyAccessor, keySelector, notifyOnInitialValue, expressionPath);
     }
 
     /// <summary>
@@ -64,55 +66,23 @@ public static partial class ObservableCacheEx
     /// <typeparam name="TValue">The type of the property value.</typeparam>
     /// <param name="source">The source cache observable.</param>
     /// <param name="propertyAccessor">Expression to access the property (e.g., x => x.Name).</param>
+    /// <param name="keySelector">Function to extract the key from an object.</param>
     /// <returns>Observable that emits property change notifications with previous and current values.</returns>
     public static Observable<PropertyValueChange<TObject, TValue>> WhenValueChangedWithPrevious<TObject, TKey, TValue>(
         this Observable<IChangeSet<TObject, TKey>> source,
-        Expression<Func<TObject, TValue>> propertyAccessor)
+        Expression<Func<TObject, TValue>> propertyAccessor,
+        Func<TObject, TKey> keySelector)
         where TObject : INotifyPropertyChanged
         where TKey : notnull
     {
         // Must use notifyOnInitialValue: true so Pairwise() has the initial value to work with
-        return source.WhenValueChanged(propertyAccessor, notifyOnInitialValue: true)
+        return source.WhenValueChanged(propertyAccessor, keySelector, notifyOnInitialValue: true)
             .Select(pv => (obj: pv.Sender, value: pv.Value))
             .Pairwise()
             .Select(pair => new PropertyValueChange<TObject, TValue>(
                 pair.Current.obj,
                 pair.Previous.value,
                 pair.Current.value));
-    }
-
-    internal static Func<TObject, TKey> GetKeySelector<TObject, TKey>()
-    {
-        // Look for Id property first
-        var idProperty = typeof(TObject).GetProperty("Id", BindingFlags.Public | BindingFlags.Instance);
-        if (idProperty != null && idProperty.PropertyType == typeof(TKey))
-        {
-            return obj => (TKey)idProperty.GetValue(obj)!;
-        }
-
-        // Try to find a property with [Key] attribute or named like the type + "Id"
-        var properties = typeof(TObject).GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        foreach (var prop in properties)
-        {
-            if (prop.PropertyType == typeof(TKey))
-            {
-                // Check for KeyAttribute
-                if (prop.GetCustomAttribute<System.ComponentModel.DataAnnotations.KeyAttribute>() != null)
-                {
-                    return obj => (TKey)prop.GetValue(obj)!;
-                }
-
-                // Check for common naming patterns
-                if (prop.Name == typeof(TObject).Name + "Id" || prop.Name == "Key")
-                {
-                    return obj => (TKey)prop.GetValue(obj)!;
-                }
-            }
-        }
-
-        throw new InvalidOperationException(
-            $"Cannot determine key selector for type {typeof(TObject).Name}. " +
-            "Please ensure the type has an 'Id' property, a property with [Key] attribute, or matches the pattern TypeNameId.");
     }
 }
 
@@ -123,24 +93,27 @@ internal sealed class WhenValueChangedOperator<TObject, TKey, TValue> : Observab
 {
     private readonly Observable<IChangeSet<TObject, TKey>> _source;
     private readonly Expression<Func<TObject, TValue>> _propertyAccessor;
+    private readonly Func<TObject, TKey> _keySelector;
     private readonly bool _notifyOnInitialValue;
     private readonly string _expressionPath;
 
     public WhenValueChangedOperator(
         Observable<IChangeSet<TObject, TKey>> source,
         Expression<Func<TObject, TValue>> propertyAccessor,
+        Func<TObject, TKey> keySelector,
         bool notifyOnInitialValue,
         string expressionPath)
     {
         _source = source;
         _propertyAccessor = propertyAccessor;
+        _keySelector = keySelector;
         _notifyOnInitialValue = notifyOnInitialValue;
         _expressionPath = expressionPath;
     }
 
     protected override IDisposable SubscribeCore(Observer<PropertyValue<TObject, TValue>> observer)
     {
-        return new _WhenValueChanged(observer, _source, _propertyAccessor, _notifyOnInitialValue, _expressionPath).Run();
+        return new _WhenValueChanged(observer, _source, _propertyAccessor, _keySelector, _notifyOnInitialValue, _expressionPath).Run();
     }
 
     private sealed class _WhenValueChanged : IDisposable
@@ -158,15 +131,16 @@ internal sealed class WhenValueChangedOperator<TObject, TKey, TValue> : Observab
             Observer<PropertyValue<TObject, TValue>> observer,
             Observable<IChangeSet<TObject, TKey>> source,
             Expression<Func<TObject, TValue>> propertyAccessor,
+            Func<TObject, TKey> keySelector,
             bool notifyOnInitialValue,
             string expressionPath)
         {
             _observer = observer;
             _source = source;
             _propertyAccessor = propertyAccessor;
+            _keySelector = keySelector;
             _notifyOnInitialValue = notifyOnInitialValue;
             _expressionPath = expressionPath;
-            _keySelector = ObservableCacheEx.GetKeySelector<TObject, TKey>();
         }
 
         public IDisposable Run()

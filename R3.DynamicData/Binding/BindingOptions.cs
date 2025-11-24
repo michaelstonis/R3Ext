@@ -7,6 +7,7 @@ using System.Linq.Expressions;
 using R3;
 using R3.DynamicData.Kernel;
 using R3.DynamicData.List;
+using R3Ext;
 
 namespace R3.DynamicData.Binding;
 
@@ -133,10 +134,12 @@ public static class NotifyPropertyChangedEx
     }
 
     /// <summary>
-    /// Creates an observable that emits when a specific property changes.
+    /// Observes property changes on an object that implements INotifyPropertyChanged.
+    /// Note: This method uses Expression.Compile() which is not fully AOT-compatible.
+    /// For AOT scenarios, prefer using WhenValueChanged on cache observables which uses source-generated bindings.
     /// </summary>
-    /// <typeparam name="TObject">The type of the source object.</typeparam>
-    /// <typeparam name="TProperty">The type of the property.</typeparam>
+    /// <typeparam name="TObject">The type of object to observe.</typeparam>
+    /// <typeparam name="TProperty">The type of property to observe.</typeparam>
     /// <param name="source">The source object to observe.</param>
     /// <param name="propertyAccessor">An expression identifying the property to observe.</param>
     /// <param name="beforeChange">Whether to emit before the change (not currently supported).</param>

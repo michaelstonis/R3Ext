@@ -15,7 +15,7 @@ public class WhenValueChangedTests
         var results = new List<PropertyValue<TestPerson, string>>();
 
         using var sub = cache.Connect()
-            .WhenValueChanged(p => p.Name, notifyOnInitialValue: true)
+            .WhenValueChanged(p => p.Name, x => x.Id, notifyOnInitialValue: true)
             .Subscribe(results.Add);
 
         var person = new TestPerson { Id = 1, Name = "Alice" };
@@ -36,7 +36,7 @@ public class WhenValueChangedTests
         cache.AddOrUpdate(person);
 
         using var sub = cache.Connect()
-            .WhenValueChanged(p => p.Name, notifyOnInitialValue: false)
+            .WhenValueChanged(p => p.Name, x => x.Id, notifyOnInitialValue: false)
             .Subscribe(results.Add);
 
         // Change the name
@@ -53,7 +53,7 @@ public class WhenValueChangedTests
         var results = new List<PropertyValue<TestPerson, string>>();
 
         using var sub = cache.Connect()
-            .WhenValueChanged(p => p.Name, notifyOnInitialValue: false)
+            .WhenValueChanged(p => p.Name, x => x.Id, notifyOnInitialValue: false)
             .Subscribe(results.Add);
 
         var person1 = new TestPerson { Id = 1, Name = "Alice" };
@@ -80,7 +80,7 @@ public class WhenValueChangedTests
         cache.AddOrUpdate(person);
 
         using var sub = cache.Connect()
-            .WhenValueChanged(p => p.Name, notifyOnInitialValue: false)
+            .WhenValueChanged(p => p.Name, x => x.Id, notifyOnInitialValue: false)
             .Subscribe(results.Add);
 
         cache.Remove(1);
@@ -98,7 +98,7 @@ public class WhenValueChangedTests
         var results = new List<PropertyValue<TestPerson, int>>();
 
         using var sub = cache.Connect()
-            .WhenValueChanged(p => p.Age, notifyOnInitialValue: false)
+            .WhenValueChanged(p => p.Age, x => x.Id, notifyOnInitialValue: false)
             .Subscribe(results.Add);
 
         var person = new TestPerson { Id = 1, Age = 25 };
@@ -122,7 +122,7 @@ public class WhenValueChangedTests
         cache.AddOrUpdate(person);
 
         using var sub = cache.Connect()
-            .WhenValueChangedWithPrevious(p => p.Name)
+            .WhenValueChangedWithPrevious(p => p.Name, x => x.Id)
             .Subscribe(results.Add);
 
         person.Name = "Bob";
@@ -145,7 +145,7 @@ public class WhenValueChangedTests
         cache.AddOrUpdate(person1);
 
         using var sub = cache.Connect()
-            .WhenValueChanged(p => p.Name, notifyOnInitialValue: false)
+            .WhenValueChanged(p => p.Name, x => x.Id, notifyOnInitialValue: false)
             .Subscribe(results.Add);
 
         // Update with new instance
@@ -173,11 +173,11 @@ public class WhenValueChangedTests
         cache.AddOrUpdate(person);
 
         using var nameSub = cache.Connect()
-            .WhenValueChanged(p => p.Name, notifyOnInitialValue: false)
+            .WhenValueChanged(p => p.Name, x => x.Id, notifyOnInitialValue: false)
             .Subscribe(nameResults.Add);
 
         using var ageSub = cache.Connect()
-            .WhenValueChanged(p => p.Age, notifyOnInitialValue: false)
+            .WhenValueChanged(p => p.Age, x => x.Id, notifyOnInitialValue: false)
             .Subscribe(ageResults.Add);
 
         person.Name = "Bob";
@@ -199,7 +199,7 @@ public class WhenValueChangedTests
         cache.AddOrUpdate(person);
 
         var sub = cache.Connect()
-            .WhenValueChanged(p => p.Name, notifyOnInitialValue: false)
+            .WhenValueChanged(p => p.Name, x => x.Id, notifyOnInitialValue: false)
             .Subscribe(results.Add);
 
         person.Name = "Bob";
