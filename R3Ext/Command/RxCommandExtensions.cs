@@ -7,7 +7,7 @@ namespace R3Ext;
 /// Additional convenience extensions for piping observables into <see cref="RxCommand{TInput,TOutput}"/> or any <see cref="ICommand"/>.
 /// Inspired by ReactiveUI's ReactiveCommandMixins but adapted to R3 primitives.
 /// </summary>
-public static class RxCommandMixins
+public static class RxCommandExtensions
 {
     private static class DiscardAction<T>
     {

@@ -1,15 +1,14 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using R3;
 
 namespace R3Ext;
 
 /// <summary>
-/// Lightweight port of ReactiveUI's ReactiveObject providing property change notifications
-/// plus Changing/Changed reactive streams and notification suppression / delay semantics.
+/// Immutable-style record variant providing same reactive capabilities; property setters still invoke raise helpers.
 /// </summary>
 #pragma warning disable CA1001
-public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
+public abstract record RxRecord : INotifyPropertyChanged, INotifyPropertyChanging
 #pragma warning restore CA1001
 {
     private readonly Subject<PropertyChangingEventArgs> _changing = new();
@@ -20,14 +19,8 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
 
     private bool NotificationsEnabled => _suppressCount == 0;
 
-    /// <summary>
-    /// Gets observable stream of PropertyChanging events.
-    /// </summary>
     public Observable<PropertyChangingEventArgs> Changing => _changing.AsObservable();
 
-    /// <summary>
-    /// Gets observable stream of PropertyChanged events.
-    /// </summary>
     public Observable<PropertyChangedEventArgs> Changed => _changed.AsObservable();
 
     public event PropertyChangingEventHandler? PropertyChanging;
@@ -51,12 +44,12 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
     {
         if (_suppressCount > 0)
         {
-            return; // suppression discards
+            return;
         }
 
         if (_delayCount > 0)
         {
-            return; // delay skips changing events
+            return;
         }
 
         PropertyChangingEventArgs args = new(propertyName);
@@ -68,7 +61,7 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
     {
         if (_suppressCount > 0)
         {
-            return; // suppression discards
+            return;
         }
 
         if (_delayCount > 0)
@@ -83,18 +76,12 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
         _changed.OnNext(args);
     }
 
-    /// <summary>
-    /// Suppresses notifications; changes made inside the scope will not raise events.
-    /// </summary>
     public IDisposable SuppressChangeNotifications()
     {
         Interlocked.Increment(ref _suppressCount);
         return new ActionDisposable(() => Interlocked.Decrement(ref _suppressCount));
     }
 
-    /// <summary>
-    /// Delays notifications; changes are aggregated and raised once when scope ends.
-    /// </summary>
     public IDisposable DelayChangeNotifications()
     {
         Interlocked.Increment(ref _delayCount);
@@ -114,9 +101,6 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
         });
     }
 
-    /// <summary>
-    /// Indicates whether notifications are currently enabled.
-    /// </summary>
     public bool AreChangeNotificationsEnabled()
     {
         return NotificationsEnabled && _delayCount == 0;
