@@ -212,6 +212,14 @@ public static partial class ObservableCacheEx
     }
 
     // ------------------ ToObservableOptional ------------------
+    /// <summary>
+    /// Observes a single value by key, emitting Optional values when the key is added, updated, or removed.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="key">The key to observe.</param>
+    /// <returns>An observable that emits Optional values for the specified key.</returns>
     public static Observable<Optional<TObject>> ToObservableOptional<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         TKey key)

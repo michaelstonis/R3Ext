@@ -2,6 +2,10 @@
 
 namespace R3.DynamicData.List;
 
+/// <summary>
+/// A reactive list implementation that publishes changes as an observable change set.
+/// </summary>
+/// <typeparam name="T">The type of items in the list.</typeparam>
 public sealed class SourceList<T> : ISourceList<T>
 {
     private readonly List<T> _items = new();
@@ -10,6 +14,7 @@ public sealed class SourceList<T> : ISourceList<T>
     private readonly Subject<int> _countChanged = new();
     private bool _disposed;
 
+    /// <inheritdoc/>
     public Observable<IChangeSet<T>> Connect()
     {
         return Observable.Create<IChangeSet<T>>(observer =>
@@ -32,8 +37,10 @@ public sealed class SourceList<T> : ISourceList<T>
         });
     }
 
+    /// <inheritdoc/>
     public Observable<int> CountChanged => _countChanged;
 
+    /// <inheritdoc/>
     public int Count
     {
         get
@@ -45,6 +52,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public IReadOnlyList<T> Items
     {
         get
@@ -56,6 +64,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void Add(T item)
     {
         lock (_lock)
@@ -67,6 +76,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void AddRange(IEnumerable<T> items)
     {
         var itemsList = items.ToList();
@@ -86,6 +96,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void Insert(int index, T item)
     {
         lock (_lock)
@@ -97,6 +108,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void InsertRange(int index, IEnumerable<T> items)
     {
         var itemsList = items.ToList();
@@ -115,6 +127,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void Remove(T item)
     {
         lock (_lock)
@@ -130,6 +143,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void RemoveAt(int index)
     {
         lock (_lock)
@@ -142,6 +156,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void RemoveRange(int index, int count)
     {
         if (count == 0)
@@ -160,6 +175,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void RemoveMany(IEnumerable<T> items)
     {
         var itemsList = items.ToList();
@@ -188,6 +204,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void Replace(T original, T replacement)
     {
         lock (_lock)
@@ -204,6 +221,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void ReplaceAt(int index, T item)
     {
         lock (_lock)
@@ -216,6 +234,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void Move(int originalIndex, int destinationIndex)
     {
         lock (_lock)
@@ -229,6 +248,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void Clear()
     {
         lock (_lock)
@@ -246,6 +266,7 @@ public sealed class SourceList<T> : ISourceList<T>
         }
     }
 
+    /// <inheritdoc/>
     public void Edit(Action<IListUpdater<T>> updateAction)
     {
         lock (_lock)
