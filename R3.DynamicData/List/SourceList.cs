@@ -286,6 +286,9 @@ public sealed class SourceList<T> : ISourceList<T>
         _countChanged.OnNext(_items.Count);
     }
 
+    /// <summary>
+    /// Disposes the source list and releases all resources.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed)

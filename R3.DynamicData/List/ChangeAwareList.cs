@@ -70,6 +70,9 @@ public class ChangeAwareList<T> : IExtendedList<T>
         }
     }
 
+    /// <summary>
+    /// Adds an item to the list.
+    /// </summary>
     public void Add(T item)
     {
         var index = _innerList.Count;
@@ -77,6 +80,9 @@ public class ChangeAwareList<T> : IExtendedList<T>
         _changes.Add(new Change<T>(ListChangeReason.Add, item, index));
     }
 
+    /// <summary>
+    /// Adds a collection of items to the list.
+    /// </summary>
     public void AddRange(IEnumerable<T> collection)
     {
         var items = collection.ToList();
@@ -90,6 +96,10 @@ public class ChangeAwareList<T> : IExtendedList<T>
         _changes.Add(new Change<T>(ListChangeReason.AddRange, items, index));
     }
 
+    /// <summary>
+    /// Captures all changes accumulated since the last call and resets the change buffer.
+    /// </summary>
+    /// <returns>A change set containing all accumulated changes.</returns>
     public IChangeSet<T> CaptureChanges()
     {
         if (_changes.Count == 0)
@@ -102,6 +112,9 @@ public class ChangeAwareList<T> : IExtendedList<T>
         return returnValue;
     }
 
+    /// <summary>
+    /// Removes all items from the list.
+    /// </summary>
     public void Clear()
     {
         if (_innerList.Count == 0)
@@ -114,22 +127,40 @@ public class ChangeAwareList<T> : IExtendedList<T>
         _changes.Add(new Change<T>(ListChangeReason.Clear, toRemove, 0));
     }
 
+    /// <summary>
+    /// Determines whether the list contains a specific item.
+    /// </summary>
     public bool Contains(T item) => _innerList.Contains(item);
 
+    /// <summary>
+    /// Copies the elements of the list to an array.
+    /// </summary>
     public void CopyTo(T[] array, int arrayIndex) => _innerList.CopyTo(array, arrayIndex);
 
+    /// <summary>
+    /// Returns an enumerator that iterates through the list.
+    /// </summary>
     public IEnumerator<T> GetEnumerator() => _innerList.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    /// <summary>
+    /// Determines the index of a specific item in the list.
+    /// </summary>
     public int IndexOf(T item) => _innerList.IndexOf(item);
 
+    /// <summary>
+    /// Inserts an item at the specified index.
+    /// </summary>
     public void Insert(int index, T item)
     {
         _innerList.Insert(index, item);
         _changes.Add(new Change<T>(ListChangeReason.Add, item, index));
     }
 
+    /// <summary>
+    /// Inserts a collection of items at the specified index.
+    /// </summary>
     public void InsertRange(IEnumerable<T> collection, int index)
     {
         var items = collection.ToList();
@@ -142,6 +173,9 @@ public class ChangeAwareList<T> : IExtendedList<T>
         _changes.Add(new Change<T>(ListChangeReason.AddRange, items, index));
     }
 
+    /// <summary>
+    /// Moves an item from one index to another.
+    /// </summary>
     public void Move(int original, int destination)
     {
         var item = _innerList[original];
@@ -150,6 +184,9 @@ public class ChangeAwareList<T> : IExtendedList<T>
         _changes.Add(new Change<T>(ListChangeReason.Moved, item, destination, original));
     }
 
+    /// <summary>
+    /// Removes the first occurrence of a specific item from the list.
+    /// </summary>
     public bool Remove(T item)
     {
         var index = _innerList.IndexOf(item);
@@ -162,6 +199,9 @@ public class ChangeAwareList<T> : IExtendedList<T>
         return true;
     }
 
+    /// <summary>
+    /// Removes the item at the specified index.
+    /// </summary>
     public void RemoveAt(int index)
     {
         var item = _innerList[index];
@@ -169,6 +209,9 @@ public class ChangeAwareList<T> : IExtendedList<T>
         _changes.Add(new Change<T>(ListChangeReason.Remove, item, index));
     }
 
+    /// <summary>
+    /// Removes a range of items from the list.
+    /// </summary>
     public void RemoveRange(int index, int count)
     {
         if (count == 0)

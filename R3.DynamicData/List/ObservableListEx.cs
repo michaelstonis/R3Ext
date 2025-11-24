@@ -532,6 +532,16 @@ public static partial class ObservableListEx
             timeProvider);
     }
 
+    /// <summary>
+    /// Automatically refreshes items when an observable signal changes.
+    /// </summary>
+    /// <typeparam name="TObject">The type of items in the list.</typeparam>
+    /// <typeparam name="TAny">The type of the observable signal.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="reevaluator">Function that returns an observable for each item to monitor.</param>
+    /// <param name="changeSetBuffer">Optional buffer period for batching refresh changes.</param>
+    /// <param name="timeProvider">Optional time provider for scheduling.</param>
+    /// <returns>An observable that emits refresh changes when monitored observables signal.</returns>
     public static Observable<IChangeSet<TObject>> AutoRefreshOnObservable<TObject, TAny>(
         this Observable<IChangeSet<TObject>> source,
         Func<TObject, Observable<TAny>> reevaluator,
