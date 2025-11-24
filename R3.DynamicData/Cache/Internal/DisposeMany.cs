@@ -47,6 +47,7 @@ internal sealed class DisposeMany<TObject, TKey>
                     {
                         DisposeManyState.SafeDispose(item, state.state.DisposeAction);
                     }
+
                     state.current.Clear();
                 }));
         });

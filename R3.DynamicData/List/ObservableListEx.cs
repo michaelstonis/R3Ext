@@ -1,5 +1,4 @@
 // Port of DynamicData to R3.
-#pragma warning disable SA1116, SA1513, SA1516, SA1503, SA1127, SA1210
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -10,8 +9,6 @@ using R3.DynamicData.List.Internal;
 
 namespace R3.DynamicData.List;
 
-// Style suppression pragmas for list extensions additions.
-#pragma warning disable SA1116, SA1513, SA1516, SA1503, SA1127, SA1210
 public static partial class ObservableListEx
 {
     /// <summary>
