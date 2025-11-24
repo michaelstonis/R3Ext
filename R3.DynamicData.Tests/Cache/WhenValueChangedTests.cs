@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using R3;
 using R3.DynamicData.Cache;
+using R3Ext;
 
 namespace R3.DynamicData.Tests.Cache;
 
@@ -212,7 +213,7 @@ public class WhenValueChangedTests
         Assert.Single(results); // Still only 1
     }
 
-    private class TestPerson : INotifyPropertyChanged
+    public class TestPerson : INotifyPropertyChanged
     {
         private string _name = string.Empty;
         private int _age;
