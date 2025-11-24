@@ -1,6 +1,6 @@
 // Port of DynamicData ChangeKey operator to R3.
 // Emits change sets projected to a new key space using a selector.
-#pragma warning disable SA1503, SA1513, SA1516, SA1116, SA1117, SA1515
+
 using System;
 using System.Collections.Generic;
 using R3.DynamicData.Kernel;
@@ -27,9 +27,14 @@ internal sealed class ChangeKeyOperator<TObject, TOldKey, TNewKey>
         {
             // Map from upstream key to projected key.
             var projectedKeyByUpstream = new Dictionary<TOldKey, TNewKey>();
-            return _source.Subscribe(changes =>
+            return _source.Subscribe(
+                changes =>
             {
-                if (changes.Count == 0) return;
+                if (changes.Count == 0)
+                {
+                    return;
+                }
+
                 var result = new ChangeSet<TObject, TNewKey>();
 
                 foreach (var change in changes)
@@ -43,6 +48,7 @@ internal sealed class ChangeKeyOperator<TObject, TOldKey, TNewKey>
                             result.Add(new Change<TObject, TNewKey>(ChangeReason.Add, newKey, change.Current));
                             break;
                         }
+
                         case ChangeReason.Update:
                         {
                             var newKey = _keySelector(change.Current);
@@ -66,11 +72,14 @@ internal sealed class ChangeKeyOperator<TObject, TOldKey, TNewKey>
                                     var prevVal = hadPrevious ? change.Previous.Value : change.Current;
                                     result.Add(new Change<TObject, TNewKey>(ChangeReason.Remove, oldProjected, prevVal, prevVal));
                                 }
+
                                 projectedKeyByUpstream[change.Key] = newKey;
                                 result.Add(new Change<TObject, TNewKey>(ChangeReason.Add, newKey, change.Current));
                             }
+
                             break;
                         }
+
                         case ChangeReason.Remove:
                         {
                             if (projectedKeyByUpstream.TryGetValue(change.Key, out var proj))
@@ -79,9 +88,11 @@ internal sealed class ChangeKeyOperator<TObject, TOldKey, TNewKey>
                                 result.Add(new Change<TObject, TNewKey>(ChangeReason.Remove, proj, prevVal, prevVal));
                                 projectedKeyByUpstream.Remove(change.Key);
                             }
+
                             // else ignore remove for unknown upstream key.
                             break;
                         }
+
                         case ChangeReason.Refresh:
                         {
                             // Refresh does not change value but we still re-emit with projected key.
@@ -96,8 +107,10 @@ internal sealed class ChangeKeyOperator<TObject, TOldKey, TNewKey>
                                 projectedKeyByUpstream[change.Key] = newKey;
                                 result.Add(new Change<TObject, TNewKey>(ChangeReason.Add, newKey, change.Current));
                             }
+
                             break;
                         }
+
                         case ChangeReason.Moved:
                         {
                             // Cache move not meaningful in projected key space; suppress.
@@ -110,7 +123,9 @@ internal sealed class ChangeKeyOperator<TObject, TOldKey, TNewKey>
                 {
                     observer.OnNext(result);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
         });
     }
 }
