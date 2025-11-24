@@ -395,6 +395,14 @@ public static partial class ObservableCacheEx
 
     // Lifecycle parity operators
 
+    /// <summary>
+    /// Subscribes to each item in the change set using the provided subscription factory.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="subscriptionFactory">Factory function to create subscriptions for each item.</param>
+    /// <returns>An observable that mirrors the source change set.</returns>
     public static Observable<IChangeSet<TObject, TKey>> SubscribeMany<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, IDisposable> subscriptionFactory)
@@ -406,6 +414,13 @@ public static partial class ObservableCacheEx
         return new Cache.Internal.SubscribeMany<TObject, TKey>(source, subscriptionFactory).Run();
     }
 
+    /// <summary>
+    /// Disposes items that implement IDisposable when they are removed from the change set.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <returns>An observable that mirrors the source change set.</returns>
     public static Observable<IChangeSet<TObject, TKey>> DisposeMany<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source)
         where TObject : notnull
@@ -415,6 +430,14 @@ public static partial class ObservableCacheEx
         return new Cache.Internal.DisposeMany<TObject, TKey>(source).Run();
     }
 
+    /// <summary>
+    /// Disposes items using the provided dispose action when they are removed from the change set.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="disposeAction">Action to dispose each item.</param>
+    /// <returns>An observable that mirrors the source change set.</returns>
     public static Observable<IChangeSet<TObject, TKey>> DisposeMany<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Action<TObject> disposeAction)
@@ -428,6 +451,16 @@ public static partial class ObservableCacheEx
 
     // AutoRefresh variants for cache
 
+    /// <summary>
+    /// Automatically refreshes items in the cache when any property changes.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="changeSetBuffer">Optional buffer time for batching change sets.</param>
+    /// <param name="propertyChangeThrottle">Optional throttle time for property changes.</param>
+    /// <param name="timeProvider">Optional time provider for scheduling.</param>
+    /// <returns>An observable that refreshes items when properties change.</returns>
     public static Observable<IChangeSet<TObject, TKey>> AutoRefresh<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         TimeSpan? changeSetBuffer = null,
@@ -448,6 +481,18 @@ public static partial class ObservableCacheEx
             timeProvider);
     }
 
+    /// <summary>
+    /// Automatically refreshes items in the cache when a specific property changes.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TProperty">The type of the property being watched.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="propertyAccessor">Expression identifying the property to watch.</param>
+    /// <param name="changeSetBuffer">Optional buffer time for batching change sets.</param>
+    /// <param name="propertyChangeThrottle">Optional throttle time for property changes.</param>
+    /// <param name="timeProvider">Optional time provider for scheduling.</param>
+    /// <returns>An observable that refreshes items when the specified property changes.</returns>
     public static Observable<IChangeSet<TObject, TKey>> AutoRefresh<TObject, TKey, TProperty>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Expression<Func<TObject, TProperty>> propertyAccessor,
@@ -470,6 +515,17 @@ public static partial class ObservableCacheEx
             timeProvider);
     }
 
+    /// <summary>
+    /// Automatically refreshes items when an observable derived from each item emits.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TAny">The type emitted by the reevaluator observable.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="reevaluator">Function that produces an observable for each item.</param>
+    /// <param name="changeSetBuffer">Optional buffer time for batching change sets.</param>
+    /// <param name="timeProvider">Optional time provider for scheduling.</param>
+    /// <returns>An observable that refreshes items based on the reevaluator observables.</returns>
     public static Observable<IChangeSet<TObject, TKey>> AutoRefreshOnObservable<TObject, TKey, TAny>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, Observable<TAny>> reevaluator,
@@ -509,6 +565,14 @@ public static partial class ObservableCacheEx
     }
 
     // Filtering parity
+    /// <summary>
+    /// Filters items based on an observable predicate for each item.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="observablePredicate">Function that produces an observable boolean for each item.</param>
+    /// <returns>An observable that filters items based on the observable predicate.</returns>
     public static Observable<IChangeSet<TObject, TKey>> FilterOnObservable<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, Observable<bool>> observablePredicate)
@@ -521,6 +585,15 @@ public static partial class ObservableCacheEx
     }
 
     // Expiration
+    /// <summary>
+    /// Automatically removes items from the cache after a specified time period.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="expireSelector">Function that returns the expiration time for each item.</param>
+    /// <param name="timeProvider">Optional time provider for scheduling.</param>
+    /// <returns>An observable that removes expired items.</returns>
     public static Observable<IChangeSet<TObject, TKey>> ExpireAfter<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, TimeSpan?> expireSelector,
@@ -534,6 +607,13 @@ public static partial class ObservableCacheEx
     }
 
     // EnsureUniqueKeys
+    /// <summary>
+    /// Ensures that each key appears only once in the change set by consolidating multiple changes for the same key.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <returns>An observable with consolidated changes per key.</returns>
     public static Observable<IChangeSet<TObject, TKey>> EnsureUniqueKeys<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source)
         where TObject : notnull
@@ -544,6 +624,13 @@ public static partial class ObservableCacheEx
     }
 
     // SuppressRefresh
+    /// <summary>
+    /// Suppresses refresh notifications from the change set.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <returns>An observable that filters out refresh changes.</returns>
     public static Observable<IChangeSet<TObject, TKey>> SuppressRefresh<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source)
         where TObject : notnull
@@ -554,6 +641,14 @@ public static partial class ObservableCacheEx
     }
 
     // IncludeUpdateWhen
+    /// <summary>
+    /// Includes update notifications only when the predicate returns true.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="predicate">Predicate to evaluate whether to include the update.</param>
+    /// <returns>An observable that conditionally includes update changes.</returns>
     public static Observable<IChangeSet<TObject, TKey>> IncludeUpdateWhen<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, TObject?, bool> predicate)
@@ -566,6 +661,14 @@ public static partial class ObservableCacheEx
     }
 
     // WatchValue convenience (single key stream)
+    /// <summary>
+    /// Watches for changes to a specific key in the change set.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="key">The key to watch.</param>
+    /// <returns>An observable that emits changes for the specified key.</returns>
     public static Observable<Change<TObject, TKey>> WatchValue<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         TKey key)

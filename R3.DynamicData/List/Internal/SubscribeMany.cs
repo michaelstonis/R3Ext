@@ -3,6 +3,7 @@
 namespace R3.DynamicData.List.Internal;
 
 internal sealed class SubscribeMany<T>
+    where T : notnull
 {
     private readonly Observable<IChangeSet<T>> _source;
     private readonly Func<T, IDisposable> _subscriptionFactory;

@@ -28,6 +28,7 @@ public static partial class ObservableListEx
         this Observable<IChangeSet<T>> source,
         IComparer<T> comparer,
         SortOptions options = SortOptions.None)
+        where T : notnull
     {
         return new Sort<T>(source, comparer, options).Run();
     }
@@ -36,6 +37,7 @@ public static partial class ObservableListEx
         this Observable<IChangeSet<T>> source,
         Func<T, TKey> keySelector,
         SortOptions options = SortOptions.None)
+        where T : notnull
         where TKey : IComparable<TKey>
     {
         var comparer = Comparer<T>.Create((x, y) => keySelector(x).CompareTo(keySelector(y)));
@@ -46,6 +48,7 @@ public static partial class ObservableListEx
         this Observable<IChangeSet<T>> source,
         Observable<IComparer<T>> comparerChanged,
         SortOptions options = SortOptions.None)
+        where T : notnull
     {
         return source.Sort(Comparer<T>.Default, comparerChanged, options);
     }
@@ -55,6 +58,7 @@ public static partial class ObservableListEx
         IComparer<T> initialComparer,
         Observable<IComparer<T>> comparerChanged,
         SortOptions options = SortOptions.None)
+        where T : notnull
     {
         return new Sort<T>(source, initialComparer, options, comparerChanged: comparerChanged).Run();
     }
@@ -64,6 +68,7 @@ public static partial class ObservableListEx
         IComparer<T> comparer,
         Observable<Unit> resorter,
         SortOptions options = SortOptions.None)
+        where T : notnull
     {
         return new Sort<T>(source, comparer, options, resorter: resorter).Run();
     }

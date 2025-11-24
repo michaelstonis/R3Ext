@@ -105,11 +105,7 @@ public static class ObservableListAggregates
 
                         break;
                     case ListChangeReason.Replace:
-                        if (c.PreviousItem != null)
-                        {
-                            s -= c.PreviousItem;
-                        }
-
+                        s -= c.PreviousItem;
                         s += c.Item;
                         break;
                     case ListChangeReason.Clear:

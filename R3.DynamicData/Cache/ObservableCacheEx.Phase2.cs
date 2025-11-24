@@ -25,6 +25,14 @@ namespace R3.DynamicData.Cache;
 public static partial class ObservableCacheEx
 {
     // ------------------ AddKey ------------------
+    /// <summary>
+    /// Converts a list change set to a cache change set by adding keys using the provided selector.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source list change set observable.</param>
+    /// <param name="keySelector">Function to extract keys from objects.</param>
+    /// <returns>An observable cache change set.</returns>
     public static Observable<IChangeSet<TObject, TKey>> AddKey<TObject, TKey>(
         this Observable<IChangeSet<TObject>> source,
         Func<TObject, TKey> keySelector)
@@ -149,6 +157,15 @@ public static partial class ObservableCacheEx
     }
 
     // ------------------ Cast ------------------
+    /// <summary>
+    /// Transforms objects in the change set using the provided selector function.
+    /// </summary>
+    /// <typeparam name="TSource">The source object type.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TDestination">The destination object type.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="selector">Function to transform objects.</param>
+    /// <returns>An observable with transformed objects.</returns>
     public static Observable<IChangeSet<TDestination, TKey>> Cast<TSource, TKey, TDestination>(
         this Observable<IChangeSet<TSource, TKey>> source,
         Func<TSource, TDestination> selector)

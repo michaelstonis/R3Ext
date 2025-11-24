@@ -48,11 +48,21 @@ public readonly struct VirtualRequest : IEquatable<VirtualRequest>
     public override int GetHashCode() =>
         HashCode.Combine(StartIndex, Size);
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Determines whether two specified instances of <see cref="VirtualRequest"/> are equal.
+    /// </summary>
+    /// <param name="left">The first instance to compare.</param>
+    /// <param name="right">The second instance to compare.</param>
+    /// <returns>true if left and right are equal; otherwise, false.</returns>
     public static bool operator ==(VirtualRequest left, VirtualRequest right) =>
         left.Equals(right);
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Determines whether two specified instances of <see cref="VirtualRequest"/> are not equal.
+    /// </summary>
+    /// <param name="left">The first instance to compare.</param>
+    /// <param name="right">The second instance to compare.</param>
+    /// <returns>true if left and right are not equal; otherwise, false.</returns>
     public static bool operator !=(VirtualRequest left, VirtualRequest right) =>
         !left.Equals(right);
 }

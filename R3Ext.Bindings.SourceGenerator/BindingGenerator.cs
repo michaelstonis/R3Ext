@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace R3Ext.Bindings.SourceGenerator;
 
 [Generator(LanguageNames.CSharp)]
-public sealed class BindingGeneratorV2 : IIncrementalGenerator
+public sealed class BindingGenerator : IIncrementalGenerator
 {
     private static readonly DiagnosticDescriptor IncompleteBindingDescriptor = new(
         "R3BG001",

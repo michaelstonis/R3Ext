@@ -103,7 +103,7 @@ internal sealed class EnsureUniqueKeys<TObject, TKey>
                         case Kernel.ChangeReason.Update:
                             if (existedBeforeBatch)
                             {
-                                var prev = previousValue;
+                                var prev = previousValue!;
                                 state[key] = finalValue;
                                 result.Add(new Change<TObject, TKey>(Kernel.ChangeReason.Update, key, finalValue, prev));
                             }
