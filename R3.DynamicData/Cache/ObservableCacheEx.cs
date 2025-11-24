@@ -7,11 +7,6 @@ using R3.DynamicData.Binding;
 using R3.DynamicData.Kernel;
 using R3.DynamicData.List;
 
-#pragma warning disable SA1503 // Braces should not be omitted
-#pragma warning disable SA1513 // Closing brace should be followed by blank line
-#pragma warning disable SA1116 // Parameters should begin on the line after the declaration when spanning multiple lines
-#pragma warning disable SA1515 // Single-line comment should be preceded by blank line
-#pragma warning disable SA1514 // Element documentation header should be preceded by blank line
 namespace R3.DynamicData.Cache;
 
 /// <summary>
@@ -31,14 +26,24 @@ public static partial class ObservableCacheEx
         where TKey : notnull
         where TValue : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (valueSelector is null) throw new ArgumentNullException(nameof(valueSelector));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (valueSelector is null)
+        {
+            throw new ArgumentNullException(nameof(valueSelector));
+        }
+
         var cmp = comparer ?? EqualityComparer<TValue>.Default;
 
-        return Observable.Create<IChangeSet<TValue>>(observer =>
+        return Observable.Create<IChangeSet<TValue>>(
+            observer =>
         {
             var refCounts = new Dictionary<TValue, int>(cmp);
-            return source.Subscribe(changes =>
+            return source.Subscribe(
+                changes =>
             {
                 var changeSet = new ChangeSet<TValue>();
                 foreach (var change in changes)
@@ -56,7 +61,9 @@ public static partial class ObservableCacheEx
                             {
                                 refCounts[currentVal] = count + 1;
                             }
+
                             break;
+
                         case ChangeReason.Update:
                             if (change.Previous.HasValue)
                             {
@@ -77,6 +84,7 @@ public static partial class ObservableCacheEx
                                             refCounts[prevVal] = pc;
                                         }
                                     }
+
                                     // increment new
                                     if (!refCounts.TryGetValue(currentVal, out var nc))
                                     {
@@ -101,7 +109,9 @@ public static partial class ObservableCacheEx
                                     refCounts[currentVal] = uc + 1;
                                 }
                             }
+
                             break;
+
                         case ChangeReason.Remove:
                             var removeVal = change.Previous.HasValue ? valueSelector(change.Previous.Value) : currentVal;
                             if (refCounts.TryGetValue(removeVal, out var rc))
@@ -117,19 +127,26 @@ public static partial class ObservableCacheEx
                                     refCounts[removeVal] = rc;
                                 }
                             }
+
                             break;
+
                         case ChangeReason.Refresh:
+
                             // ignore for distinct values
                             break;
+
                         case ChangeReason.Moved:
                             break;
                     }
                 }
+
                 if (changeSet.Count > 0)
                 {
                     observer.OnNext(changeSet);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
         });
     }
 
@@ -146,17 +163,29 @@ public static partial class ObservableCacheEx
         where TKey : notnull
         where TDestination : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (manySelector is null) throw new ArgumentNullException(nameof(manySelector));
-        var cmp = comparer ?? EqualityComparer<TDestination>.Default;
-        var useDedup = comparer != null; // Only dedup when user supplied a comparer.
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
 
-        return Observable.Create<IChangeSet<TDestination>>(observer =>
+        if (manySelector is null)
+        {
+            throw new ArgumentNullException(nameof(manySelector));
+        }
+
+        var cmp = comparer ?? EqualityComparer<TDestination>.Default;
+
+        // Only dedup when user supplied a comparer.
+        var useDedup = comparer != null;
+
+        return Observable.Create<IChangeSet<TDestination>>(
+            observer =>
         {
             // Only used when deduplication requested.
             var refCounts = useDedup ? new Dictionary<TDestination, int>(cmp) : null;
 
-            return source.Subscribe(changes =>
+            return source.Subscribe(
+                changes =>
             {
                 var changeSet = new ChangeSet<TDestination>();
                 foreach (var change in changes)
@@ -167,10 +196,13 @@ public static partial class ObservableCacheEx
                     {
                         curr = manySelector(change.Current) ?? Enumerable.Empty<TDestination>();
                     }
+
                     if (change.Reason == ChangeReason.Remove || change.Reason == ChangeReason.Update)
                     {
                         if (change.Previous.HasValue)
+                        {
                             prev = manySelector(change.Previous.Value) ?? Enumerable.Empty<TDestination>();
+                        }
                     }
 
                     switch (change.Reason)
@@ -198,6 +230,7 @@ public static partial class ObservableCacheEx
                                     }
                                 }
                             }
+
                             break;
 
                         case ChangeReason.Update:
@@ -207,6 +240,7 @@ public static partial class ObservableCacheEx
                                 {
                                     changeSet.Add(new Change<TDestination>(ListChangeReason.Remove, item, -1));
                                 }
+
                                 foreach (var item in curr)
                                 {
                                     changeSet.Add(new Change<TDestination>(ListChangeReason.Add, item, -1));
@@ -250,6 +284,7 @@ public static partial class ObservableCacheEx
                                     }
                                 }
                             }
+
                             break;
 
                         case ChangeReason.Remove:
@@ -279,21 +314,28 @@ public static partial class ObservableCacheEx
                                     }
                                 }
                             }
+
                             break;
 
                         case ChangeReason.Refresh:
+
                             // No structural changes.
                             break;
+
                         case ChangeReason.Moved:
+
                             // Position not tracked for flattened list (-1 indices); ignore.
                             break;
                     }
                 }
+
                 if (changeSet.Count > 0)
                 {
                     observer.OnNext(changeSet);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
         });
     }
 
@@ -314,7 +356,8 @@ public static partial class ObservableCacheEx
         IList<TObject> target)
         where TKey : notnull
     {
-        return source.Subscribe(changeSet =>
+        return source.Subscribe(
+            changeSet =>
         {
             foreach (var change in changeSet)
             {
@@ -325,6 +368,7 @@ public static partial class ObservableCacheEx
                         break;
 
                     case ChangeReason.Update:
+
                         // Update: remove old value and add new value
                         // Since cache is unordered, we remove by finding the previous item
                         if (change.Previous.HasValue)
@@ -340,10 +384,12 @@ public static partial class ObservableCacheEx
                         break;
 
                     case ChangeReason.Refresh:
+
                         // Refresh doesn't require action for basic binding
                         break;
 
                     case ChangeReason.Moved:
+
                         // Moved is not applicable to unordered cache binding
                         break;
                 }
@@ -368,7 +414,8 @@ public static partial class ObservableCacheEx
     {
         var options = new BindingOptions { ResetThreshold = resetThreshold };
         var adaptor = new ObservableCollectionCacheAdaptor<TObject, TKey>(targetCollection, options);
-        return source.Subscribe(changes => adaptor.Adapt(changes));
+        return source.Subscribe(
+            changes => adaptor.Adapt(changes));
     }
 
     /// <summary>
@@ -390,7 +437,8 @@ public static partial class ObservableCacheEx
         readOnlyObservableCollection = new ReadOnlyObservableCollection<TObject>(target);
         var options = new BindingOptions { ResetThreshold = resetThreshold };
         var adaptor = new ObservableCollectionCacheAdaptor<TObject, TKey>(target, options);
-        return source.Subscribe(changes => adaptor.Adapt(changes));
+        return source.Subscribe(
+            changes => adaptor.Adapt(changes));
     }
 
     // Lifecycle parity operators
@@ -409,8 +457,16 @@ public static partial class ObservableCacheEx
         where TObject : notnull
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (subscriptionFactory is null) throw new ArgumentNullException(nameof(subscriptionFactory));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (subscriptionFactory is null)
+        {
+            throw new ArgumentNullException(nameof(subscriptionFactory));
+        }
+
         return new Cache.Internal.SubscribeMany<TObject, TKey>(source, subscriptionFactory).Run();
     }
 
@@ -426,7 +482,11 @@ public static partial class ObservableCacheEx
         where TObject : notnull
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
         return new Cache.Internal.DisposeMany<TObject, TKey>(source).Run();
     }
 
@@ -444,8 +504,16 @@ public static partial class ObservableCacheEx
         where TObject : notnull
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (disposeAction is null) throw new ArgumentNullException(nameof(disposeAction));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (disposeAction is null)
+        {
+            throw new ArgumentNullException(nameof(disposeAction));
+        }
+
         return new Cache.Internal.DisposeMany<TObject, TKey>(source, disposeAction).Run();
     }
 
@@ -469,12 +537,19 @@ public static partial class ObservableCacheEx
         where TObject : INotifyPropertyChanged
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
         return source.AutoRefreshOnObservable(
             t =>
             {
                 if (propertyChangeThrottle is null)
+                {
                     return t.WhenAnyPropertyChanged();
+                }
+
                 return t.WhenAnyPropertyChanged().Debounce(propertyChangeThrottle.Value, timeProvider ?? ObservableSystem.DefaultTimeProvider);
             },
             changeSetBuffer,
@@ -502,13 +577,24 @@ public static partial class ObservableCacheEx
         where TObject : INotifyPropertyChanged
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (propertyAccessor is null) throw new ArgumentNullException(nameof(propertyAccessor));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (propertyAccessor is null)
+        {
+            throw new ArgumentNullException(nameof(propertyAccessor));
+        }
+
         return source.AutoRefreshOnObservable(
             t =>
             {
                 if (propertyChangeThrottle is null)
+                {
                     return t.WhenPropertyChanged(propertyAccessor, false);
+                }
+
                 return t.WhenPropertyChanged(propertyAccessor, false).Debounce(propertyChangeThrottle.Value, timeProvider ?? ObservableSystem.DefaultTimeProvider);
             },
             changeSetBuffer,
@@ -534,8 +620,15 @@ public static partial class ObservableCacheEx
         where TObject : notnull
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (reevaluator is null) throw new ArgumentNullException(nameof(reevaluator));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (reevaluator is null)
+        {
+            throw new ArgumentNullException(nameof(reevaluator));
+        }
 
         // Adapt underlying generic AutoRefresh implementation which operates on object keys.
         var castSource = source.Select(cs =>
@@ -547,6 +640,7 @@ public static partial class ObservableCacheEx
                     ? new Change<TObject, object>(ch.Reason, ch.Key!, ch.Current, ch.Previous.Value)
                     : new Change<TObject, object>(ch.Reason, ch.Key!, ch.Current));
             }
+
             return (IChangeSet<TObject, object>)converted;
         });
         return new Cache.Internal.AutoRefresh<TObject, TAny>(castSource, reevaluator, changeSetBuffer, timeProvider)
@@ -560,11 +654,13 @@ public static partial class ObservableCacheEx
                         ? new Change<TObject, TKey>(ch.Reason, (TKey)ch.Key!, ch.Current, ch.Previous.Value)
                         : new Change<TObject, TKey>(ch.Reason, (TKey)ch.Key!, ch.Current));
                 }
+
                 return (IChangeSet<TObject, TKey>)converted;
             });
     }
 
     // Filtering parity
+
     /// <summary>
     /// Filters items based on an observable predicate for each item.
     /// </summary>
@@ -579,12 +675,21 @@ public static partial class ObservableCacheEx
         where TObject : notnull
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (observablePredicate is null) throw new ArgumentNullException(nameof(observablePredicate));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (observablePredicate is null)
+        {
+            throw new ArgumentNullException(nameof(observablePredicate));
+        }
+
         return new Cache.Internal.FilterOnObservable<TObject, TKey, bool>(source, observablePredicate).Run();
     }
 
     // Expiration
+
     /// <summary>
     /// Automatically removes items from the cache after a specified time period.
     /// </summary>
@@ -601,12 +706,21 @@ public static partial class ObservableCacheEx
         where TObject : notnull
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (expireSelector is null) throw new ArgumentNullException(nameof(expireSelector));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (expireSelector is null)
+        {
+            throw new ArgumentNullException(nameof(expireSelector));
+        }
+
         return new Cache.Internal.ExpireAfter<TObject, TKey>(source, expireSelector, timeProvider).Run();
     }
 
     // EnsureUniqueKeys
+
     /// <summary>
     /// Ensures that each key appears only once in the change set by consolidating multiple changes for the same key.
     /// </summary>
@@ -619,11 +733,16 @@ public static partial class ObservableCacheEx
         where TObject : notnull
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
         return new Cache.Internal.EnsureUniqueKeys<TObject, TKey>(source).Run();
     }
 
     // SuppressRefresh
+
     /// <summary>
     /// Suppresses refresh notifications from the change set.
     /// </summary>
@@ -636,11 +755,16 @@ public static partial class ObservableCacheEx
         where TObject : notnull
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
         return new Cache.Internal.SuppressRefresh<TObject, TKey>(source).Run();
     }
 
     // IncludeUpdateWhen
+
     /// <summary>
     /// Includes update notifications only when the predicate returns true.
     /// </summary>
@@ -655,12 +779,21 @@ public static partial class ObservableCacheEx
         where TObject : notnull
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (predicate is null)
+        {
+            throw new ArgumentNullException(nameof(predicate));
+        }
+
         return new Cache.Internal.IncludeUpdateWhen<TObject, TKey>(source, predicate).Run();
     }
 
     // WatchValue convenience (single key stream)
+
     /// <summary>
     /// Watches for changes to a specific key in the change set.
     /// </summary>
@@ -675,20 +808,29 @@ public static partial class ObservableCacheEx
         where TObject : notnull
         where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
         var state = new WatchValueState<TObject, TKey>(source, key);
         return Observable.Create<Change<TObject, TKey>, WatchValueState<TObject, TKey>>(
             state,
             static (observer, state) =>
         {
-            return state.Source.Subscribe(changes =>
+            return state.Source.Subscribe(
+                changes =>
             {
                 foreach (var c in changes)
                 {
                     if (EqualityComparer<TKey>.Default.Equals(c.Key, state.Key))
+                    {
                         observer.OnNext(c);
+                    }
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
         });
     }
 
