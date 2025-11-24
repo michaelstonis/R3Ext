@@ -6,18 +6,6 @@ using R3.DynamicData.Cache;
 using R3.DynamicData.Kernel;
 using R3.DynamicData.List;
 
-#pragma warning disable SA1503 // Braces should not be omitted
-#pragma warning disable SA1513 // Closing brace should be followed by blank line
-#pragma warning disable SA1116 // Parameters should begin on the line after the declaration when spanning multiple lines
-#pragma warning disable SA1515 // Single-line comment should be preceded by blank line
-#pragma warning disable SA1514 // Element documentation header should be preceded by blank line
-#pragma warning disable SA1127 // Generic type constraints should be on their own line
-#pragma warning disable SA1502 // Element should not be on a single line
-#pragma warning disable SA1136 // Enum values should be on separate lines
-#pragma warning disable SA1413 // Use trailing comma in multi-line initializers
-#pragma warning disable SA1107 // Code should not contain multiple statements on one line
-#pragma warning disable SA1516 // Elements should be separated by blank line
-
 namespace R3.DynamicData.Cache;
 
 // Phase 2 cache operators for R3 port.
@@ -25,6 +13,7 @@ namespace R3.DynamicData.Cache;
 public static partial class ObservableCacheEx
 {
     // ------------------ AddKey ------------------
+
     /// <summary>
     /// Converts a list change set to a cache change set by adding keys using the provided selector.
     /// </summary>
@@ -36,10 +25,19 @@ public static partial class ObservableCacheEx
     public static Observable<IChangeSet<TObject, TKey>> AddKey<TObject, TKey>(
         this Observable<IChangeSet<TObject>> source,
         Func<TObject, TKey> keySelector)
-        where TObject : notnull where TKey : notnull
+        where TObject : notnull
+        where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (keySelector is null) throw new ArgumentNullException(nameof(keySelector));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (keySelector is null)
+        {
+            throw new ArgumentNullException(nameof(keySelector));
+        }
+
         var state = new AddKeyState<TObject, TKey>(source, keySelector);
         return Observable.Create<IChangeSet<TObject, TKey>, AddKeyState<TObject, TKey>>(
             state,
@@ -47,7 +45,8 @@ public static partial class ObservableCacheEx
         {
             // Track current items so we can emit proper removes on Clear / RemoveRange.
             var current = new Dictionary<TKey, TObject>();
-            return state.Source.Subscribe(changes =>
+            return state.Source.Subscribe(
+                changes =>
             {
                 var converted = new List<Change<TObject, TKey>>();
                 foreach (var change in changes)
@@ -61,6 +60,7 @@ public static partial class ObservableCacheEx
                                 converted.Add(new Change<TObject, TKey>(ChangeReason.Add, key, change.Item));
                                 break;
                             }
+
                         case ListChangeReason.AddRange:
                             foreach (var item in change.Range)
                             {
@@ -68,10 +68,12 @@ public static partial class ObservableCacheEx
                                 current[key] = item;
                                 converted.Add(new Change<TObject, TKey>(ChangeReason.Add, key, item));
                             }
+
                             break;
                         case ListChangeReason.Replace:
                             {
                                 var key = state.KeySelector(change.Item);
+
                                 // Assume key stable; if changed treat as remove+add.
                                 if (change.PreviousItem is not null && !EqualityComparer<TKey>.Default.Equals(state.KeySelector(change.PreviousItem), key))
                                 {
@@ -80,6 +82,7 @@ public static partial class ObservableCacheEx
                                     {
                                         converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, oldKey, change.PreviousItem));
                                     }
+
                                     current[key] = change.Item;
                                     converted.Add(new Change<TObject, TKey>(ChangeReason.Add, key, change.Item));
                                 }
@@ -96,8 +99,10 @@ public static partial class ObservableCacheEx
                                         converted.Add(new Change<TObject, TKey>(ChangeReason.Add, key, change.Item));
                                     }
                                 }
+
                                 break;
                             }
+
                         case ListChangeReason.Remove:
                             {
                                 var key = state.KeySelector(change.Item);
@@ -105,8 +110,10 @@ public static partial class ObservableCacheEx
                                 {
                                     converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, change.Item));
                                 }
+
                                 break;
                             }
+
                         case ListChangeReason.RemoveRange:
                             foreach (var item in change.Range)
                             {
@@ -116,6 +123,7 @@ public static partial class ObservableCacheEx
                                     converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, item));
                                 }
                             }
+
                             break;
                         case ListChangeReason.Moved:
                             // Cache has no ordering concept; treat as Refresh.
@@ -132,7 +140,9 @@ public static partial class ObservableCacheEx
                                 {
                                     var key = state.KeySelector(item);
                                     if (current.Remove(key))
+                                    {
                                         converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, item));
+                                    }
                                 }
                             }
                             else
@@ -141,11 +151,14 @@ public static partial class ObservableCacheEx
                                 {
                                     converted.Add(new Change<TObject, TKey>(ChangeReason.Remove, kvp.Key, kvp.Value));
                                 }
+
                                 current.Clear();
                             }
+
                             break;
                     }
                 }
+
                 if (converted.Count > 0)
                 {
                     var cs = new ChangeSet<TObject, TKey>(converted.Count);
@@ -157,6 +170,7 @@ public static partial class ObservableCacheEx
     }
 
     // ------------------ Cast ------------------
+
     /// <summary>
     /// Transforms objects in the change set using the provided selector function.
     /// </summary>
@@ -169,16 +183,27 @@ public static partial class ObservableCacheEx
     public static Observable<IChangeSet<TDestination, TKey>> Cast<TSource, TKey, TDestination>(
         this Observable<IChangeSet<TSource, TKey>> source,
         Func<TSource, TDestination> selector)
-        where TSource : notnull where TDestination : notnull where TKey : notnull
+        where TSource : notnull
+        where TDestination : notnull
+        where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (selector is null) throw new ArgumentNullException(nameof(selector));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (selector is null)
+        {
+            throw new ArgumentNullException(nameof(selector));
+        }
+
         var state = new CastState<TSource, TKey, TDestination>(source, selector);
         return Observable.Create<IChangeSet<TDestination, TKey>, CastState<TSource, TKey, TDestination>>(
             state,
             static (observer, state) =>
         {
-            return state.Source.Subscribe(changes =>
+            return state.Source.Subscribe(
+                changes =>
             {
                 var converted = new List<Change<TDestination, TKey>>(changes.Count);
                 foreach (var change in changes)
@@ -201,6 +226,7 @@ public static partial class ObservableCacheEx
                             break;
                     }
                 }
+
                 if (converted.Count > 0)
                 {
                     var cs = new ChangeSet<TDestination, TKey>(converted.Count);
@@ -212,6 +238,7 @@ public static partial class ObservableCacheEx
     }
 
     // ------------------ ToObservableOptional ------------------
+
     /// <summary>
     /// Observes a single value by key, emitting Optional values when the key is added, updated, or removed.
     /// </summary>
@@ -223,21 +250,31 @@ public static partial class ObservableCacheEx
     public static Observable<Optional<TObject>> ToObservableOptional<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         TKey key)
-        where TObject : notnull where TKey : notnull
+        where TObject : notnull
+        where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
         var state = new ToObservableOptionalState<TObject, TKey>(source, key);
         return Observable.Create<Optional<TObject>, ToObservableOptionalState<TObject, TKey>>(state, static (observer, state) =>
         {
             TObject? latest = default;
             bool hasValue = false;
             observer.OnNext(Optional<TObject>.None);
-            return state.Source.Subscribe(changes =>
+            return state.Source.Subscribe(
+                changes =>
             {
                 bool changed = false;
                 foreach (var change in changes)
                 {
-                    if (!EqualityComparer<TKey>.Default.Equals(change.Key, state.Key)) continue;
+                    if (!EqualityComparer<TKey>.Default.Equals(change.Key, state.Key))
+                    {
+                        continue;
+                    }
+
                     switch (change.Reason)
                     {
                         case ChangeReason.Add:
@@ -254,6 +291,7 @@ public static partial class ObservableCacheEx
                             break;
                     }
                 }
+
                 if (changed)
                 {
                     observer.OnNext(hasValue ? Optional<TObject>.Some(latest!) : Optional<TObject>.None);
@@ -277,17 +315,43 @@ public static partial class ObservableCacheEx
     }
 
     // ------------------ EditDiff ------------------
+
+    /// <summary>
+    /// Edits the source cache by computing the differences between current items and new items.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source cache to edit.</param>
+    /// <param name="newItems">The new items to compare against.</param>
+    /// <param name="equalityComparator">Function to compare objects for equality.</param>
+    /// <param name="keySelector">Function to extract keys from objects.</param>
     public static void EditDiff<TObject, TKey>(
         this ISourceCache<TObject, TKey> source,
         IEnumerable<TObject> newItems,
         Func<TObject, TObject, bool> equalityComparator,
         Func<TObject, TKey> keySelector)
-        where TObject : notnull where TKey : notnull
+        where TObject : notnull
+        where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (newItems is null) throw new ArgumentNullException(nameof(newItems));
-        if (equalityComparator is null) throw new ArgumentNullException(nameof(equalityComparator));
-        if (keySelector is null) throw new ArgumentNullException(nameof(keySelector));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (newItems is null)
+        {
+            throw new ArgumentNullException(nameof(newItems));
+        }
+
+        if (equalityComparator is null)
+        {
+            throw new ArgumentNullException(nameof(equalityComparator));
+        }
+
+        if (keySelector is null)
+        {
+            throw new ArgumentNullException(nameof(keySelector));
+        }
 
         var incoming = newItems.ToDictionary(keySelector, x => x);
         var toRemove = source.Items.Where(existing => !incoming.ContainsKey(keySelector(existing))).ToList();
@@ -301,43 +365,101 @@ public static partial class ObservableCacheEx
         source.Edit(editor =>
         {
             foreach (var rem in toRemove)
+            {
                 editor.Remove(keySelector(rem));
+            }
+
             foreach (var add in toAdd)
+            {
                 editor.AddOrUpdate(add);
+            }
+
             foreach (var upd in toUpdate)
+            {
                 editor.AddOrUpdate(upd);
+            }
         });
     }
 
     // ------------------ Combine Operators ------------------
+
+    /// <summary>
+    /// Combines cache change sets using AND logic - emits items present in all sources.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="primary">The primary observable.</param>
+    /// <param name="others">Additional observables to combine.</param>
+    /// <returns>An observable with items present in all sources.</returns>
     public static Observable<IChangeSet<TObject, TKey>> And<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> primary,
         params Observable<IChangeSet<TObject, TKey>>[] others)
-        where TObject : notnull where TKey : notnull => CombineInternal(primary, others, CacheCombineOperator.And);
+        where TObject : notnull
+        where TKey : notnull
+        => CombineInternal(primary, others, CacheCombineOperator.And);
 
+    /// <summary>
+    /// Combines cache change sets using OR logic - emits items present in any source.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="primary">The primary observable.</param>
+    /// <param name="others">Additional observables to combine.</param>
+    /// <returns>An observable with items present in any source.</returns>
     public static Observable<IChangeSet<TObject, TKey>> Or<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> primary,
         params Observable<IChangeSet<TObject, TKey>>[] others)
-        where TObject : notnull where TKey : notnull => CombineInternal(primary, others, CacheCombineOperator.Or);
+        where TObject : notnull
+        where TKey : notnull
+        => CombineInternal(primary, others, CacheCombineOperator.Or);
 
+    /// <summary>
+    /// Combines cache change sets using EXCEPT logic - emits items in primary but not in others.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="primary">The primary observable.</param>
+    /// <param name="others">Observables whose items should be excluded.</param>
+    /// <returns>An observable with items in primary but not in others.</returns>
     public static Observable<IChangeSet<TObject, TKey>> Except<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> primary,
         params Observable<IChangeSet<TObject, TKey>>[] others)
-        where TObject : notnull where TKey : notnull => CombineInternal(primary, others, CacheCombineOperator.Except);
+        where TObject : notnull
+        where TKey : notnull
+        => CombineInternal(primary, others, CacheCombineOperator.Except);
 
+    /// <summary>
+    /// Combines cache change sets using XOR logic - emits items present in exactly one source.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="primary">The primary observable.</param>
+    /// <param name="others">Additional observables to combine.</param>
+    /// <returns>An observable with items present in exactly one source.</returns>
     public static Observable<IChangeSet<TObject, TKey>> Xor<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> primary,
         params Observable<IChangeSet<TObject, TKey>>[] others)
-        where TObject : notnull where TKey : notnull => CombineInternal(primary, others, CacheCombineOperator.Xor);
+        where TObject : notnull
+        where TKey : notnull
+        => CombineInternal(primary, others, CacheCombineOperator.Xor);
 
     private static Observable<IChangeSet<TObject, TKey>> CombineInternal<TObject, TKey>(
         Observable<IChangeSet<TObject, TKey>> primary,
         Observable<IChangeSet<TObject, TKey>>[] others,
         CacheCombineOperator op)
-        where TObject : notnull where TKey : notnull
+        where TObject : notnull
+        where TKey : notnull
     {
-        if (primary is null) throw new ArgumentNullException(nameof(primary));
-        if (others is null) throw new ArgumentNullException(nameof(others));
+        if (primary is null)
+        {
+            throw new ArgumentNullException(nameof(primary));
+        }
+
+        if (others is null)
+        {
+            throw new ArgumentNullException(nameof(others));
+        }
+
         var all = new[] { primary }.Concat(others).ToArray();
         return Observable.Create<IChangeSet<TObject, TKey>>(observer =>
         {
@@ -353,25 +475,32 @@ public static partial class ObservableCacheEx
                     CacheCombineOperator.Or => Union(states),
                     CacheCombineOperator.Except => ExceptFirst(states),
                     CacheCombineOperator.Xor => Xor(states),
-                    _ => Enumerable.Empty<TKey>()
+                    _ => Enumerable.Empty<TKey>(),
                 };
                 var newSet = new HashSet<TKey>(resultKeys);
                 var changes = new List<Change<TObject, TKey>>();
+
                 // Removed
                 foreach (var k in lastKeys.Where(k => !newSet.Contains(k)))
                 {
                     // Need previous value for remove; pick first dictionary containing key (before removal)
                     var prevVal = states.Select(s => s.TryGetValue(k, out var v) ? v : default).FirstOrDefault(v => v is not null);
                     if (prevVal is not null)
+                    {
                         changes.Add(new Change<TObject, TKey>(ChangeReason.Remove, k, prevVal));
+                    }
                 }
+
                 // Added
                 foreach (var k in newSet.Where(k => !lastKeys.Contains(k)))
                 {
                     var val = states.Select(s => s.TryGetValue(k, out var v) ? v : default).FirstOrDefault(v => v is not null);
                     if (val is not null)
+                    {
                         changes.Add(new Change<TObject, TKey>(ChangeReason.Add, k, val));
+                    }
                 }
+
                 if (changes.Count > 0)
                 {
                     lastKeys = newSet;
@@ -384,7 +513,8 @@ public static partial class ObservableCacheEx
             for (int idx = 0; idx < all.Length; idx++)
             {
                 int capture = idx;
-                var sub = all[capture].Subscribe(changes =>
+                var sub = all[capture].Subscribe(
+                    changes =>
                 {
                     foreach (var change in changes)
                     {
@@ -401,6 +531,7 @@ public static partial class ObservableCacheEx
                                 break;
                         }
                     }
+
                     Recompute();
                 }, observer.OnErrorResume, observer.OnCompleted);
                 subscriptions.Add(sub);
@@ -408,35 +539,87 @@ public static partial class ObservableCacheEx
 
             return Disposable.Create(() =>
             {
-                foreach (var s in subscriptions) s.Dispose();
+                foreach (var s in subscriptions)
+                {
+                    s.Dispose();
+                }
             });
         });
     }
 
-    private static IEnumerable<TKey> Intersection<TObject, TKey>(Dictionary<TKey, TObject>[] states) where TObject : notnull where TKey : notnull
-        => states.Length == 0 ? Enumerable.Empty<TKey>() : states.Skip(1).Aggregate(new HashSet<TKey>(states[0].Keys), (acc, s) => { acc.IntersectWith(s.Keys); return acc; });
-    private static IEnumerable<TKey> Union<TObject, TKey>(Dictionary<TKey, TObject>[] states) where TObject : notnull where TKey : notnull
+    private static IEnumerable<TKey> Intersection<TObject, TKey>(Dictionary<TKey, TObject>[] states)
+        where TObject : notnull
+        where TKey : notnull
+        => states.Length == 0
+            ? Enumerable.Empty<TKey>()
+            : states.Skip(1).Aggregate(
+                new HashSet<TKey>(states[0].Keys),
+                (acc, s) =>
+                {
+                    acc.IntersectWith(s.Keys);
+                    return acc;
+                });
+
+    private static IEnumerable<TKey> Union<TObject, TKey>(Dictionary<TKey, TObject>[] states)
+        where TObject : notnull
+        where TKey : notnull
         => states.SelectMany(s => s.Keys).Distinct();
-    private static IEnumerable<TKey> ExceptFirst<TObject, TKey>(Dictionary<TKey, TObject>[] states) where TObject : notnull where TKey : notnull
+
+    private static IEnumerable<TKey> ExceptFirst<TObject, TKey>(Dictionary<TKey, TObject>[] states)
+        where TObject : notnull
+        where TKey : notnull
         => states.Length == 0 ? Enumerable.Empty<TKey>() : states[0].Keys.Where(k => states.Skip(1).All(s => !s.ContainsKey(k)));
-    private static IEnumerable<TKey> Xor<TObject, TKey>(Dictionary<TKey, TObject>[] states) where TObject : notnull where TKey : notnull
+
+    private static IEnumerable<TKey> Xor<TObject, TKey>(Dictionary<TKey, TObject>[] states)
+        where TObject : notnull
+        where TKey : notnull
     {
         var allKeys = states.SelectMany(s => s.Keys).ToList();
         return allKeys.GroupBy(k => k).Where(g => g.Count() == 1).Select(g => g.Key);
     }
 
-    private enum CacheCombineOperator { And, Or, Except, Xor }
+    private enum CacheCombineOperator
+    {
+        And,
+        Or,
+        Except,
+        Xor,
+    }
 
     // ------------------ TrueForAny ------------------
+
+    /// <summary>
+    /// Returns an observable that emits true when any items in the cache satisfy the condition from their inner observables.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TValue">The type of value from the inner observable.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="observableSelector">Function to select an inner observable for each object.</param>
+    /// <param name="equalityCondition">Condition to evaluate each object against its inner value.</param>
+    /// <returns>An observable of bool indicating if any items satisfy the condition.</returns>
     public static Observable<bool> TrueForAny<TObject, TKey, TValue>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, Observable<TValue>> observableSelector,
         Func<TObject, TValue, bool> equalityCondition)
-        where TObject : notnull where TKey : notnull where TValue : notnull
+        where TObject : notnull
+        where TKey : notnull
+        where TValue : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (observableSelector is null) throw new ArgumentNullException(nameof(observableSelector));
-        if (equalityCondition is null) throw new ArgumentNullException(nameof(equalityCondition));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (observableSelector is null)
+        {
+            throw new ArgumentNullException(nameof(observableSelector));
+        }
+
+        if (equalityCondition is null)
+        {
+            throw new ArgumentNullException(nameof(equalityCondition));
+        }
 
         var state = new TrueForAnyState<TObject, TKey, TValue>(source, observableSelector, equalityCondition);
         return Observable.Create<bool, TrueForAnyState<TObject, TKey, TValue>>(
@@ -450,6 +633,7 @@ public static partial class ObservableCacheEx
                     bool any = itemStates.Any(kvp => kvp.Value.Latest is TValue v && state.EqualityCondition(kvp.Value.Item, v));
                     observer.OnNext(any);
                 }
+
                 // Initial (empty) => false
                 observer.OnNext(false);
 
@@ -473,9 +657,15 @@ public static partial class ObservableCacheEx
                                         innerState.Recompute();
                                     });
                                 }
+
                                 break;
+
                             case ChangeReason.Remove:
-                                if (innerSubs.Remove(change.Key, out var disp)) disp.Dispose();
+                                if (innerSubs.Remove(change.Key, out var disp))
+                                {
+                                    disp.Dispose();
+                                }
+
                                 itemStates.Remove(change.Key);
                                 break;
                             case ChangeReason.Refresh:
@@ -483,22 +673,29 @@ public static partial class ObservableCacheEx
                                 {
                                     itemStates[change.Key] = (change.Current, existing.Latest);
                                 }
+
                                 break;
                         }
                     }
+
                     Recompute();
                 });
 
                 return Disposable.Create(() =>
                 {
                     outer.Dispose();
-                    foreach (var d in innerSubs.Values) d.Dispose();
+                    foreach (var d in innerSubs.Values)
+                    {
+                        d.Dispose();
+                    }
                 });
             });
     }
 
     private sealed class TrueForAnyState<TObj, TK, TV>
-        where TObj : notnull where TK : notnull where TV : notnull
+        where TObj : notnull
+        where TK : notnull
+        where TV : notnull
     {
         public readonly Observable<IChangeSet<TObj, TK>> Source;
         public readonly Func<TObj, Observable<TV>> ObservableSelector;
@@ -513,7 +710,9 @@ public static partial class ObservableCacheEx
     }
 
     private sealed class InnerSubscriptionState<TObj, TK, TV>
-        where TObj : notnull where TK : notnull where TV : notnull
+        where TObj : notnull
+        where TK : notnull
+        where TV : notnull
     {
         public readonly TObj Current;
         public readonly TK Key;
@@ -532,15 +731,39 @@ public static partial class ObservableCacheEx
     }
 
     // ------------------ TrueForAll ------------------
+
+    /// <summary>
+    /// Returns an observable that emits true when all items in the cache satisfy the condition from their inner observables.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TValue">The type of value from the inner observable.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="observableSelector">Function to select an inner observable for each object.</param>
+    /// <param name="equalityCondition">Condition to evaluate each object against its inner value.</param>
+    /// <returns>An observable of bool indicating if all items satisfy the condition.</returns>
     public static Observable<bool> TrueForAll<TObject, TKey, TValue>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, Observable<TValue>> observableSelector,
         Func<TObject, TValue, bool> equalityCondition)
-        where TObject : notnull where TKey : notnull where TValue : notnull
+        where TObject : notnull
+        where TKey : notnull
+        where TValue : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (observableSelector is null) throw new ArgumentNullException(nameof(observableSelector));
-        if (equalityCondition is null) throw new ArgumentNullException(nameof(equalityCondition));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (observableSelector is null)
+        {
+            throw new ArgumentNullException(nameof(observableSelector));
+        }
+
+        if (equalityCondition is null)
+        {
+            throw new ArgumentNullException(nameof(equalityCondition));
+        }
 
         var state = new TrueForAllState<TObject, TKey, TValue>(source, observableSelector, equalityCondition);
         return Observable.Create<bool, TrueForAllState<TObject, TKey, TValue>>(
@@ -554,6 +777,7 @@ public static partial class ObservableCacheEx
                     bool all = itemStates.Count == 0 || itemStates.All(kvp => kvp.Value.Latest is TValue v && state.EqualityCondition(kvp.Value.Item, v));
                     observer.OnNext(all);
                 }
+
                 // Empty set vacuously true
                 observer.OnNext(true);
 
@@ -577,32 +801,46 @@ public static partial class ObservableCacheEx
                                         innerState.Recompute();
                                     });
                                 }
+
                                 break;
+
                             case ChangeReason.Remove:
-                                if (innerSubs.Remove(change.Key, out var disp)) disp.Dispose();
+                                if (innerSubs.Remove(change.Key, out var disp))
+                                {
+                                    disp.Dispose();
+                                }
+
                                 itemStates.Remove(change.Key);
                                 break;
+
                             case ChangeReason.Refresh:
                                 if (itemStates.TryGetValue(change.Key, out var existing))
                                 {
                                     itemStates[change.Key] = (change.Current, existing.Latest);
                                 }
+
                                 break;
                         }
                     }
+
                     Recompute();
                 });
 
                 return Disposable.Create(() =>
                 {
                     outer.Dispose();
-                    foreach (var d in innerSubs.Values) d.Dispose();
+                    foreach (var d in innerSubs.Values)
+                    {
+                        d.Dispose();
+                    }
                 });
             });
     }
 
     private sealed class TrueForAllState<TObj, TK, TV>
-        where TObj : notnull where TK : notnull where TV : notnull
+        where TObj : notnull
+        where TK : notnull
+        where TV : notnull
     {
         public readonly Observable<IChangeSet<TObj, TK>> Source;
         public readonly Func<TObj, Observable<TV>> ObservableSelector;
@@ -617,11 +855,24 @@ public static partial class ObservableCacheEx
     }
 
     // ------------------ QueryWhenChanged / ToCollection ------------------
+
+    /// <summary>
+    /// Converts the cache changeset into an observable that emits an IQuery interface for querying the current state.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <returns>An observable of IQuery providing access to the cache state.</returns>
     public static Observable<IQuery<TObject, TKey>> QueryWhenChanged<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source)
-        where TObject : notnull where TKey : notnull
+        where TObject : notnull
+        where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
         return Observable.Create<IQuery<TObject, TKey>>(observer =>
         {
             var dict = new Dictionary<TKey, TObject>();
@@ -642,48 +893,108 @@ public static partial class ObservableCacheEx
                             break;
                     }
                 }
+
                 observer.OnNext(new CacheQuery<TObject, TKey>(dict));
             });
         });
     }
 
+    /// <summary>
+    /// Converts the cache into an observable collection of items.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <returns>An observable of a read-only list of objects.</returns>
     public static Observable<IReadOnlyList<TObject>> ToCollection<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source)
-        where TObject : notnull where TKey : notnull
+        where TObject : notnull
+        where TKey : notnull
         => source.QueryWhenChanged().Select(q => (IReadOnlyList<TObject>)q.Items.ToList());
 
-    // Overload with projection selector used by tests: QueryWhenChanged(q => q.Count)
+    /// <summary>
+    /// Converts the cache changeset into an observable that projects the IQuery state using the specified selector.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the projected result.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="selector">Function to project the query state.</param>
+    /// <returns>An observable of projected results.</returns>
     public static Observable<TResult> QueryWhenChanged<TObject, TKey, TResult>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<IQuery<TObject, TKey>, TResult> selector)
-        where TObject : notnull where TKey : notnull
+        where TObject : notnull
+        where TKey : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (selector is null) throw new ArgumentNullException(nameof(selector));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (selector is null)
+        {
+            throw new ArgumentNullException(nameof(selector));
+        }
+
         return source.QueryWhenChanged().Select(selector);
     }
 }
 
 // ------------------ Query Interfaces ------------------
+
+/// <summary>
+/// Provides a query interface for accessing the current state of a cache.
+/// </summary>
+/// <typeparam name="TObject">The type of the object.</typeparam>
+/// <typeparam name="TKey">The type of the key.</typeparam>
 public interface IQuery<TObject, TKey>
-    where TObject : notnull where TKey : notnull
+    where TObject : notnull
+    where TKey : notnull
 {
+    /// <summary>
+    /// Gets the count of items in the cache.
+    /// </summary>
     int Count { get; }
+
+    /// <summary>
+    /// Gets all items in the cache.
+    /// </summary>
     IEnumerable<TObject> Items { get; }
+
+    /// <summary>
+    /// Gets all keys in the cache.
+    /// </summary>
     IEnumerable<TKey> Keys { get; }
+
+    /// <summary>
+    /// Gets all key-value pairs in the cache.
+    /// </summary>
     IEnumerable<KeyValuePair<TKey, TObject>> KeyValues { get; }
+
+    /// <summary>
+    /// Looks up an item by key.
+    /// </summary>
+    /// <param name="key">The key to lookup.</param>
+    /// <returns>An optional containing the value if found.</returns>
     Optional<TObject> Lookup(TKey key);
 }
 
 internal sealed class CacheQuery<TObject, TKey>(IReadOnlyDictionary<TKey, TObject> data)
     : IQuery<TObject, TKey>
-    where TObject : notnull where TKey : notnull
+    where TObject : notnull
+    where TKey : notnull
 {
     private readonly IReadOnlyDictionary<TKey, TObject> _data = data;
+
     public int Count => _data.Count;
+
     public IEnumerable<TObject> Items => _data.Values;
+
     public IEnumerable<TKey> Keys => _data.Keys;
+
     public IEnumerable<KeyValuePair<TKey, TObject>> KeyValues => _data;
+
     public Optional<TObject> Lookup(TKey key) => _data.TryGetValue(key, out var value) ? Optional<TObject>.Some(value) : Optional<TObject>.None;
 }
 
