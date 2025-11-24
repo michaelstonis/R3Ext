@@ -17,6 +17,11 @@ public static partial class ObservableListEx
     /// <summary>
     /// Adds a key to a list changeset, promoting it to a cache-style keyed changeset.
     /// </summary>
+    /// <typeparam name="T">The type of items in the source.</typeparam>
+    /// <typeparam name="TResult">The type of items in the result.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="selector">Function to transform each item.</param>
+    /// <returns>An observable that emits change sets with transformed items.</returns>
     public static Observable<R3.DynamicData.List.IChangeSet<TResult>> Transform<T, TResult>(
         this Observable<IChangeSet<T>> source,
         Func<T, TResult> selector)
@@ -542,6 +547,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Clones the target list as a side effect of the stream.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="target">The target list to keep synchronized with changes.</param>
+    /// <returns>The source observable, unmodified, with the side effect of updating the target list.</returns>
     public static Observable<IChangeSet<T>> Clone<T>(
         this Observable<IChangeSet<T>> source,
         IList<T> target)
@@ -618,6 +627,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Cast the changes to another form.
     /// </summary>
+    /// <typeparam name="TSource">The type of items in the source.</typeparam>
+    /// <typeparam name="TDestination">The type to cast items to.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <returns>An observable that emits change sets with cast items.</returns>
     public static Observable<IChangeSet<TDestination>> Cast<TSource, TDestination>(
         this Observable<IChangeSet<TSource>> source)
         where TSource : notnull
@@ -635,6 +648,11 @@ public static partial class ObservableListEx
     /// <summary>
     /// Cast the changes to another form using a conversion function.
     /// </summary>
+    /// <typeparam name="TSource">The type of items in the source.</typeparam>
+    /// <typeparam name="TDestination">The type to convert items to.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="conversionFactory">Function to convert each item.</param>
+    /// <returns>An observable that emits change sets with converted items.</returns>
     public static Observable<IChangeSet<TDestination>> Cast<TSource, TDestination>(
         this Observable<IChangeSet<TSource>> source,
         Func<TSource, TDestination> conversionFactory)
@@ -678,6 +696,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// Defer the subscription until the stream has been inflated with data.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <returns>An observable that begins emitting only after initial data is loaded.</returns>
     public static Observable<IChangeSet<T>> DeferUntilLoaded<T>(
         this Observable<IChangeSet<T>> source)
         where T : notnull
@@ -693,6 +714,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Provides a call back for each item change.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="action">Action to invoke for each change.</param>
+    /// <returns>The source observable, unmodified, with the side effect of invoking the action.</returns>
     public static Observable<IChangeSet<TObject>> ForEachChange<TObject>(
         this Observable<IChangeSet<TObject>> source,
         Action<Change<TObject>> action)
@@ -720,6 +745,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Callback for each item as and when it is being added to the stream.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="addAction">Action to invoke when an item is added.</param>
+    /// <returns>The source observable, unmodified, with the side effect of invoking the action.</returns>
     public static Observable<IChangeSet<T>> OnItemAdded<T>(
         this Observable<IChangeSet<T>> source,
         Action<T> addAction)
@@ -741,6 +770,11 @@ public static partial class ObservableListEx
     /// <summary>
     /// Callback for each item as and when it is being removed from the stream.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="removeAction">Action to invoke when an item is removed.</param>
+    /// <param name="invokeOnUnsubscribe">Whether to invoke the action for all remaining items when unsubscribing.</param>
+    /// <returns>The source observable, unmodified, with the side effect of invoking the action.</returns>
     public static Observable<IChangeSet<T>> OnItemRemoved<T>(
         this Observable<IChangeSet<T>> source,
         Action<T> removeAction,
@@ -763,6 +797,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Callback for each item as and when it is being refreshed in the stream.
     /// </summary>
+    /// <typeparam name="TObject">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="refreshAction">Action to invoke when an item is refreshed.</param>
+    /// <returns>The source observable, unmodified, with the side effect of invoking the action.</returns>
     public static Observable<IChangeSet<TObject>> OnItemRefreshed<TObject>(
         this Observable<IChangeSet<TObject>> source,
         Action<TObject> refreshAction)
@@ -790,6 +828,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// Defer the subscription until loaded and skip initial change set.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <returns>An observable that skips the first change set after loading.</returns>
     public static Observable<IChangeSet<T>> SkipInitial<T>(
         this Observable<IChangeSet<T>> source)
         where T : notnull
@@ -805,6 +846,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// Prepends an empty change set to the source.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <returns>An observable that starts with an empty change set before emitting source changes.</returns>
     public static Observable<IChangeSet<T>> StartWithEmpty<T>(
         this Observable<IChangeSet<T>> source)
         where T : notnull
@@ -815,6 +859,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// Suppress refresh notifications.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <returns>An observable that filters out all refresh changes.</returns>
     public static Observable<IChangeSet<T>> SuppressRefresh<T>(
         this Observable<IChangeSet<T>> source)
         where T : notnull
@@ -825,6 +872,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Includes changes for the specified reasons only.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="reasons">The change reasons to include.</param>
+    /// <returns>An observable that emits only changes matching the specified reasons.</returns>
     public static Observable<IChangeSet<T>> WhereReasonsAre<T>(
         this Observable<IChangeSet<T>> source,
         params ListChangeReason[] reasons)
@@ -847,6 +898,10 @@ public static partial class ObservableListEx
     /// <summary>
     /// Excludes updates for the specified reasons.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <param name="reasons">The change reasons to exclude.</param>
+    /// <returns>An observable that filters out changes matching the specified reasons.</returns>
     public static Observable<IChangeSet<T>> WhereReasonsAreNot<T>(
         this Observable<IChangeSet<T>> source,
         params ListChangeReason[] reasons)
@@ -869,6 +924,9 @@ public static partial class ObservableListEx
     /// <summary>
     /// Prevents an empty notification.
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable change set.</param>
+    /// <returns>An observable that filters out empty change sets.</returns>
     public static Observable<IChangeSet<T>> NotEmpty<T>(
         this Observable<IChangeSet<T>> source)
         where T : notnull
