@@ -1,7 +1,5 @@
 // Upgraded Group operator implementation for R3.DynamicData
 // Now returns IGroup with IObservableCache children for TreeBuilder compatibility
-#pragma warning disable SA1210, SA1137, SA1116, SA1513, SA1516, SA1503, SA1127
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
