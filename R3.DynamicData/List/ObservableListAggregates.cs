@@ -4,8 +4,17 @@ using R3.DynamicData.Utilities;
 
 namespace R3.DynamicData.List;
 
+/// <summary>
+/// Aggregate operators for observable lists.
+/// </summary>
 public static class ObservableListAggregates
 {
+    /// <summary>
+    /// Tracks the count of items in the list, reactively updating as items are added or removed.
+    /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <returns>An observable that emits the current count.</returns>
     public static Observable<int> Count<T>(this Observable<IChangeSet<T>> source)
     {
         return Observable.Create<int, Observable<IChangeSet<T>>>(
@@ -63,6 +72,11 @@ public static class ObservableListAggregates
             });
     }
 
+    /// <summary>
+    /// Calculates the sum of integer items in the list, reactively updating as items change.
+    /// </summary>
+    /// <param name="source">The source observable list of integers.</param>
+    /// <returns>An observable that emits the current sum.</returns>
     public static Observable<int> Sum(this Observable<IChangeSet<int>> source)
     {
         return source.Scan(0, static (sum, changes) =>
@@ -114,7 +128,14 @@ public static class ObservableListAggregates
         });
     }
 
-    // Returns the maximum value of the selected property. If the sequence is empty, returns default(TProperty).
+    /// <summary>
+    /// Finds the maximum value of a property across all items in the list, reactively updating as items change.
+    /// </summary>
+    /// <typeparam name="TSource">The type of items in the list.</typeparam>
+    /// <typeparam name="TProperty">The type of the property to compare (must be comparable).</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="selector">Function to select the property value from each item.</param>
+    /// <returns>An observable that emits the current maximum value, or default if empty.</returns>
     public static Observable<TProperty> Max<TSource, TProperty>(this Observable<IChangeSet<TSource>> source, Func<TSource, TProperty> selector)
         where TSource : notnull
         where TProperty : struct, IComparable<TProperty>
@@ -331,7 +352,14 @@ public static class ObservableListAggregates
         });
     }
 
-    // Returns the minimum value of the selected property. If the sequence is empty, returns default(TProperty).
+    /// <summary>
+    /// Finds the minimum value of a property across all items in the list, reactively updating as items change.
+    /// </summary>
+    /// <typeparam name="TSource">The type of items in the list.</typeparam>
+    /// <typeparam name="TProperty">The type of the property to compare (must be comparable).</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="selector">Function to select the property value from each item.</param>
+    /// <returns>An observable that emits the current minimum value, or default if empty.</returns>
     public static Observable<TProperty> Min<TSource, TProperty>(this Observable<IChangeSet<TSource>> source, Func<TSource, TProperty> selector)
         where TSource : notnull
         where TProperty : struct, IComparable<TProperty>
@@ -544,7 +572,14 @@ public static class ObservableListAggregates
         });
     }
 
-    // Returns the average (mean) of the selected numeric property. Empty sequence -> 0.
+    /// <summary>
+    /// Calculates the average (mean) of a numeric property across all items in the list, reactively updating as items change.
+    /// </summary>
+    /// <typeparam name="TSource">The type of items in the list.</typeparam>
+    /// <typeparam name="TProperty">The numeric type of the property.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="selector">Function to select the numeric property value from each item.</param>
+    /// <returns>An observable that emits the current average, or 0 if empty.</returns>
     public static Observable<double> Avg<TSource, TProperty>(this Observable<IChangeSet<TSource>> source, Func<TSource, TProperty> selector)
         where TSource : notnull
         where TProperty : struct, IConvertible
@@ -672,7 +707,14 @@ public static class ObservableListAggregates
         });
     }
 
-    // Returns the (population) standard deviation of the selected numeric property. Empty sequence -> 0.
+    /// <summary>
+    /// Calculates the population standard deviation of a numeric property across all items in the list, reactively updating as items change.
+    /// </summary>
+    /// <typeparam name="TSource">The type of items in the list.</typeparam>
+    /// <typeparam name="TProperty">The numeric type of the property.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="selector">Function to select the numeric property value from each item.</param>
+    /// <returns>An observable that emits the current standard deviation, or 0 if empty.</returns>
     public static Observable<double> StdDev<TSource, TProperty>(this Observable<IChangeSet<TSource>> source, Func<TSource, TProperty> selector)
         where TSource : notnull
         where TProperty : struct, IConvertible

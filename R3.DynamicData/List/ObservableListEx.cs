@@ -21,6 +21,14 @@ public static partial class ObservableListEx
         return new Internal.Transform<T, TResult>(source, selector).Run();
     }
 
+    /// <summary>
+    /// Sorts the list using the specified comparer.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="comparer">The comparer to use for sorting.</param>
+    /// <param name="options">Options for sort behavior.</param>
+    /// <returns>An observable that emits sorted change sets.</returns>
     public static Observable<IChangeSet<T>> Sort<T>(
         this Observable<IChangeSet<T>> source,
         IComparer<T> comparer,
@@ -30,6 +38,15 @@ public static partial class ObservableListEx
         return new Sort<T>(source, comparer, options).Run();
     }
 
+    /// <summary>
+    /// Sorts the list using a key selector function.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <typeparam name="TKey">The type of the key used for comparison.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="keySelector">Function to extract the sorting key from each item.</param>
+    /// <param name="options">Options for sort behavior.</param>
+    /// <returns>An observable that emits sorted change sets.</returns>
     public static Observable<IChangeSet<T>> Sort<T, TKey>(
         this Observable<IChangeSet<T>> source,
         Func<T, TKey> keySelector,
@@ -41,6 +58,14 @@ public static partial class ObservableListEx
         return new Sort<T>(source, comparer, options).Run();
     }
 
+    /// <summary>
+    /// Sorts the list with a dynamically changing comparer.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="comparerChanged">Observable that emits new comparers to use for sorting.</param>
+    /// <param name="options">Options for sort behavior.</param>
+    /// <returns>An observable that emits sorted change sets, re-sorting when the comparer changes.</returns>
     public static Observable<IChangeSet<T>> Sort<T>(
         this Observable<IChangeSet<T>> source,
         Observable<IComparer<T>> comparerChanged,
@@ -50,6 +75,15 @@ public static partial class ObservableListEx
         return source.Sort(Comparer<T>.Default, comparerChanged, options);
     }
 
+    /// <summary>
+    /// Sorts the list with an initial comparer and a dynamically changing comparer.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="initialComparer">The initial comparer to use.</param>
+    /// <param name="comparerChanged">Observable that emits new comparers to use for sorting.</param>
+    /// <param name="options">Options for sort behavior.</param>
+    /// <returns>An observable that emits sorted change sets, re-sorting when the comparer changes.</returns>
     public static Observable<IChangeSet<T>> Sort<T>(
         this Observable<IChangeSet<T>> source,
         IComparer<T> initialComparer,
@@ -60,6 +94,15 @@ public static partial class ObservableListEx
         return new Sort<T>(source, initialComparer, options, comparerChanged: comparerChanged).Run();
     }
 
+    /// <summary>
+    /// Sorts the list and re-sorts when a signal is received.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="comparer">The comparer to use for sorting.</param>
+    /// <param name="resorter">Observable that signals when to re-sort the list.</param>
+    /// <param name="options">Options for sort behavior.</param>
+    /// <returns>An observable that emits sorted change sets, re-sorting when the signal is received.</returns>
     public static Observable<IChangeSet<T>> Sort<T>(
         this Observable<IChangeSet<T>> source,
         IComparer<T> comparer,
@@ -70,6 +113,13 @@ public static partial class ObservableListEx
         return new Sort<T>(source, comparer, options, resorter: resorter).Run();
     }
 
+    /// <summary>
+    /// Binds the observable list changes to a target IList, keeping it synchronized.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="target">The target list to synchronize.</param>
+    /// <returns>A disposable to stop the binding.</returns>
     public static IDisposable Bind<T>(
         this Observable<IChangeSet<T>> source,
         IList<T> target)
@@ -193,7 +243,14 @@ public static partial class ObservableListEx
         });
     }
 
-    // Bind to IObservableCollection<T>
+    /// <summary>
+    /// Binds the observable list changes to an IObservableCollection, keeping it synchronized.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="targetCollection">The target observable collection to synchronize.</param>
+    /// <param name="resetThreshold">Threshold for performing a reset instead of individual changes.</param>
+    /// <returns>A disposable to stop the binding.</returns>
     public static IDisposable Bind<T>(
         this Observable<IChangeSet<T>> source,
         IObservableCollection<T> targetCollection,
@@ -204,7 +261,14 @@ public static partial class ObservableListEx
         return source.Subscribe(changes => adaptor.Adapt(changes));
     }
 
-    // Bind to out ReadOnlyObservableCollection<T>
+    /// <summary>
+    /// Binds the observable list changes to a new ReadOnlyObservableCollection, keeping it synchronized.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="readOnlyObservableCollection">The created read-only observable collection.</param>
+    /// <param name="resetThreshold">Threshold for performing a reset instead of individual changes.</param>
+    /// <returns>A disposable to stop the binding.</returns>
     public static IDisposable Bind<T>(
         this Observable<IChangeSet<T>> source,
         out ReadOnlyObservableCollection<T> readOnlyObservableCollection,
@@ -217,6 +281,15 @@ public static partial class ObservableListEx
         return source.Subscribe(changes => adaptor.Adapt(changes));
     }
 
+    /// <summary>
+    /// Groups the list items by a key selector function.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <typeparam name="TKey">The type of the grouping key.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="keySelector">Function to extract the grouping key from each item.</param>
+    /// <param name="keyComparer">Optional equality comparer for keys.</param>
+    /// <returns>An observable that emits groups of items.</returns>
     public static Observable<IChangeSet<Group<TKey, T>>> Group<T, TKey>(
         this Observable<IChangeSet<T>> source,
         Func<T, TKey> keySelector,
@@ -226,6 +299,15 @@ public static partial class ObservableListEx
         return new Internal.GroupBy<T, TKey>(source, keySelector, keyComparer).Run();
     }
 
+    /// <summary>
+    /// Emits distinct values extracted from list items.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <typeparam name="TValue">The type of the distinct values.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="valueSelector">Function to extract values from items.</param>
+    /// <param name="comparer">Optional equality comparer for values.</param>
+    /// <returns>An observable that emits distinct values.</returns>
     public static Observable<IChangeSet<TValue>> DistinctValues<T, TValue>(
         this Observable<IChangeSet<T>> source,
         Func<T, TValue> valueSelector,
@@ -235,6 +317,15 @@ public static partial class ObservableListEx
         return new Internal.DistinctValues<T, TValue>(source, valueSelector, comparer).Run();
     }
 
+    /// <summary>
+    /// Transforms each source item into multiple destination items (flattening operation).
+    /// </summary>
+    /// <typeparam name="TSource">The source item type.</typeparam>
+    /// <typeparam name="TDestination">The destination item type.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="manySelector">Function that returns multiple destination items for each source item.</param>
+    /// <param name="comparer">Optional equality comparer for destination items.</param>
+    /// <returns>An observable that emits flattened change sets.</returns>
     public static Observable<IChangeSet<TDestination>> TransformMany<TSource, TDestination>(
         this Observable<IChangeSet<TSource>> source,
         Func<TSource, IEnumerable<TDestination>> manySelector,
@@ -244,6 +335,13 @@ public static partial class ObservableListEx
         return new Internal.TransformMany<TSource, TDestination>(source, manySelector, comparer).Run();
     }
 
+    /// <summary>
+    /// Filters the list using a predicate function.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="predicate">Function to determine if an item should be included.</param>
+    /// <returns>An observable that emits filtered change sets.</returns>
     public static Observable<IChangeSet<T>> Filter<T>(
         this Observable<IChangeSet<T>> source,
         Func<T, bool> predicate)
@@ -251,6 +349,13 @@ public static partial class ObservableListEx
         return new Internal.Filter<T>(source, predicate).Run();
     }
 
+    /// <summary>
+    /// Filters the list using a dynamically changing predicate.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="predicateChanged">Observable that emits new filter predicates.</param>
+    /// <returns>An observable that emits filtered change sets, re-filtering when the predicate changes.</returns>
     public static Observable<IChangeSet<T>> Filter<T>(
         this Observable<IChangeSet<T>> source,
         Observable<Func<T, bool>> predicateChanged)
@@ -258,18 +363,36 @@ public static partial class ObservableListEx
         return new Internal.DynamicFilter<T>(source, predicateChanged).Run();
     }
 
+    /// <summary>
+    /// Reverses the order of items in the list.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <returns>An observable that emits reversed change sets.</returns>
     public static Observable<IChangeSet<T>> Reverse<T>(
         this Observable<IChangeSet<T>> source)
     {
         return new Internal.Reverse<T>(source).Run();
     }
 
+    /// <summary>
+    /// Removes index information from change notifications.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <returns>An observable that emits change sets without index information.</returns>
     public static Observable<IChangeSet<T>> RemoveIndex<T>(
         this Observable<IChangeSet<T>> source)
     {
         return new Internal.RemoveIndex<T>(source).Run();
     }
 
+    /// <summary>
+    /// Automatically disposes items that implement IDisposable when they are removed from the list.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list (must be IDisposable).</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <returns>An observable that emits change sets with automatic disposal.</returns>
     public static Observable<IChangeSet<T>> DisposeMany<T>(
         this Observable<IChangeSet<T>> source)
         where T : IDisposable
@@ -277,6 +400,13 @@ public static partial class ObservableListEx
         return new Internal.DisposeMany<T>(source).Run();
     }
 
+    /// <summary>
+    /// Automatically performs a custom disposal action on items when they are removed from the list.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="disposeAction">Action to perform on each removed item.</param>
+    /// <returns>An observable that emits change sets with automatic disposal.</returns>
     public static Observable<IChangeSet<T>> DisposeMany<T>(
         this Observable<IChangeSet<T>> source,
         Action<T> disposeAction)
@@ -285,6 +415,13 @@ public static partial class ObservableListEx
         return new Internal.DisposeMany<T>(source, disposeAction).Run();
     }
 
+    /// <summary>
+    /// Creates subscriptions for each item added to the list and disposes them when removed.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="subscriptionFactory">Function that creates a subscription for each item.</param>
+    /// <returns>An observable that emits change sets with managed subscriptions.</returns>
     public static Observable<IChangeSet<T>> SubscribeMany<T>(
         this Observable<IChangeSet<T>> source,
         Func<T, IDisposable> subscriptionFactory)
@@ -293,6 +430,14 @@ public static partial class ObservableListEx
         return new Internal.SubscribeMany<T>(source, subscriptionFactory).Run();
     }
 
+    /// <summary>
+    /// Merges observables from each list item into a single stream.
+    /// </summary>
+    /// <typeparam name="TSource">The source item type.</typeparam>
+    /// <typeparam name="TDestination">The destination type emitted by inner observables.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="selector">Function that selects an observable for each item.</param>
+    /// <returns>An observable that merges all inner observables.</returns>
     public static Observable<TDestination> MergeMany<TSource, TDestination>(
         this Observable<IChangeSet<TSource>> source,
         Func<TSource, Observable<TDestination>> selector)
@@ -301,6 +446,15 @@ public static partial class ObservableListEx
         return new Internal.MergeMany<TSource, TDestination>(source, selector).Run();
     }
 
+    /// <summary>
+    /// Automatically refreshes items in the list when any of their properties change.
+    /// </summary>
+    /// <typeparam name="TObject">The type of items in the list (must implement INotifyPropertyChanged).</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="changeSetBuffer">Optional buffer time for batching change sets.</param>
+    /// <param name="propertyChangeThrottle">Optional throttle time for property changes.</param>
+    /// <param name="timeProvider">Optional time provider for testing.</param>
+    /// <returns>An observable that emits refresh changes when properties change.</returns>
     public static Observable<IChangeSet<TObject>> AutoRefresh<TObject>(
         this Observable<IChangeSet<TObject>> source,
         TimeSpan? changeSetBuffer = null,
@@ -327,6 +481,17 @@ public static partial class ObservableListEx
             timeProvider);
     }
 
+    /// <summary>
+    /// Automatically refreshes items in the list when a specific property changes.
+    /// </summary>
+    /// <typeparam name="TObject">The type of items in the list (must implement INotifyPropertyChanged).</typeparam>
+    /// <typeparam name="TProperty">The type of the property to monitor.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="propertyAccessor">Expression identifying the property to monitor.</param>
+    /// <param name="changeSetBuffer">Optional buffer time for batching change sets.</param>
+    /// <param name="propertyChangeThrottle">Optional throttle time for property changes.</param>
+    /// <param name="timeProvider">Optional time provider for testing.</param>
+    /// <returns>An observable that emits refresh changes when the specified property changes.</returns>
     public static Observable<IChangeSet<TObject>> AutoRefresh<TObject, TProperty>(
         this Observable<IChangeSet<TObject>> source,
         Expression<Func<TObject, TProperty>> propertyAccessor,
