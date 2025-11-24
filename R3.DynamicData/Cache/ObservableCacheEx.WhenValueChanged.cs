@@ -17,7 +17,7 @@ public static partial class ObservableCacheEx
     /// Extracts property path from lambda expression for source generator key matching.
     /// Converts Expression&lt;Func&lt;T, TValue&gt;&gt; to "p => p.PropertyName" format to match CallerArgumentExpression output.
     /// </summary>
-    private static string ExtractPropertyPath<TObject, TValue>(Expression<Func<TObject, TValue>> expression)
+    internal static string ExtractPropertyPath<TObject, TValue>(Expression<Func<TObject, TValue>> expression)
     {
         if (expression.Body is MemberExpression memberExpr)
         {

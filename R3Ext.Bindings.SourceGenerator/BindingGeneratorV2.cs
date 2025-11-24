@@ -165,7 +165,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                         spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve 'to' property chain"));
                     }
                 }
-                else if ((m.Kind == "WhenChanged" || m.Kind == "WhenValueChanged") && m.FromSegments.Count == 0)
+                else if ((m.Kind == "WhenChanged" || m.Kind == "WhenValueChanged" || m.Kind == "AutoRefresh") && m.FromSegments.Count == 0)
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve monitored property chain"));
 
@@ -180,7 +180,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             // Populate type name metadata BEFORE deduplication so we can use root type in the key
             foreach (InvocationModel? m in all)
             {
-                if (m.Kind == "WhenChanged" || m.Kind == "WhenValueChanged")
+                if (m.Kind == "WhenChanged" || m.Kind == "WhenValueChanged" || m.Kind == "AutoRefresh")
                 {
                     if (m.FromSegments.Count > 0)
                     {
@@ -221,6 +221,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     "BindTwoWay" => $"{m.Kind}|{m.RootFromTypeName}|{m.FromPath}|{m.RootTargetTypeName}|{m.ToPath}",
                     "WhenChanged" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
                     "WhenValueChanged" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
+                    "AutoRefresh" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
                     _ => m.Kind,
                 };
             }
@@ -257,7 +258,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         if (ies.Expression is MemberAccessExpressionSyntax maes)
         {
             string name = maes.Name.Identifier.ValueText;
-            return name is "BindTwoWay" or "BindOneWay" or "WhenChanged" or "WhenValueChanged";
+            return name is "BindTwoWay" or "BindOneWay" or "WhenChanged" or "WhenValueChanged" or "AutoRefresh";
         }
 
         return false;
@@ -291,7 +292,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             return new FilteredInvocation(location, reason, ies.ToString());
         }
 
-        if (symbol.Name is not ("BindTwoWay" or "BindOneWay" or "WhenChanged" or "WhenValueChanged"))
+        if (symbol.Name is not ("BindTwoWay" or "BindOneWay" or "WhenChanged" or "WhenValueChanged" or "AutoRefresh"))
         {
             return new FilteredInvocation(location, $"method name '{symbol.Name}' is not a recognized binding method", ies.ToString());
         }
@@ -313,7 +314,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         string? inferredTargetRootTypeNameFromHeuristic = null;
         List<(string, string, string)> failures = new();
 
-        if (symbol.Name == "WhenChanged" || symbol.Name == "WhenValueChanged")
+        if (symbol.Name == "WhenChanged" || symbol.Name == "WhenValueChanged" || symbol.Name == "AutoRefresh")
         {
             if (args.Count < 1)
             {
@@ -421,7 +422,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 ContainingTypeName = capturedContainingTypeName,
                 SymbolResolutionFailures = failures,
             };
-        if (symbol.Name != "WhenChanged" && symbol.Name != "WhenValueChanged")
+        if (symbol.Name != "WhenChanged" && symbol.Name != "WhenValueChanged" && symbol.Name != "AutoRefresh")
         {
             ITypeSymbol? ta = null;
             if (symbol.IsGenericMethod && symbol.TypeArguments.Length >= 3)
@@ -915,7 +916,7 @@ internal sealed class CodeEmitter
             EmitUnsafeAccessors(invocations, sb);
             this.EmitBindOneWay(invocations.Where(i => i.Kind == "BindOneWay").ToImmutableArray(), sb);
             this.EmitBindTwoWay(invocations.Where(i => i.Kind == "BindTwoWay").ToImmutableArray(), sb);
-            this.EmitWhenChanged(invocations.Where(i => i.Kind == "WhenChanged" || i.Kind == "WhenValueChanged").ToImmutableArray(), sb);
+            this.EmitWhenChanged(invocations.Where(i => i.Kind == "WhenChanged" || i.Kind == "WhenValueChanged" || i.Kind == "AutoRefresh").ToImmutableArray(), sb);
             sb.AppendLine("}");
         }
         else
@@ -927,7 +928,7 @@ internal sealed class CodeEmitter
             EmitUnsafeAccessors(invocations, sb);
             int owCount = invocations.Count(i => i.Kind == "BindOneWay");
             int twCount = invocations.Count(i => i.Kind == "BindTwoWay");
-            int wcCount = invocations.Count(i => i.Kind == "WhenChanged" || i.Kind == "WhenValueChanged");
+            int wcCount = invocations.Count(i => i.Kind == "WhenChanged" || i.Kind == "WhenValueChanged" || i.Kind == "AutoRefresh");
             sb.AppendLine($"    // Generator summary for {asm}: OW={owCount}, TW={twCount}, WC={wcCount}");
 
             // Debug: list invocations and metadata readiness
@@ -959,7 +960,7 @@ internal sealed class CodeEmitter
                     sb.AppendLine(
                         $"        BindingRegistry.RegisterTwoWay<{inv.RootFromTypeName},{inv.FromLeafTypeName},{inv.RootTargetTypeName},{inv.TargetLeafTypeName}>(\"{Escape(inv.FromPath)}\", \"{Escape(inv.ToPath)}\", (f,t,ht,th) => __RegBindTwoWay_{id}(f,t,ht,th));");
                 }
-                else if ((inv.Kind == "WhenChanged" || inv.Kind == "WhenValueChanged") && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
+                else if ((inv.Kind == "WhenChanged" || inv.Kind == "WhenValueChanged" || inv.Kind == "AutoRefresh") && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
                 {
                     string id = Hash(inv.WhenRootTypeName + "|" + inv.WhenPath);
                     string simple = Simple(inv.WhenRootTypeName);
@@ -991,7 +992,7 @@ internal sealed class CodeEmitter
                         this.EmitTwoWayRegistrationBody(id, inv, sb);
                     }
                 }
-                else if ((inv.Kind == "WhenChanged" || inv.Kind == "WhenValueChanged") && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
+                else if ((inv.Kind == "WhenChanged" || inv.Kind == "WhenValueChanged" || inv.Kind == "AutoRefresh") && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
                 {
                     string id = Hash(inv.WhenRootTypeName + "|" + inv.WhenPath);
                     if (emitted.Add("wc" + id))

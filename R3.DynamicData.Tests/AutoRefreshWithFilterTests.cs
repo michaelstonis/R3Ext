@@ -9,7 +9,7 @@ namespace R3.DynamicData.Tests;
 
 public class AutoRefreshWithFilterTests
 {
-    private class TaskItem : INotifyPropertyChanged
+    internal class TaskItem : INotifyPropertyChanged
     {
         private bool _isCompleted;
 
