@@ -7,16 +7,25 @@ namespace R3.DynamicData.List;
 /// <summary>
 /// A list which captures all changes made to it.
 /// </summary>
+/// <typeparam name="T">The type of items in the list.</typeparam>
 public class ChangeAwareList<T> : IExtendedList<T>
 {
     private readonly List<T> _innerList;
     private ChangeSet<T> _changes = new();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ChangeAwareList{T}"/> class.
+    /// </summary>
+    /// <param name="capacity">The initial capacity of the list.</param>
     public ChangeAwareList(int capacity = -1)
     {
         _innerList = capacity > 0 ? new List<T>(capacity) : new List<T>();
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ChangeAwareList{T}"/> class with the specified items.
+    /// </summary>
+    /// <param name="items">The items to initialize the list with.</param>
     public ChangeAwareList(IEnumerable<T> items)
     {
         _innerList = items.ToList();
@@ -26,16 +35,30 @@ public class ChangeAwareList<T> : IExtendedList<T>
         }
     }
 
+    /// <summary>
+    /// Gets or sets the capacity of the internal list.
+    /// </summary>
     public int Capacity
     {
         get => _innerList.Capacity;
         set => _innerList.Capacity = value;
     }
 
+    /// <summary>
+    /// Gets the number of items in the list.
+    /// </summary>
     public int Count => _innerList.Count;
 
+    /// <summary>
+    /// Gets a value indicating whether the list is read-only. Always returns false.
+    /// </summary>
     public bool IsReadOnly => false;
 
+    /// <summary>
+    /// Gets or sets the item at the specified index.
+    /// </summary>
+    /// <param name="index">The zero-based index of the item to get or set.</param>
+    /// <returns>The item at the specified index.</returns>
     public T this[int index]
     {
         get => _innerList[index];

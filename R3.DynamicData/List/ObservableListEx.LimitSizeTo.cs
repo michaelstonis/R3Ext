@@ -27,6 +27,11 @@ public static partial class ObservableListEx
     /// When the size would exceed the maximum, items are evicted according to the eviction policy.
     /// Default eviction policy removes the oldest items first (FIFO).
     /// </summary>
+    /// <typeparam name="T">The type of items in the list.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="maxSize">The maximum number of items to maintain.</param>
+    /// <param name="eviction">The eviction policy to use when the list exceeds the maximum size.</param>
+    /// <returns>An observable that emits change sets limited to the specified size.</returns>
     public static Observable<IChangeSet<T>> LimitSizeTo<T>(
         this Observable<IChangeSet<T>> source,
         int maxSize,

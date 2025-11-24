@@ -568,6 +568,15 @@ public static partial class ObservableCacheEx
     /// Performs a full outer join between two cache change streams. Emits a result for every key present in either cache,
     /// with both sides nullable when absent.
     /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from left and right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the joined results.</returns>
     public static Observable<IChangeSet<TResult, TKey>> FullOuterJoin<TLeft, TRight, TKey, TResult>(
         this Observable<IChangeSet<TLeft, TKey>> left,
         Observable<IChangeSet<TRight, TKey>> right,
