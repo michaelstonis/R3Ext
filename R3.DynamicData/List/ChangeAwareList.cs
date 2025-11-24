@@ -73,6 +73,7 @@ public class ChangeAwareList<T> : IExtendedList<T>
     /// <summary>
     /// Adds an item to the list.
     /// </summary>
+    /// <param name="item">The item to add.</param>
     public void Add(T item)
     {
         var index = _innerList.Count;
@@ -83,6 +84,7 @@ public class ChangeAwareList<T> : IExtendedList<T>
     /// <summary>
     /// Adds a collection of items to the list.
     /// </summary>
+    /// <param name="collection">The items to add.</param>
     public void AddRange(IEnumerable<T> collection)
     {
         var items = collection.ToList();
@@ -130,16 +132,21 @@ public class ChangeAwareList<T> : IExtendedList<T>
     /// <summary>
     /// Determines whether the list contains a specific item.
     /// </summary>
+    /// <param name="item">The item to locate.</param>
+    /// <returns>True if the item is found; otherwise, false.</returns>
     public bool Contains(T item) => _innerList.Contains(item);
 
     /// <summary>
     /// Copies the elements of the list to an array.
     /// </summary>
+    /// <param name="array">The destination array.</param>
+    /// <param name="arrayIndex">The zero-based index in the array at which copying begins.</param>
     public void CopyTo(T[] array, int arrayIndex) => _innerList.CopyTo(array, arrayIndex);
 
     /// <summary>
     /// Returns an enumerator that iterates through the list.
     /// </summary>
+    /// <returns>An enumerator for the list.</returns>
     public IEnumerator<T> GetEnumerator() => _innerList.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -147,11 +154,15 @@ public class ChangeAwareList<T> : IExtendedList<T>
     /// <summary>
     /// Determines the index of a specific item in the list.
     /// </summary>
+    /// <param name="item">The item to locate.</param>
+    /// <returns>The index of the item if found; otherwise, -1.</returns>
     public int IndexOf(T item) => _innerList.IndexOf(item);
 
     /// <summary>
     /// Inserts an item at the specified index.
     /// </summary>
+    /// <param name="index">The zero-based index at which to insert the item.</param>
+    /// <param name="item">The item to insert.</param>
     public void Insert(int index, T item)
     {
         _innerList.Insert(index, item);
@@ -161,6 +172,8 @@ public class ChangeAwareList<T> : IExtendedList<T>
     /// <summary>
     /// Inserts a collection of items at the specified index.
     /// </summary>
+    /// <param name="collection">The items to insert.</param>
+    /// <param name="index">The zero-based index at which to insert the items.</param>
     public void InsertRange(IEnumerable<T> collection, int index)
     {
         var items = collection.ToList();
@@ -176,6 +189,8 @@ public class ChangeAwareList<T> : IExtendedList<T>
     /// <summary>
     /// Moves an item from one index to another.
     /// </summary>
+    /// <param name="original">The original index of the item.</param>
+    /// <param name="destination">The destination index.</param>
     public void Move(int original, int destination)
     {
         var item = _innerList[original];
@@ -187,6 +202,8 @@ public class ChangeAwareList<T> : IExtendedList<T>
     /// <summary>
     /// Removes the first occurrence of a specific item from the list.
     /// </summary>
+    /// <param name="item">The item to remove.</param>
+    /// <returns>True if the item was removed; otherwise, false.</returns>
     public bool Remove(T item)
     {
         var index = _innerList.IndexOf(item);
@@ -202,6 +219,7 @@ public class ChangeAwareList<T> : IExtendedList<T>
     /// <summary>
     /// Removes the item at the specified index.
     /// </summary>
+    /// <param name="index">The zero-based index of the item to remove.</param>
     public void RemoveAt(int index)
     {
         var item = _innerList[index];
@@ -212,6 +230,8 @@ public class ChangeAwareList<T> : IExtendedList<T>
     /// <summary>
     /// Removes a range of items from the list.
     /// </summary>
+    /// <param name="index">The zero-based starting index of the range to remove.</param>
+    /// <param name="count">The number of items to remove.</param>
     public void RemoveRange(int index, int count)
     {
         if (count == 0)
