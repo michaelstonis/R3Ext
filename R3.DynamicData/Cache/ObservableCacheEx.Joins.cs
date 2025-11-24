@@ -11,6 +11,15 @@ public static partial class ObservableCacheEx
     /// Emits Add when a matching pair first appears, Update when either side changes and result changes,
     /// and Remove when either side of an existing pair is removed. If only one side has the key no result is emitted.
     /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from left and right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the inner join results.</returns>
     public static Observable<IChangeSet<TResult, TKey>> InnerJoin<TLeft, TRight, TKey, TResult>(
         this Observable<IChangeSet<TLeft, TKey>> left,
         Observable<IChangeSet<TRight, TKey>> right,
@@ -202,6 +211,15 @@ public static partial class ObservableCacheEx
     /// Performs a full outer join between two cache change streams. Emits a result for every key present in either cache,
     /// pairing with the right item if present or null if absent.
     /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from left and optional right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the left join results.</returns>
     public static Observable<IChangeSet<TResult, TKey>> LeftJoin<TLeft, TRight, TKey, TResult>(
         this Observable<IChangeSet<TLeft, TKey>> left,
         Observable<IChangeSet<TRight, TKey>> right,
@@ -385,6 +403,15 @@ public static partial class ObservableCacheEx
     /// Performs a right outer join between two cache change streams. Emits a result for every right item,
     /// pairing with the left item if present or null if absent.
     /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from optional left and right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the right join results.</returns>
     public static Observable<IChangeSet<TResult, TKey>> RightJoin<TLeft, TRight, TKey, TResult>(
         this Observable<IChangeSet<TLeft, TKey>> left,
         Observable<IChangeSet<TRight, TKey>> right,
