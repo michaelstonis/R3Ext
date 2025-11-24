@@ -1,7 +1,4 @@
 // Port of DynamicData to R3.
-
-// Style suppression pragmas for internal operator.
-#pragma warning disable SA1116, SA1513, SA1516, SA1503, SA1127, SA1210
 namespace R3.DynamicData.Cache.Internal;
 
 internal sealed class ExpireAfter<TObject, TKey>
@@ -48,71 +45,84 @@ internal sealed class ExpireAfter<TObject, TKey>
 
                 // Use timer observable
                 var timerObs = Observable.Timer(span.Value, _timeProvider);
-                var sub = timerObs.Subscribe(_ =>
-                {
-                    lock (gate)
+                var sub = timerObs.Subscribe(
+                    _ =>
                     {
-                        if (items.TryGetValue(key, out var current))
+                        lock (gate)
                         {
-                            // Emit removal change set
-                            var cs = new ChangeSet<TObject, TKey>();
-                            cs.Add(new Change<TObject, TKey>(Kernel.ChangeReason.Remove, key, current, current));
-                            items.Remove(key);
-                            timers.Remove(key);
-                            observer.OnNext(cs);
+                            if (items.TryGetValue(key, out var current))
+                            {
+                                // Emit removal change set
+                                var cs = new ChangeSet<TObject, TKey>();
+                                cs.Add(new Change<TObject, TKey>(Kernel.ChangeReason.Remove, key, current, current));
+                                items.Remove(key);
+                                timers.Remove(key);
+                                observer.OnNext(cs);
+                            }
                         }
-                    }
-                });
+                    });
                 timers[key] = sub.AddTo(disp);
             }
 
-            _source.Subscribe(changes =>
-            {
-                lock (gate)
+            _source.Subscribe(
+                changes =>
                 {
-                    foreach (var change in changes)
+                    lock (gate)
                     {
-                        switch (change.Reason)
+                        foreach (var change in changes)
                         {
-                            case Kernel.ChangeReason.Add:
-                                items[change.Key] = change.Current;
-                                ScheduleExpiration(change.Key, change.Current);
-                                break;
-                            case Kernel.ChangeReason.Update:
-                                items[change.Key] = change.Current;
-                                ScheduleExpiration(change.Key, change.Current);
-                                break;
-                            case Kernel.ChangeReason.Remove:
-                                if (items.Remove(change.Key))
-                                {
-                                    if (timers.TryGetValue(change.Key, out var t))
+                            switch (change.Reason)
+                            {
+                                case Kernel.ChangeReason.Add:
+                                    items[change.Key] = change.Current;
+                                    ScheduleExpiration(change.Key, change.Current);
+                                    break;
+                                case Kernel.ChangeReason.Update:
+                                    items[change.Key] = change.Current;
+                                    ScheduleExpiration(change.Key, change.Current);
+                                    break;
+                                case Kernel.ChangeReason.Remove:
+                                    if (items.Remove(change.Key))
                                     {
-                                        t.Dispose();
-                                        timers.Remove(change.Key);
+                                        if (timers.TryGetValue(change.Key, out var t))
+                                        {
+                                            t.Dispose();
+                                            timers.Remove(change.Key);
+                                        }
                                     }
-                                }
-                                break;
-                            case Kernel.ChangeReason.Refresh:
-                                // Re-evaluate expiration on refresh
-                                if (items.TryGetValue(change.Key, out var refreshed))
-                                {
-                                    ScheduleExpiration(change.Key, refreshed);
-                                }
-                                break;
+
+                                    break;
+                                case Kernel.ChangeReason.Refresh:
+
+                                    // Re-evaluate expiration on refresh
+                                    if (items.TryGetValue(change.Key, out var refreshed))
+                                    {
+                                        ScheduleExpiration(change.Key, refreshed);
+                                    }
+
+                                    break;
+                            }
                         }
                     }
-                }
-                observer.OnNext(changes);
-            }, observer.OnErrorResume, observer.OnCompleted).AddTo(disp);
+
+                    observer.OnNext(changes);
+                },
+                observer.OnErrorResume,
+                observer.OnCompleted).AddTo(disp);
 
             return Disposable.Create(() =>
             {
                 lock (gate)
                 {
-                    foreach (var t in timers.Values) t.Dispose();
+                    foreach (var t in timers.Values)
+                    {
+                        t.Dispose();
+                    }
+
                     timers.Clear();
                     items.Clear();
                 }
+
                 disp.Dispose();
             });
         });
