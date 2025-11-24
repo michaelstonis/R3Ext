@@ -1,5 +1,5 @@
 // Port of DynamicData IncludeUpdateWhen to R3.
-#pragma warning disable SA1513, SA1503, SA1116
+
 namespace R3.DynamicData.Cache.Internal;
 
 internal sealed class IncludeUpdateWhen<TObject, TKey>
@@ -22,9 +22,14 @@ internal sealed class IncludeUpdateWhen<TObject, TKey>
             state,
             static (observer, state) =>
         {
-            return state.Source.Subscribe(changes =>
+            return state.Source.Subscribe(
+                changes =>
         {
-            if (changes.Count == 0) return;
+            if (changes.Count == 0)
+            {
+                return;
+            }
+
             var filtered = new ChangeSet<TObject, TKey>();
             foreach (var c in changes)
             {
@@ -32,12 +37,21 @@ internal sealed class IncludeUpdateWhen<TObject, TKey>
                 {
                     var prev = c.Previous.HasValue ? c.Previous.Value : default;
                     if (!state.Predicate(c.Current, prev))
+                    {
                         continue; // suppress this update
+                    }
                 }
+
                 filtered.Add(c);
             }
-            if (filtered.Count > 0) observer.OnNext(filtered);
-        }, observer.OnErrorResume, observer.OnCompleted);
+
+            if (filtered.Count > 0)
+            {
+                observer.OnNext(filtered);
+            }
+        },
+                observer.OnErrorResume,
+                observer.OnCompleted);
         });
     }
 
