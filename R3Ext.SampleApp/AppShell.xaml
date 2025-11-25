@@ -3,98 +3,11 @@
        xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
        xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
        xmlns:local="clr-namespace:R3Ext.SampleApp"
-       Title="R3Ext.SampleApp">
-    <!-- Home -->
+       Title="R3Ext"
+       FlyoutBehavior="Disabled">
+    
+    <!-- Main Hub - Only root page -->
     <ShellContent Title="Home"
                   ContentTemplate="{DataTemplate local:MainPage}"
                   Route="MainPage" />
-    <!-- R3 Basics -->
-    <FlyoutItem Title="R3 Basics"
-                Icon="home.png">
-        <ShellContent Title="Basics"
-                      ContentTemplate="{DataTemplate local:BasicsPage}"
-                      Route="BasicsPage" />
-        <ShellContent Title="Deep Binding"
-                      ContentTemplate="{DataTemplate local:DeepBindingPage}"
-                      Route="DeepBindingPage" />
-        <ShellContent Title="Converter Playground"
-                      ContentTemplate="{DataTemplate local:ConverterPlaygroundPage}"
-                      Route="ConverterPlaygroundPage" />
-        <ShellContent Title="Conversion Form"
-                      ContentTemplate="{DataTemplate local:ConversionFormPage}"
-                      Route="ConversionFormPage" />
-        <ShellContent Title="Controls"
-                      ContentTemplate="{DataTemplate local:ControlsPage}"
-                      Route="ControlsPage" />
-        <ShellContent Title="Form Demo"
-                      ContentTemplate="{DataTemplate local:FormPage}"
-                      Route="FormPage" />
-        <ShellContent Title="Performance"
-                      ContentTemplate="{DataTemplate local:PerformancePage}"
-                      Route="PerformancePage" />
-    </FlyoutItem>
-    <!-- DynamicData: Core Concepts -->
-    <FlyoutItem Title="DD: Core"
-                Icon="list.png">
-        <ShellContent Title="Basics (SourceList)"
-                      ContentTemplate="{DataTemplate local:DynamicDataBasicsPage}"
-                      Route="DynamicDataBasicsPage" />
-        <ShellContent Title="SourceCache"
-                      ContentTemplate="{DataTemplate local:DynamicDataCachePage}"
-                      Route="DynamicDataCachePage" />
-        <ShellContent Title="Filter &amp; Sort"
-                      ContentTemplate="{DataTemplate local:DynamicDataFilterSortPage}"
-                      Route="DynamicDataFilterSortPage" />
-        <ShellContent Title="General Operators"
-                      ContentTemplate="{DataTemplate local:DynamicDataOperatorsPage}"
-                      Route="DynamicDataOperatorsPage" />
-    </FlyoutItem>
-    <!-- DynamicData: Aggregation -->
-    <FlyoutItem Title="DD: Aggregation"
-                Icon="calculator.png">
-        <ShellContent Title="Count/Sum/Min/Max/Avg"
-                      ContentTemplate="{DataTemplate local:DDAggregationPage}"
-                      Route="DDAggregationPage" />
-    </FlyoutItem>
-    <!-- DynamicData: Transformation -->
-    <FlyoutItem Title="DD: Transformation"
-                Icon="transform.png">
-        <ShellContent Title="Transform/Async/Many"
-                      ContentTemplate="{DataTemplate local:DDTransformationPage}"
-                      Route="DDTransformationPage" />
-        <ShellContent Title="TransformMany (Legacy)"
-                      ContentTemplate="{DataTemplate local:DynamicDataTransformManyPage}"
-                      Route="DynamicDataTransformManyPage" />
-        <ShellContent Title="DistinctValues"
-                      ContentTemplate="{DataTemplate local:DynamicDataDistinctValuesPage}"
-                      Route="DynamicDataDistinctValuesPage" />
-    </FlyoutItem>
-    <!-- DynamicData: Filtering & Refresh -->
-    <FlyoutItem Title="DD: Filtering"
-                Icon="filter.png">
-        <ShellContent Title="AutoRefresh"
-                      ContentTemplate="{DataTemplate local:DDRefreshPage}"
-                      Route="DDRefreshPage" />
-    </FlyoutItem>
-    <!-- DynamicData: Logical Operators -->
-    <FlyoutItem Title="DD: Logical"
-                Icon="logic.png">
-        <ShellContent Title="And/Or/Except/Xor"
-                      ContentTemplate="{DataTemplate local:DDLogicalOperatorsPage}"
-                      Route="DDLogicalOperatorsPage" />
-    </FlyoutItem>
-    <!-- DynamicData: Grouping & Joins -->
-    <FlyoutItem Title="DD: Grouping"
-                Icon="group.png">
-        <ShellContent Title="Group &amp; GroupOn"
-                      ContentTemplate="{DataTemplate local:DDGroupingPage}"
-                      Route="DDGroupingPage" />
-    </FlyoutItem>
-    <!-- DynamicData: Lifecycle -->
-    <FlyoutItem Title="DD: Lifecycle"
-                Icon="recycle.png">
-        <ShellContent Title="LimitSizeTo/DisposeMany"
-                      ContentTemplate="{DataTemplate local:DDLifecyclePage}"
-                      Route="DDLifecyclePage" />
-    </FlyoutItem>
 </Shell>

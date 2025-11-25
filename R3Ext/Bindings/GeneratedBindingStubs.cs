@@ -28,4 +28,9 @@ public static partial class R3BindingExtensions
         this TObj objectToMonitor,
         Expression<Func<TObj, TReturn>> propertyExpression,
         string? propertyExpressionPath = null);
+
+    public static partial Observable<TReturn> WhenObserved<TObj, TReturn>(
+        this TObj objectToMonitor,
+        Expression<Func<TObj, Observable<TReturn>>> propertyExpression,
+        string? propertyExpressionPath = null);
 }

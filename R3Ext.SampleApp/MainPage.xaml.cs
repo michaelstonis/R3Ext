@@ -1,5 +1,8 @@
 ﻿namespace R3Ext.SampleApp;
 
+/// <summary>
+/// Main page providing card-based navigation to all sample features.
+/// </summary>
 public partial class MainPage : ContentPage
 {
     public MainPage()
@@ -7,58 +10,11 @@ public partial class MainPage : ContentPage
         this.InitializeComponent();
     }
 
-    private async void OnGoBasics(object? sender, EventArgs e)
+    private async void OnNavigate(object? sender, TappedEventArgs e)
     {
-        await Shell.Current.GoToAsync("//BasicsPage");
-    }
-
-    private async void OnGoDynamicDataBasics(object? sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//DynamicDataBasicsPage");
-    }
-
-    private async void OnGoDynamicDataFilterSort(object? sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//DynamicDataFilterSortPage");
-    }
-
-    private async void OnGoDynamicDataTransformMany(object? sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//DynamicDataTransformManyPage");
-    }
-
-    private async void OnGoDynamicDataDistinctValues(object? sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//DynamicDataDistinctValuesPage");
-    }
-
-    private async void OnGoDeep(object? sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//DeepBindingPage");
-    }
-
-    private async void OnGoConverters(object? sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//ConverterPlaygroundPage");
-    }
-
-    private async void OnGoConversionForm(object? sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//ConversionFormPage");
-    }
-
-    private async void OnGoControls(object? sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//ControlsPage");
-    }
-
-    private async void OnGoPerformance(object? sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//PerformancePage");
-    }
-
-    private async void OnGoForm(object? sender, EventArgs e)
-    {
-        await Shell.Current.GoToAsync("//FormPage");
+        if (e.Parameter is string route)
+        {
+            await Shell.Current.GoToAsync(route);
+        }
     }
 }

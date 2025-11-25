@@ -53,9 +53,23 @@ public static class BindingRegistry
         }
     }
 
+    // For WhenObserved, similar to WhenEntry but for observable properties
+    private sealed class WhenObservedEntry
+    {
+        public required Type ObjType { get; init; }
+
+        public required Func<object, Observable<object>> Factory { get; init; }
+
+        public override string ToString()
+        {
+            return $"WhenObservedEntry[{ObjType.Name}]";
+        }
+    }
+
     private static readonly Dictionary<string, List<OneWayEntry>> _oneWay = new();
     private static readonly Dictionary<string, List<TwoWayEntry>> _twoWay = new();
     private static readonly Dictionary<string, List<WhenEntry>> _whenChanged = new();
+    private static readonly Dictionary<string, List<WhenObservedEntry>> _whenObserved = new();
 
     // Registration API (called from generated module initializers in referencing assemblies)
     public static void RegisterOneWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath,
@@ -110,6 +124,20 @@ public static class BindingRegistry
         list.Add(new WhenEntry { ObjType = typeof(TObj), Factory = o => factory((TObj)o!).Select(v => (object?)v!), });
     }
 
+    public static void RegisterWhenObserved<TObj, TReturn>(string whenPath, Func<TObj, Observable<TReturn>> factory)
+    {
+        // whenPath is usually "TypeSimpleName|lambdaText" per generator. Index by path after the first '|'.
+        (string typePart, string pathPart) = SplitTypePath(whenPath);
+        Log($"[BindingRegistry] RegisterWhenObserved {typePart}|{pathPart} as {typeof(TObj).Name}");
+        if (!_whenObserved.TryGetValue(pathPart, out List<WhenObservedEntry>? list))
+        {
+            list = new List<WhenObservedEntry>();
+            _whenObserved[pathPart] = list;
+        }
+
+        list.Add(new WhenObservedEntry { ObjType = typeof(TObj), Factory = o => factory((TObj)o!).Select(v => (object?)v!), });
+    }
+
     // TryCreate APIs used by generated extension methods before falling back to specialized implementations
     public static bool TryCreateOneWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath, TFrom fromObj, TTarget targetObj,
         Func<TFromProp, TTargetProp>? conv, out IDisposable disposable)
@@ -159,6 +187,27 @@ public static class BindingRegistry
         {
             // AOT-compatible: Use exact type match based on generic parameter, not runtime type
             WhenEntry? entry = PickBestExact<TObj>(list);
+            if (entry is not null)
+            {
+                Observable<object> raw = entry.Factory(obj!);
+                observable = raw.Select(v => (TReturn)v!);
+                return true;
+            }
+        }
+
+        // No generated binding found - fail fast for AOT compatibility
+        observable = default!;
+        return false;
+    }
+
+    public static bool TryCreateWhenObserved<TObj, TReturn>(string whenPath, TObj obj, out Observable<TReturn> observable)
+    {
+        (string typePart, string pathPart) = SplitTypePath(whenPath);
+        Log($"[BindingRegistry] TryCreateWhenObserved lookup {typePart}|{pathPart} for {typeof(TObj).Name}");
+        if (_whenObserved.TryGetValue(pathPart, out List<WhenObservedEntry>? list))
+        {
+            // AOT-compatible: Use exact type match based on generic parameter, not runtime type
+            WhenObservedEntry? entry = PickBestExact<TObj>(list);
             if (entry is not null)
             {
                 Observable<object> raw = entry.Factory(obj!);
@@ -241,6 +290,31 @@ public static class BindingRegistry
 
         // If no exact match, look for compatible base types (still AOT-safe with typeof)
         foreach (WhenEntry e in list)
+        {
+            if (e.ObjType.IsAssignableFrom(objType))
+            {
+                return e;
+            }
+        }
+
+        return null;
+    }
+
+    private static WhenObservedEntry? PickBestExact<TObj>(List<WhenObservedEntry> list)
+    {
+        Type objType = typeof(TObj);
+
+        // First, try exact match
+        foreach (WhenObservedEntry e in list)
+        {
+            if (e.ObjType == objType)
+            {
+                return e;
+            }
+        }
+
+        // If no exact match, look for compatible base types (still AOT-safe with typeof)
+        foreach (WhenObservedEntry e in list)
         {
             if (e.ObjType.IsAssignableFrom(objType))
             {

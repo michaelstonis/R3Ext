@@ -2,36 +2,441 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="R3Ext.SampleApp.MainPage"
-             Title="R3Ext Demos">
-    <ScrollView>
-        <VerticalStackLayout Padding="24"
-                             Spacing="16">
-            <Label Text="Explore R3Ext Samples"
-                   Style="{StaticResource Headline}" />
-            <Label Text="Choose a demo to see bindings and helpers in action."
-                   Style="{StaticResource SubHeadline}" />
-            <Button Text="Basics"
-                    Clicked="OnGoBasics" />
-            <Button Text="DynamicData Basics"
-                    Clicked="OnGoDynamicDataBasics" />
-            <Button Text="DynamicData Filter &amp; Sort"
-                    Clicked="OnGoDynamicDataFilterSort" />
-            <Button Text="DynamicData TransformMany"
-                    Clicked="OnGoDynamicDataTransformMany" />
-            <Button Text="DynamicData DistinctValues"
-                    Clicked="OnGoDynamicDataDistinctValues" />
-            <Button Text="Deep Binding"
-                    Clicked="OnGoDeep" />
-            <Button Text="Converter Playground"
-                    Clicked="OnGoConverters" />
-            <Button Text="Conversion Form"
-                    Clicked="OnGoConversionForm" />
-            <Button Text="Controls"
-                    Clicked="OnGoControls" />
-            <Button Text="Performance"
-                    Clicked="OnGoPerformance" />
-            <Button Text="Form"
-                    Clicked="OnGoForm" />
+             Title="R3Ext">
+    <Grid RowDefinitions="Auto,*">
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0"
+                             Padding="20,30,20,20"
+                             BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceColor}, Dark={StaticResource SurfaceDark}}">
+            <Label Text="R3Ext Samples"
+                   Style="{StaticResource PageTitleStyle}" />
+            <Label Text="Explore reactive extensions, data binding, and DynamicData features"
+                   Style="{StaticResource PageSubtitleStyle}"
+                   Margin="0,0,0,0" />
         </VerticalStackLayout>
-    </ScrollView>
+        <!-- Feature Grid -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="20"
+                                 Spacing="0">
+                <!-- R3 Core Features -->
+                <Label Text="R3 Core Features"
+                       Style="{StaticResource SectionTitleStyle}"
+                       Margin="0,0,0,16" />
+                <Grid ColumnDefinitions="*,*"
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                      ColumnSpacing="12"
+                      RowSpacing="12"
+                      Margin="0,0,0,24">
+                    <Frame Grid.Column="0"
+                           Grid.Row="0"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="BasicsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="🔗"
+                                   FontSize="32" />
+                            <Label Text="Bindings"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Property bindings"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="0"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DeepBindingPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="⛓️"
+                                   FontSize="32" />
+                            <Label Text="Deep Binding"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Nested chains"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="1"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="WhenObservedPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="👁️"
+                                   FontSize="32" />
+                            <Label Text="WhenObserved"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Observable props"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="1"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="ConverterPlaygroundPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="🎨"
+                                   FontSize="32" />
+                            <Label Text="Converters"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Value transforms"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="2"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="ConversionFormPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="📝"
+                                   FontSize="32" />
+                            <Label Text="Forms"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Two-way binding"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="2"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="PerformancePage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="⚡"
+                                   FontSize="32" />
+                            <Label Text="Performance"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Speed tests"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="3"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="CommandsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="🎮"
+                                   FontSize="32" />
+                            <Label Text="Commands"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="RxCommand demos"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="3"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="ControlsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="🖱️"
+                                   FontSize="32" />
+                            <Label Text="Controls"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="UI controls"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="4"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="FormPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="📄"
+                                   FontSize="32" />
+                            <Label Text="Form Demo"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Complete form"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                </Grid>
+                <!-- DynamicData Features -->
+                <Label Text="DynamicData Features"
+                       Style="{StaticResource SectionTitleStyle}"
+                       Margin="0,8,0,16" />
+                <Grid ColumnDefinitions="*,*"
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                      ColumnSpacing="12"
+                      RowSpacing="12">
+                    <Frame Grid.Column="0"
+                           Grid.Row="0"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataBasicsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="📋"
+                                   FontSize="32" />
+                            <Label Text="Basics"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="SourceList intro"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="0"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataCachePage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="💾"
+                                   FontSize="32" />
+                            <Label Text="Cache"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="SourceCache ops"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="1"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataFilterSortPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="🔍"
+                                   FontSize="32" />
+                            <Label Text="Filter &amp; Sort"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Data operations"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="1"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDTransformationPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="🔄"
+                                   FontSize="32" />
+                            <Label Text="Transform"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Data mapping"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="2"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDAggregationPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="📊"
+                                   FontSize="32" />
+                            <Label Text="Aggregation"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Count, Sum, Avg"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="2"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDGroupingPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="👥"
+                                   FontSize="32" />
+                            <Label Text="Grouping"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Group operations"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="3"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataOperatorsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="⚙️"
+                                   FontSize="32" />
+                            <Label Text="Operators"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Advanced ops"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="3"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataTransformManyPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="🔀"
+                                   FontSize="32" />
+                            <Label Text="TransformMany"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Flatten collections"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="4"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataDistinctValuesPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="🔢"
+                                   FontSize="32" />
+                            <Label Text="Distinct Values"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Unique values"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="4"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDRefreshPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="🔃"
+                                   FontSize="32" />
+                            <Label Text="Auto Refresh"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Reactive updates"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="5"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDLogicalOperatorsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="🧮"
+                                   FontSize="32" />
+                            <Label Text="Logical Ops"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="AND, OR, NOT"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="5"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDLifecyclePage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="♻️"
+                                   FontSize="32" />
+                            <Label Text="Lifecycle"
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="Connect/Dispose"
+                                   FontSize="12"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                                   LineBreakMode="TailTruncation" />
+                        </VerticalStackLayout>
+                    </Frame>
+                </Grid>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
 </ContentPage>

@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- Material Design 3 Color Palette -->
+    <Color x:Key="PrimaryColor">#6750A4</Color>
+    <Color x:Key="PrimaryContainerColor">#EADDFF</Color>
+    <Color x:Key="OnPrimaryColor">#FFFFFF</Color>
+    <Color x:Key="OnPrimaryContainerColor">#21005D</Color>
+    
+    <Color x:Key="SecondaryColor">#625B71</Color>
+    <Color x:Key="SecondaryContainerColor">#E8DEF8</Color>
+    <Color x:Key="OnSecondaryColor">#FFFFFF</Color>
+    <Color x:Key="OnSecondaryContainerColor">#1D192B</Color>
+    
+    <Color x:Key="TertiaryColor">#7D5260</Color>
+    <Color x:Key="TertiaryContainerColor">#FFD8E4</Color>
+    
+    <Color x:Key="ErrorColor">#B3261E</Color>
+    <Color x:Key="ErrorContainerColor">#F9DEDC</Color>
+    <Color x:Key="OnErrorColor">#FFFFFF</Color>
+    
+    <Color x:Key="SurfaceColor">#FFFBFE</Color>
+    <Color x:Key="SurfaceVariantColor">#E7E0EC</Color>
+    <Color x:Key="OnSurfaceColor">#1C1B1F</Color>
+    <Color x:Key="OnSurfaceVariantColor">#49454F</Color>
+    <Color x:Key="OutlineColor">#79747E</Color>
+    <Color x:Key="OutlineVariantColor">#CAC4D0</Color>
+    
+    <!-- Dark Theme -->
+    <Color x:Key="SurfaceDark">#1C1B1F</Color>
+    <Color x:Key="SurfaceVariantDark">#49454F</Color>
+    <Color x:Key="OnSurfaceDark">#E6E1E5</Color>
+    <Color x:Key="PrimaryDark">#D0BCFF</Color>
+    <Color x:Key="PrimaryContainerDark">#4F378B</Color>
+    <Color x:Key="OutlineDark">#938F99</Color>
+    <Color x:Key="OutlineVariantDark">#49454F</Color>
+    
+    <!-- Material Design 3 Typography -->
+    <Style x:Key="PageTitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="32" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource OnSurfaceColor}, Dark={StaticResource OnSurfaceDark}}" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+
+    <Style x:Key="PageSubtitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource OnSurfaceVariantColor}, Dark={StaticResource OnSurfaceDark}}" />
+        <Setter Property="Margin" Value="0,0,0,24" />
+    </Style>
+
+    <Style x:Key="SectionTitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="22" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource OnSurfaceColor}, Dark={StaticResource OnSurfaceDark}}" />
+        <Setter Property="Margin" Value="0,0,0,16" />
+    </Style>
+
+    <Style x:Key="BodyTextStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource OnSurfaceVariantColor}, Dark={StaticResource OnSurfaceDark}}" />
+        <Setter Property="LineBreakMode" Value="WordWrap" />
+    </Style>
+
+    <Style x:Key="MonospaceStyle" TargetType="Label">
+        <Setter Property="FontFamily" Value="Courier" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource OnSurfaceVariantColor}, Dark={StaticResource OnSurfaceDark}}" />
+    </Style>
+
+    <!-- Material Design 3 Card Styles (Elevated) -->
+    <Style x:Key="CardFrameStyle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceColor}, Dark={StaticResource SurfaceDark}}" />
+        <Setter Property="BorderColor" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="HasShadow" Value="True" />
+        <Setter Property="Margin" Value="0,0,0,16" />
+    </Style>
+
+    <Style x:Key="FeatureCardStyle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceColor}, Dark={StaticResource SurfaceDark}}" />
+        <Setter Property="BorderColor" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="16" />
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="HasShadow" Value="True" />
+        <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <Style x:Key="CompactCardStyle" TargetType="Frame" BasedOn="{StaticResource CardFrameStyle}">
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="Margin" Value="0,0,0,12" />
+        <Setter Property="CornerRadius" Value="12" />
+    </Style>
+
+    <!-- Material Design 3 Button Styles -->
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource PrimaryColor}, Dark={StaticResource PrimaryDark}}" />
+        <Setter Property="TextColor" Value="{StaticResource OnPrimaryColor}" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="24,10" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryColor}, Dark={StaticResource PrimaryDark}}" />
+        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource OutlineColor}, Dark={StaticResource OutlineDark}}" />
+        <Setter Property="BorderWidth" Value="1" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="24,10" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+        <Setter Property="BackgroundColor" Value="{StaticResource ErrorColor}" />
+        <Setter Property="TextColor" Value="{StaticResource OnErrorColor}" />
+    </Style>
+
+    <Style x:Key="SuccessButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+        <Setter Property="BackgroundColor" Value="{StaticResource TertiaryColor}" />
+    </Style>
+
+    <!-- Feature Card Template -->
+    <DataTemplate x:Key="FeatureCardTemplate">
+        <Frame Style="{StaticResource FeatureCardStyle}">
+            <Frame.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding NavigateCommand}" />
+            </Frame.GestureRecognizers>
+            <Grid RowDefinitions="Auto,Auto,Auto">
+                <Label Grid.Row="0" 
+                       Text="{Binding Icon}"
+                       FontSize="32"
+                       HorizontalOptions="Start"
+                       Margin="0,0,0,8" />
+                <Label Grid.Row="1"
+                       Text="{Binding Title}"
+                       Style="{StaticResource SectionTitleStyle}"
+                       Margin="0,0,0,4" />
+                <Label Grid.Row="2"
+                       Text="{Binding Description}"
+                       Style="{StaticResource BodyTextStyle}"
+                       MaxLines="2"
+                       LineBreakMode="TailTruncation" />
+            </Grid>
+        </Frame>
+    </DataTemplate>
+
+    <!-- Badge Styles -->
+    <Style x:Key="BadgeStyle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SecondaryContainerColor}, Dark={StaticResource SurfaceVariantDark}}" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="HasShadow" Value="False" />
+        <Setter Property="BorderColor" Value="Transparent" />
+    </Style>
+
+    <Style x:Key="BadgeLabelStyle" TargetType="Label">
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource OnSecondaryContainerColor}, Dark={StaticResource OnSurfaceDark}}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <!-- Separator -->
+    <Style x:Key="SeparatorStyle" TargetType="BoxView">
+        <Setter Property="HeightRequest" Value="1" />
+        <Setter Property="Color" Value="{AppThemeBinding Light={StaticResource OutlineVariantColor}, Dark={StaticResource OutlineVariantDark}}" />
+        <Setter Property="Margin" Value="0,16" />
+    </Style>
+
+    <!-- Input Styles -->
+    <Style x:Key="InputFrameStyle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceColor}, Dark={StaticResource SurfaceDark}}" />
+        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource OutlineColor}, Dark={StaticResource OutlineDark}}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="16,12" />
+        <Setter Property="HasShadow" Value="False" />
+    </Style>
+
+    <!-- Status Colors -->
+    <Style x:Key="SuccessTextStyle" TargetType="Label" BasedOn="{StaticResource BodyTextStyle}">
+        <Setter Property="TextColor" Value="{StaticResource TertiaryColor}" />
+    </Style>
+
+    <Style x:Key="ErrorTextStyle" TargetType="Label" BasedOn="{StaticResource BodyTextStyle}">
+        <Setter Property="TextColor" Value="{StaticResource ErrorColor}" />
+    </Style>
+
+    <Style x:Key="InfoTextStyle" TargetType="Label" BasedOn="{StaticResource BodyTextStyle}">
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryColor}, Dark={StaticResource PrimaryDark}}" />
+    </Style>
+
+</ResourceDictionary>
