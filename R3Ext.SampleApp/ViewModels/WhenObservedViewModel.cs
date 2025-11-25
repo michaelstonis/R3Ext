@@ -14,9 +14,6 @@ namespace R3Ext.SampleApp.ViewModels;
 /// <summary>
 /// Demonstrates WhenObserved operator - similar to ReactiveUI's WhenAnyObservable.
 /// WhenObserved observes properties that return IObservable and automatically switches between them.
-///
-/// NOTE: Currently using WhenChanged + Select + Switch as a workaround due to a source generator bug.
-/// The WhenObserved source generator incorrectly registers Observable&lt;T&gt; instead of T as the return type.
 /// </summary>
 public sealed class WhenObservedViewModel : ObservableObject, IDisposable
 {
@@ -32,31 +29,22 @@ public sealed class WhenObservedViewModel : ObservableObject, IDisposable
     public WhenObservedViewModel()
     {
         // Example 1: Observe a simple observable property
-        // Manual implementation of WhenObserved due to source generator bug
-        this.WhenChanged(x => x.CurrentDocument)
-            .Select(doc => doc.IsSaved)
-            .Switch()
+        this.WhenObserved(x => x.CurrentDocument.IsSaved)
             .Subscribe(isSaved => ObservedDocumentStatus = $"Document is {(isSaved ? "saved" : "NOT saved")}")
             .AddTo(ref _disposables);
 
         // Example 2: Observe a data stream observable
-        this.WhenChanged(x => x.CurrentStream)
-            .Select(stream => stream.DataObservable)
-            .Switch()
+        this.WhenObserved(x => x.CurrentStream.DataObservable)
             .Subscribe(value => ObservedStreamValue = $"Stream value: {value}")
             .AddTo(ref _disposables);
 
         // Example 3: Observe nested property with automatic switching
-        this.WhenChanged(x => x.NestedContainer.Document)
-            .Select(doc => doc.IsSaved)
-            .Switch()
+        this.WhenObserved(x => x.NestedContainer.Document.IsSaved)
             .Subscribe(isSaved => ObservedNestedValue = $"Nested document {(isSaved ? "saved" : "NOT saved")}")
             .AddTo(ref _disposables);
 
         // Log all document status changes
-        this.WhenChanged(x => x.CurrentDocument)
-            .Select(doc => doc.IsSaved)
-            .Switch()
+        this.WhenObserved(x => x.CurrentDocument.IsSaved)
             .Subscribe(isSaved => LogEvent($"Document saved state changed: {isSaved}"))
             .AddTo(ref _disposables);
     }

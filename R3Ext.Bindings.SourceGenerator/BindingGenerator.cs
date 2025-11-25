@@ -185,7 +185,24 @@ public sealed class BindingGenerator : IIncrementalGenerator
                     if (m.FromSegments.Count > 0)
                     {
                         m.WhenRootTypeName = m.FromSegments[0].DeclaringTypeName;
-                        m.WhenLeafTypeName = m.FromSegments.Last().TypeName;
+                        string leafType = m.FromSegments.Last().TypeName;
+
+                        // For WhenObserved, the leaf is Observable<T>, but we need T
+                        // Extract the inner type from Observable<T>
+                        if (m.Kind == "WhenObserved" && leafType.StartsWith("global::R3.Observable<") && leafType.EndsWith(">"))
+                        {
+                            // Extract T from Observable<T>
+                            m.WhenLeafTypeName = leafType.Substring("global::R3.Observable<".Length, leafType.Length - "global::R3.Observable<".Length - 1);
+                        }
+                        else if (m.Kind == "WhenObserved" && leafType.StartsWith("Observable<") && leafType.EndsWith(">"))
+                        {
+                            // Handle non-fully-qualified Observable<T>
+                            m.WhenLeafTypeName = leafType.Substring("Observable<".Length, leafType.Length - "Observable<".Length - 1);
+                        }
+                        else
+                        {
+                            m.WhenLeafTypeName = leafType;
+                        }
 
                         // For root INPC check: need to lookup the declaring type symbol
                         // But we don't have Compilation here, so we'll use a heuristic:
