@@ -56,7 +56,9 @@ jobs:
         dotnet restore R3Ext/R3Ext.csproj
         dotnet restore R3Ext.Bindings.SourceGenerator/R3Ext.Bindings.SourceGenerator.csproj
         dotnet restore R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj
+        dotnet restore R3.DynamicData/R3.DynamicData.csproj
         dotnet restore R3Ext.Tests/R3Ext.Tests.csproj
+        dotnet restore R3.DynamicData.Tests/R3.DynamicData.Tests.csproj
     
     - name: Build Libraries (exclude samples)
       run: |
@@ -80,9 +82,18 @@ jobs:
           /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
           /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
           /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
+        
+        # Build DynamicData library
+        dotnet build R3.DynamicData/R3.DynamicData.csproj --configuration Release --no-restore \
+          /p:Version=${{ steps.gitversion.outputs.nuGetVersionV2 }} \
+          /p:AssemblyVersion=${{ steps.gitversion.outputs.assemblySemVer }} \
+          /p:FileVersion=${{ steps.gitversion.outputs.assemblySemFileVer }} \
+          /p:InformationalVersion=${{ steps.gitversion.outputs.informationalVersion }}
     
     - name: Test
-      run: dotnet test R3Ext.Tests/R3Ext.Tests.csproj --configuration Release --verbosity normal
+      run: |
+        dotnet test R3Ext.Tests/R3Ext.Tests.csproj --configuration Release --verbosity normal
+        dotnet test R3.DynamicData.Tests/R3.DynamicData.Tests.csproj --configuration Release --verbosity normal
     
     - name: Pack NuGet packages
       run: |
@@ -93,6 +104,9 @@ jobs:
           /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
         
         dotnet pack R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj --configuration Release --no-build --output ./artifacts \
+          /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+        
+        dotnet pack R3.DynamicData/R3.DynamicData.csproj --configuration Release --no-build --output ./artifacts \
           /p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
 
     
