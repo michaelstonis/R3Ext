@@ -2,36 +2,423 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="R3Ext.SampleApp.MainPage"
-             Title="R3Ext Demos">
-    <ScrollView>
-        <VerticalStackLayout Padding="24"
-                             Spacing="16">
-            <Label Text="Explore R3Ext Samples"
-                   Style="{StaticResource Headline}" />
-            <Label Text="Choose a demo to see bindings and helpers in action."
-                   Style="{StaticResource SubHeadline}" />
-            <Button Text="Basics"
-                    Clicked="OnGoBasics" />
-            <Button Text="DynamicData Basics"
-                    Clicked="OnGoDynamicDataBasics" />
-            <Button Text="DynamicData Filter &amp; Sort"
-                    Clicked="OnGoDynamicDataFilterSort" />
-            <Button Text="DynamicData TransformMany"
-                    Clicked="OnGoDynamicDataTransformMany" />
-            <Button Text="DynamicData DistinctValues"
-                    Clicked="OnGoDynamicDataDistinctValues" />
-            <Button Text="Deep Binding"
-                    Clicked="OnGoDeep" />
-            <Button Text="Converter Playground"
-                    Clicked="OnGoConverters" />
-            <Button Text="Conversion Form"
-                    Clicked="OnGoConversionForm" />
-            <Button Text="Controls"
-                    Clicked="OnGoControls" />
-            <Button Text="Performance"
-                    Clicked="OnGoPerformance" />
-            <Button Text="Form"
-                    Clicked="OnGoForm" />
+             Shell.NavBarIsVisible="False"
+             Title="R3Ext">
+    <Grid RowDefinitions="Auto,*"
+          BackgroundColor="{AppThemeBinding Light={StaticResource BackgroundColor}, Dark={StaticResource BackgroundDark}}">
+        <!-- Premium Header with subtle gradient effect -->
+        <VerticalStackLayout Grid.Row="0"
+                             Padding="24,40,24,28"
+                             BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceColor}, Dark={StaticResource SurfaceElevatedDark}}">
+            <Label Text="R3Ext Samples"
+                   Style="{StaticResource PageTitleStyle}"
+                   Margin="0,0,0,8" />
+            <Label Text="Explore reactive extensions, data binding, and DynamicData features"
+                   Style="{StaticResource PageSubtitleStyle}"
+                   Margin="0,0,0,0" />
         </VerticalStackLayout>
-    </ScrollView>
+        <!-- Feature Grid with premium spacing -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="24,24,24,32"
+                                 Spacing="0">
+                <!-- R3 Core Features Section -->
+                <Label Text="R3 Core Features"
+                       Style="{StaticResource SectionTitleStyle}"
+                       Margin="0,0,0,4" />
+                <Label Text="Reactive programming patterns and data binding"
+                       Style="{StaticResource SectionSubtitleStyle}" />
+                <Grid ColumnDefinitions="*,*"
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                      ColumnSpacing="14"
+                      RowSpacing="14"
+                      Margin="0,0,0,32">
+                    <Frame Grid.Column="0"
+                           Grid.Row="0"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="BasicsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🔗"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Bindings"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Property bindings"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="0"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DeepBindingPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="⛓️"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Deep Binding"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Nested chains"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="1"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="WhenObservedPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="👁️"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="WhenObserved"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Observable props"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="1"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="ConverterPlaygroundPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🎨"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Converters"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Value transforms"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="2"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="ConversionFormPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="📝"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Forms"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Two-way binding"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="2"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="PerformancePage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="⚡"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Performance"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Speed tests"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="3"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="CommandsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🎮"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Commands"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="RxCommand demos"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="3"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="ControlsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🖱️"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Controls"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="UI controls"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="4"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="FormPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="📄"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Form Demo"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Complete form"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="4"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="InteractionPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="💬"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Interaction"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="ViewModel ↔ UI dialog"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                </Grid>
+                <!-- DynamicData Features Section -->
+                <Label Text="DynamicData Features"
+                       Style="{StaticResource SectionTitleStyle}"
+                       Margin="0,0,0,4" />
+                <Label Text="Reactive collections and observable data structures"
+                       Style="{StaticResource SectionSubtitleStyle}" />
+                <Grid ColumnDefinitions="*,*"
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                      ColumnSpacing="14"
+                      RowSpacing="14">
+                    <Frame Grid.Column="0"
+                           Grid.Row="0"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataBasicsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="📋"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Basics"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="SourceList intro"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="0"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataCachePage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="💾"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Cache"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="SourceCache ops"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="1"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataFilterSortPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🔍"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Filter &amp; Sort"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Data operations"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="1"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDTransformationPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🔄"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Transform"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Data mapping"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="2"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDAggregationPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="📊"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Aggregation"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Count, Sum, Avg"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="2"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDGroupingPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="👥"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Grouping"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Group operations"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="3"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataOperatorsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="⚙️"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Operators"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Advanced ops"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="3"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataTransformManyPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🔀"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="TransformMany"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Flatten collections"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="4"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DynamicDataDistinctValuesPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🔢"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Distinct Values"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Unique values"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="4"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDRefreshPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🔃"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Auto Refresh"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Reactive updates"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="5"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDLogicalOperatorsPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🧮"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Logical Ops"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="AND, OR, NOT"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="5"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="DDLifecyclePage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="♻️"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Lifecycle"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="Connect/Dispose"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                </Grid>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
 </ContentPage>

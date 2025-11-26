@@ -6,10 +6,10 @@
             "indentationSize": 4
         },
         "documentationRules": {
-            "documentExposedElements": false,
+            "documentExposedElements": true,
             "documentInternalElements": false,
             "documentPrivateElements": false,
-            "documentInterfaces": false,
+            "documentInterfaces": true,
             "documentPrivateFields": false,
             "documentationCulture": "en-US",
             "xmlHeader": false

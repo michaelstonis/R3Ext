@@ -1,16 +1,12 @@
 // Minimal InnerJoin implementation for DynamicData port. Marks Joins as Partial.
 // Provides diff emission (Add/Update/Remove) for joined pairs. Future work: Left/Right/Full joins and Many joins.
-#pragma warning disable SA1503 // Braces should not be omitted
-#pragma warning disable SA1513 // Closing brace should be followed by blank line
-#pragma warning disable SA1515 // Single-line comment should be preceded by blank line
-#pragma warning disable SA1116 // Parameters should begin on new line when spanning multiple lines
-#pragma warning disable SA1127 // Generic type constraints should be on their own line
-#pragma warning disable SA1210 // Using directives ordering
-
 using R3.DynamicData.Kernel;
 
 namespace R3.DynamicData.Cache;
 
+/// <summary>
+/// Extension methods for observable cache change sets.
+/// </summary>
 public static partial class ObservableCacheEx
 {
     /// <summary>
@@ -18,6 +14,15 @@ public static partial class ObservableCacheEx
     /// Emits Add when a matching pair first appears, Update when either side changes and result changes,
     /// and Remove when either side of an existing pair is removed. If only one side has the key no result is emitted.
     /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from left and right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the inner join results.</returns>
     public static Observable<IChangeSet<TResult, TKey>> InnerJoin<TLeft, TRight, TKey, TResult>(
         this Observable<IChangeSet<TLeft, TKey>> left,
         Observable<IChangeSet<TRight, TKey>> right,
@@ -28,9 +33,21 @@ public static partial class ObservableCacheEx
         where TRight : notnull
         where TResult : notnull
     {
-        if (left is null) throw new ArgumentNullException(nameof(left));
-        if (right is null) throw new ArgumentNullException(nameof(right));
-        if (resultSelector is null) throw new ArgumentNullException(nameof(resultSelector));
+        if (left is null)
+        {
+            throw new ArgumentNullException(nameof(left));
+        }
+
+        if (right is null)
+        {
+            throw new ArgumentNullException(nameof(right));
+        }
+
+        if (resultSelector is null)
+        {
+            throw new ArgumentNullException(nameof(resultSelector));
+        }
+
         var cmp = resultComparer ?? EqualityComparer<TResult>.Default;
 
         return Observable.Create<IChangeSet<TResult, TKey>>(observer =>
@@ -53,6 +70,7 @@ public static partial class ObservableCacheEx
                 }
 
                 var changes = new List<Change<TResult, TKey>>();
+
                 // Removals
                 foreach (var existing in currentResults)
                 {
@@ -61,6 +79,7 @@ public static partial class ObservableCacheEx
                         changes.Add(new Change<TResult, TKey>(ChangeReason.Remove, existing.Key, existing.Value, existing.Value));
                     }
                 }
+
                 // Additions & Updates
                 foreach (var kvp in newResults)
                 {
@@ -90,13 +109,15 @@ public static partial class ObservableCacheEx
                                 break;
                         }
                     }
+
                     var outSet = new ChangeSet<TResult, TKey>();
                     outSet.AddRange(changes);
                     observer.OnNext(outSet);
                 }
             }
 
-            var dispLeft = left.Subscribe(changes =>
+            var dispLeft = left.Subscribe(
+                changes =>
             {
                 try
                 {
@@ -107,29 +128,42 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Add:
                                 leftItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Update:
                                 leftItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 leftItems.Remove(change.Key);
                                 break;
+
                             case ChangeReason.Refresh:
+
                                 // treat refresh as potential update; if result changes diff logic will emit Update
-                                if (leftItems.ContainsKey(change.Key)) leftItems[change.Key] = change.Current;
+                                if (leftItems.ContainsKey(change.Key))
+                                {
+                                    leftItems[change.Key] = change.Current;
+                                }
+
                                 break;
+
                             case ChangeReason.Moved:
                                 break;
                         }
                     }
+
                     RecomputeAndEmit();
                 }
                 catch (Exception ex)
                 {
                     observer.OnErrorResume(ex);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
 
-            var dispRight = right.Subscribe(changes =>
+            var dispRight = right.Subscribe(
+                changes =>
             {
                 try
                 {
@@ -140,35 +174,55 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Add:
                                 rightItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Update:
                                 rightItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 rightItems.Remove(change.Key);
                                 break;
+
                             case ChangeReason.Refresh:
-                                if (rightItems.ContainsKey(change.Key)) rightItems[change.Key] = change.Current;
+                                if (rightItems.ContainsKey(change.Key))
+                                {
+                                    rightItems[change.Key] = change.Current;
+                                }
+
                                 break;
+
                             case ChangeReason.Moved:
                                 break;
                         }
                     }
+
                     RecomputeAndEmit();
                 }
                 catch (Exception ex)
                 {
                     observer.OnErrorResume(ex);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
 
             return Disposable.Combine(dispLeft, dispRight);
         });
     }
 
     /// <summary>
-    /// Performs a left outer join between two cache change streams. Emits a result for every left item,
+    /// Performs a full outer join between two cache change streams. Emits a result for every key present in either cache,
     /// pairing with the right item if present or null if absent.
     /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from left and optional right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the left join results.</returns>
     public static Observable<IChangeSet<TResult, TKey>> LeftJoin<TLeft, TRight, TKey, TResult>(
         this Observable<IChangeSet<TLeft, TKey>> left,
         Observable<IChangeSet<TRight, TKey>> right,
@@ -179,9 +233,21 @@ public static partial class ObservableCacheEx
         where TRight : class
         where TResult : notnull
     {
-        if (left is null) throw new ArgumentNullException(nameof(left));
-        if (right is null) throw new ArgumentNullException(nameof(right));
-        if (resultSelector is null) throw new ArgumentNullException(nameof(resultSelector));
+        if (left is null)
+        {
+            throw new ArgumentNullException(nameof(left));
+        }
+
+        if (right is null)
+        {
+            throw new ArgumentNullException(nameof(right));
+        }
+
+        if (resultSelector is null)
+        {
+            throw new ArgumentNullException(nameof(resultSelector));
+        }
+
         var cmp = resultComparer ?? EqualityComparer<TResult>.Default;
 
         return Observable.Create<IChangeSet<TResult, TKey>>(observer =>
@@ -208,6 +274,7 @@ public static partial class ObservableCacheEx
                         changes.Add(new Change<TResult, TKey>(ChangeReason.Remove, existing.Key, existing.Value, existing.Value));
                     }
                 }
+
                 foreach (var kvp in newResults)
                 {
                     if (!currentResults.TryGetValue(kvp.Key, out var prev))
@@ -230,18 +297,21 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Update:
                                 currentResults[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 currentResults.Remove(change.Key);
                                 break;
                         }
                     }
+
                     var outSet = new ChangeSet<TResult, TKey>();
                     outSet.AddRange(changes);
                     observer.OnNext(outSet);
                 }
             }
 
-            var dispLeft = left.Subscribe(changes =>
+            var dispLeft = left.Subscribe(
+                changes =>
             {
                 try
                 {
@@ -252,28 +322,40 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Add:
                                 leftItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Update:
                                 leftItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 leftItems.Remove(change.Key);
                                 break;
+
                             case ChangeReason.Refresh:
-                                if (leftItems.ContainsKey(change.Key)) leftItems[change.Key] = change.Current;
+                                if (leftItems.ContainsKey(change.Key))
+                                {
+                                    leftItems[change.Key] = change.Current;
+                                }
+
                                 break;
+
                             case ChangeReason.Moved:
                                 break;
                         }
                     }
+
                     RecomputeAndEmit();
                 }
                 catch (Exception ex)
                 {
                     observer.OnErrorResume(ex);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
 
-            var dispRight = right.Subscribe(changes =>
+            var dispRight = right.Subscribe(
+                changes =>
             {
                 try
                 {
@@ -284,26 +366,37 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Add:
                                 rightItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Update:
                                 rightItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 rightItems.Remove(change.Key);
                                 break;
+
                             case ChangeReason.Refresh:
-                                if (rightItems.ContainsKey(change.Key)) rightItems[change.Key] = change.Current;
+                                if (rightItems.ContainsKey(change.Key))
+                                {
+                                    rightItems[change.Key] = change.Current;
+                                }
+
                                 break;
+
                             case ChangeReason.Moved:
                                 break;
                         }
                     }
+
                     RecomputeAndEmit();
                 }
                 catch (Exception ex)
                 {
                     observer.OnErrorResume(ex);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
 
             return Disposable.Combine(dispLeft, dispRight);
         });
@@ -313,6 +406,15 @@ public static partial class ObservableCacheEx
     /// Performs a right outer join between two cache change streams. Emits a result for every right item,
     /// pairing with the left item if present or null if absent.
     /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from optional left and right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the right join results.</returns>
     public static Observable<IChangeSet<TResult, TKey>> RightJoin<TLeft, TRight, TKey, TResult>(
         this Observable<IChangeSet<TLeft, TKey>> left,
         Observable<IChangeSet<TRight, TKey>> right,
@@ -323,9 +425,21 @@ public static partial class ObservableCacheEx
         where TRight : notnull
         where TResult : notnull
     {
-        if (left is null) throw new ArgumentNullException(nameof(left));
-        if (right is null) throw new ArgumentNullException(nameof(right));
-        if (resultSelector is null) throw new ArgumentNullException(nameof(resultSelector));
+        if (left is null)
+        {
+            throw new ArgumentNullException(nameof(left));
+        }
+
+        if (right is null)
+        {
+            throw new ArgumentNullException(nameof(right));
+        }
+
+        if (resultSelector is null)
+        {
+            throw new ArgumentNullException(nameof(resultSelector));
+        }
+
         var cmp = resultComparer ?? EqualityComparer<TResult>.Default;
 
         return Observable.Create<IChangeSet<TResult, TKey>>(observer =>
@@ -352,6 +466,7 @@ public static partial class ObservableCacheEx
                         changes.Add(new Change<TResult, TKey>(ChangeReason.Remove, existing.Key, existing.Value, existing.Value));
                     }
                 }
+
                 foreach (var kvp in newResults)
                 {
                     if (!currentResults.TryGetValue(kvp.Key, out var prev))
@@ -374,18 +489,21 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Update:
                                 currentResults[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 currentResults.Remove(change.Key);
                                 break;
                         }
                     }
+
                     var outSet = new ChangeSet<TResult, TKey>();
                     outSet.AddRange(changes);
                     observer.OnNext(outSet);
                 }
             }
 
-            var dispLeft = left.Subscribe(changes =>
+            var dispLeft = left.Subscribe(
+                changes =>
             {
                 try
                 {
@@ -396,28 +514,40 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Add:
                                 leftItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Update:
                                 leftItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 leftItems.Remove(change.Key);
                                 break;
+
                             case ChangeReason.Refresh:
-                                if (leftItems.ContainsKey(change.Key)) leftItems[change.Key] = change.Current;
+                                if (leftItems.ContainsKey(change.Key))
+                                {
+                                    leftItems[change.Key] = change.Current;
+                                }
+
                                 break;
+
                             case ChangeReason.Moved:
                                 break;
                         }
                     }
+
                     RecomputeAndEmit();
                 }
                 catch (Exception ex)
                 {
                     observer.OnErrorResume(ex);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
 
-            var dispRight = right.Subscribe(changes =>
+            var dispRight = right.Subscribe(
+                changes =>
             {
                 try
                 {
@@ -428,26 +558,37 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Add:
                                 rightItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Update:
                                 rightItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 rightItems.Remove(change.Key);
                                 break;
+
                             case ChangeReason.Refresh:
-                                if (rightItems.ContainsKey(change.Key)) rightItems[change.Key] = change.Current;
+                                if (rightItems.ContainsKey(change.Key))
+                                {
+                                    rightItems[change.Key] = change.Current;
+                                }
+
                                 break;
+
                             case ChangeReason.Moved:
                                 break;
                         }
                     }
+
                     RecomputeAndEmit();
                 }
                 catch (Exception ex)
                 {
                     observer.OnErrorResume(ex);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
 
             return Disposable.Combine(dispLeft, dispRight);
         });
@@ -457,6 +598,15 @@ public static partial class ObservableCacheEx
     /// Performs a full outer join between two cache change streams. Emits a result for every key present in either cache,
     /// with both sides nullable when absent.
     /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from left and right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the joined results.</returns>
     public static Observable<IChangeSet<TResult, TKey>> FullOuterJoin<TLeft, TRight, TKey, TResult>(
         this Observable<IChangeSet<TLeft, TKey>> left,
         Observable<IChangeSet<TRight, TKey>> right,
@@ -467,9 +617,21 @@ public static partial class ObservableCacheEx
         where TRight : class
         where TResult : notnull
     {
-        if (left is null) throw new ArgumentNullException(nameof(left));
-        if (right is null) throw new ArgumentNullException(nameof(right));
-        if (resultSelector is null) throw new ArgumentNullException(nameof(resultSelector));
+        if (left is null)
+        {
+            throw new ArgumentNullException(nameof(left));
+        }
+
+        if (right is null)
+        {
+            throw new ArgumentNullException(nameof(right));
+        }
+
+        if (resultSelector is null)
+        {
+            throw new ArgumentNullException(nameof(resultSelector));
+        }
+
         var cmp = resultComparer ?? EqualityComparer<TResult>.Default;
 
         return Observable.Create<IChangeSet<TResult, TKey>>(observer =>
@@ -500,6 +662,7 @@ public static partial class ObservableCacheEx
                         changes.Add(new Change<TResult, TKey>(ChangeReason.Remove, existing.Key, existing.Value, existing.Value));
                     }
                 }
+
                 foreach (var kvp in newResults)
                 {
                     if (!currentResults.TryGetValue(kvp.Key, out var prev))
@@ -522,18 +685,21 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Update:
                                 currentResults[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 currentResults.Remove(change.Key);
                                 break;
                         }
                     }
+
                     var outSet = new ChangeSet<TResult, TKey>();
                     outSet.AddRange(changes);
                     observer.OnNext(outSet);
                 }
             }
 
-            var dispLeft = left.Subscribe(changes =>
+            var dispLeft = left.Subscribe(
+                changes =>
             {
                 try
                 {
@@ -544,28 +710,40 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Add:
                                 leftItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Update:
                                 leftItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 leftItems.Remove(change.Key);
                                 break;
+
                             case ChangeReason.Refresh:
-                                if (leftItems.ContainsKey(change.Key)) leftItems[change.Key] = change.Current;
+                                if (leftItems.ContainsKey(change.Key))
+                                {
+                                    leftItems[change.Key] = change.Current;
+                                }
+
                                 break;
+
                             case ChangeReason.Moved:
                                 break;
                         }
                     }
+
                     RecomputeAndEmit();
                 }
                 catch (Exception ex)
                 {
                     observer.OnErrorResume(ex);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
 
-            var dispRight = right.Subscribe(changes =>
+            var dispRight = right.Subscribe(
+                changes =>
             {
                 try
                 {
@@ -576,26 +754,37 @@ public static partial class ObservableCacheEx
                             case ChangeReason.Add:
                                 rightItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Update:
                                 rightItems[change.Key] = change.Current;
                                 break;
+
                             case ChangeReason.Remove:
                                 rightItems.Remove(change.Key);
                                 break;
+
                             case ChangeReason.Refresh:
-                                if (rightItems.ContainsKey(change.Key)) rightItems[change.Key] = change.Current;
+                                if (rightItems.ContainsKey(change.Key))
+                                {
+                                    rightItems[change.Key] = change.Current;
+                                }
+
                                 break;
+
                             case ChangeReason.Moved:
                                 break;
                         }
                     }
+
                     RecomputeAndEmit();
                 }
                 catch (Exception ex)
                 {
                     observer.OnErrorResume(ex);
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
 
             return Disposable.Combine(dispLeft, dispRight);
         });
@@ -605,4 +794,11 @@ public static partial class ObservableCacheEx
 /// <summary>
 /// Placeholder for future Full/Left/Right join result modeling.
 /// </summary>
-public readonly record struct JoinPair<TKey, TLeft, TRight>(TKey Key, TLeft Left, TRight Right) where TKey : notnull;
+/// <typeparam name="TKey">The type of the join key.</typeparam>
+/// <typeparam name="TLeft">The type of objects from the left source.</typeparam>
+/// <typeparam name="TRight">The type of objects from the right source.</typeparam>
+/// <param name="Key">The join key.</param>
+/// <param name="Left">The left object value.</param>
+/// <param name="Right">The right object value.</param>
+public readonly record struct JoinPair<TKey, TLeft, TRight>(TKey Key, TLeft Left, TRight Right)
+    where TKey : notnull;

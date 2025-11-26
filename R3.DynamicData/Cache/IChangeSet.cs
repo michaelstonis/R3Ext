@@ -14,5 +14,7 @@ public interface IChangeSet<TObject, TKey> : IChangeSet, IEnumerable<Change<TObj
     /// <summary>
     /// Gets the change at the specified index.
     /// </summary>
+    /// <param name="index">The zero-based index of the change to get.</param>
+    /// <returns>The change at the specified index.</returns>
     Change<TObject, TKey> this[int index] { get; }
 }

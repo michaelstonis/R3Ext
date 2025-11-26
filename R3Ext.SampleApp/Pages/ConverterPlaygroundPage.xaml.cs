@@ -26,7 +26,7 @@ public partial class ConverterPlaygroundPage : ContentPage
         _vm.BindOneWay(FahrenheitLabel, v => v.TemperatureCelsius, l => l.Text, c => $"{(c * 9.0 / 5.0) + 32:F1} °F")
             .AddTo(ref _bindings);
 
-        _vm.BindOneWay(TemperatureSwatch, v => v.TemperatureCelsius, b => b.Color, ToTemperatureColor)
+        _vm.BindOneWay(TemperatureSwatch, v => v.TemperatureCelsius, b => b.BackgroundColor, ToTemperatureColor)
             .AddTo(ref _bindings);
 
         _vm.WhenChanged(v => v.TemperatureCelsius)

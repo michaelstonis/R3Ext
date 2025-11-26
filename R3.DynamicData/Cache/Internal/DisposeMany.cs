@@ -1,7 +1,4 @@
 // Port of DynamicData to R3.
-
-// Style suppression pragmas for internal operator.
-#pragma warning disable SA1116, SA1513, SA1516, SA1503, SA1127, SA1210
 namespace R3.DynamicData.Cache.Internal;
 
 internal sealed class DisposeMany<TObject, TKey>
@@ -23,9 +20,10 @@ internal sealed class DisposeMany<TObject, TKey>
         return Observable.Create<IChangeSet<TObject, TKey>, DisposeManyState>(
             state,
             static (observer, state) =>
-        {
+            {
             var current = new Dictionary<TKey, TObject>();
-            var disp = state.Source.Subscribe(changes =>
+            var disp = state.Source.Subscribe(
+                changes =>
             {
                 try
                 {
@@ -49,6 +47,7 @@ internal sealed class DisposeMany<TObject, TKey>
                     {
                         DisposeManyState.SafeDispose(item, state.state.DisposeAction);
                     }
+
                     state.current.Clear();
                 }));
         });
@@ -74,21 +73,27 @@ internal sealed class DisposeMany<TObject, TKey>
                     case Kernel.ChangeReason.Add:
                         current[change.Key] = change.Current;
                         break;
+
                     case Kernel.ChangeReason.Update:
                         if (current.TryGetValue(change.Key, out var old))
                         {
                             SafeDispose(old, DisposeAction);
                         }
+
                         current[change.Key] = change.Current;
                         break;
+
                     case Kernel.ChangeReason.Remove:
                         if (current.TryGetValue(change.Key, out var removed))
                         {
                             SafeDispose(removed, DisposeAction);
                             current.Remove(change.Key);
                         }
+
                         break;
+
                     case Kernel.ChangeReason.Refresh:
+
                         // No disposal; item unchanged.
                         break;
                 }
@@ -104,6 +109,7 @@ internal sealed class DisposeMany<TObject, TKey>
                     disposeAction(item);
                     return;
                 }
+
                 if (item is IDisposable d)
                 {
                     d.Dispose();

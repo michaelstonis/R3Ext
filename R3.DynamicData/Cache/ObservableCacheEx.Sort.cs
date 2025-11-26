@@ -2,10 +2,12 @@
 
 using R3.DynamicData.Kernel;
 using R3.DynamicData.List;
-using R3.DynamicData.List.Internal;
 
 namespace R3.DynamicData.Cache;
 
+/// <summary>
+/// Extension methods for observable cache change sets.
+/// </summary>
 public static partial class ObservableCacheEx
 {
     /// <summary>

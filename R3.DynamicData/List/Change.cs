@@ -15,6 +15,9 @@ public readonly struct Change<T> : IEquatable<Change<T>>
     /// <summary>
     /// Initializes a new instance of the <see cref="Change{T}"/> struct.
     /// </summary>
+    /// <param name="reason">The reason for the change.</param>
+    /// <param name="item">The item that changed.</param>
+    /// <param name="index">The index of the item.</param>
     public Change(ListChangeReason reason, T item, int index)
         : this(reason, item, index, -1)
     {
@@ -23,6 +26,10 @@ public readonly struct Change<T> : IEquatable<Change<T>>
     /// <summary>
     /// Initializes a new instance of the <see cref="Change{T}"/> struct for a move.
     /// </summary>
+    /// <param name="reason">The reason for the change.</param>
+    /// <param name="item">The item that was moved.</param>
+    /// <param name="currentIndex">The current index of the item.</param>
+    /// <param name="previousIndex">The previous index of the item.</param>
     public Change(ListChangeReason reason, T item, int currentIndex, int previousIndex)
     {
         Reason = reason;
@@ -36,6 +43,9 @@ public readonly struct Change<T> : IEquatable<Change<T>>
     /// <summary>
     /// Initializes a new instance of the <see cref="Change{T}"/> struct for a range operation.
     /// </summary>
+    /// <param name="reason">The reason for the change (must be AddRange, RemoveRange, or Clear).</param>
+    /// <param name="items">The items in the range.</param>
+    /// <param name="index">The starting index of the range operation.</param>
     public Change(ListChangeReason reason, IEnumerable<T> items, int index)
     {
         if (reason != ListChangeReason.AddRange && reason != ListChangeReason.RemoveRange && reason != ListChangeReason.Clear)
@@ -54,6 +64,10 @@ public readonly struct Change<T> : IEquatable<Change<T>>
     /// <summary>
     /// Initializes a new instance of the <see cref="Change{T}"/> struct for a replace operation.
     /// </summary>
+    /// <param name="reason">The reason for the change (must be Replace).</param>
+    /// <param name="item">The new item.</param>
+    /// <param name="previousItem">The item being replaced.</param>
+    /// <param name="index">The index of the replaced item.</param>
     public Change(ListChangeReason reason, T item, T? previousItem, int index)
     {
         if (reason != ListChangeReason.Replace)
@@ -72,6 +86,7 @@ public readonly struct Change<T> : IEquatable<Change<T>>
     /// <summary>
     /// Initializes a new instance of the <see cref="Change{T}"/> struct for a refresh operation.
     /// </summary>
+    /// <param name="reason">The reason for the change (must be Refresh).</param>
     public Change(ListChangeReason reason)
     {
         if (reason != ListChangeReason.Refresh)
@@ -127,10 +142,27 @@ public readonly struct Change<T> : IEquatable<Change<T>>
     /// </summary>
     public IReadOnlyList<T> Range => _range ?? Array.Empty<T>();
 
+    /// <summary>
+    /// Determines whether two <see cref="Change{T}"/> instances are equal.
+    /// </summary>
+    /// <param name="left">The first instance to compare.</param>
+    /// <param name="right">The second instance to compare.</param>
+    /// <returns>True if the instances are equal; otherwise, false.</returns>
     public static bool operator ==(Change<T> left, Change<T> right) => left.Equals(right);
 
+    /// <summary>
+    /// Determines whether two <see cref="Change{T}"/> instances are not equal.
+    /// </summary>
+    /// <param name="left">The first instance to compare.</param>
+    /// <param name="right">The second instance to compare.</param>
+    /// <returns>True if the instances are not equal; otherwise, false.</returns>
     public static bool operator !=(Change<T> left, Change<T> right) => !left.Equals(right);
 
+    /// <summary>
+    /// Determines whether the current change is equal to another change.
+    /// </summary>
+    /// <param name="other">The change to compare with.</param>
+    /// <returns>True if the changes are equal; otherwise, false.</returns>
     public bool Equals(Change<T> other)
     {
         if (Reason != other.Reason || CurrentIndex != other.CurrentIndex || PreviousIndex != other.PreviousIndex)
@@ -173,8 +205,17 @@ public readonly struct Change<T> : IEquatable<Change<T>>
         return true;
     }
 
+    /// <summary>
+    /// Determines whether the specified object is equal to the current change.
+    /// </summary>
+    /// <param name="obj">The object to compare with the current change.</param>
+    /// <returns>True if the specified object is equal to the current change; otherwise, false.</returns>
     public override bool Equals(object? obj) => obj is Change<T> change && Equals(change);
 
+    /// <summary>
+    /// Returns the hash code for this instance.
+    /// </summary>
+    /// <returns>A hash code for the current change.</returns>
     public override int GetHashCode()
     {
 #if NETSTANDARD2_0
@@ -204,6 +245,10 @@ public readonly struct Change<T> : IEquatable<Change<T>>
 #endif
     }
 
+    /// <summary>
+    /// Returns a string representation of the change.
+    /// </summary>
+    /// <returns>A string describing the change.</returns>
     public override string ToString() =>
         Reason == ListChangeReason.Moved
             ? $"{Reason} {Item} from index {PreviousIndex} to {CurrentIndex}"

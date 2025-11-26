@@ -1,7 +1,4 @@
 // Port of DynamicData to R3.
-
-// Style suppression pragmas for internal operator.
-#pragma warning disable SA1116, SA1513, SA1516, SA1503, SA1127, SA1210
 namespace R3.DynamicData.Cache.Internal;
 
 internal sealed class FilterOnObservable<TObject, TKey, TBool>
@@ -17,7 +14,8 @@ internal sealed class FilterOnObservable<TObject, TKey, TBool>
         public bool Included;
     }
 
-    public FilterOnObservable(Observable<IChangeSet<TObject, TKey>> source,
+    public FilterOnObservable(
+        Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, Observable<TBool>> observableSelector,
         IEqualityComparer<TObject>? comparer = null)
     {
@@ -58,51 +56,62 @@ internal sealed class FilterOnObservable<TObject, TKey, TBool>
                 }
             }
 
-            _source.Subscribe(changes =>
-            {
-                foreach (var change in changes)
+            _source.Subscribe(
+                changes =>
                 {
-                    switch (change.Reason)
+                    foreach (var change in changes)
                     {
-                        case Kernel.ChangeReason.Add:
-                            // establish subscription
-                            var observable = _observableSelector(change.Current);
-                            subscriptions[change.Key] = observable.Subscribe(val => EvaluateEmission(change.Key, Convert.ToBoolean(val), change.Current));
-                            break;
-                        case Kernel.ChangeReason.Update:
-                            // replace subscription
-                            if (subscriptions.TryGetValue(change.Key, out var old))
-                            {
-                                old.Dispose();
-                            }
-                            var obs = _observableSelector(change.Current);
-                            subscriptions[change.Key] = obs.Subscribe(val => EvaluateEmission(change.Key, Convert.ToBoolean(val), change.Current));
-                            if (slots.TryGetValue(change.Key, out var slot))
-                            {
-                                slot.Item = change.Current;
-                            }
-                            break;
-                        case Kernel.ChangeReason.Remove:
-                            if (subscriptions.TryGetValue(change.Key, out var sub))
-                            {
-                                sub.Dispose();
-                                subscriptions.Remove(change.Key);
-                            }
-                            if (slots.TryGetValue(change.Key, out var s) && s.Included)
-                            {
-                                var cs = new ChangeSet<TObject, TKey>();
-                                cs.Add(new Change<TObject, TKey>(Kernel.ChangeReason.Remove, change.Key, change.Current, change.Current));
-                                observer.OnNext(cs);
-                            }
-                            slots.Remove(change.Key);
-                            break;
-                        case Kernel.ChangeReason.Refresh:
-                            // no structural change; keep existing inclusion state
-                            break;
+                        switch (change.Reason)
+                        {
+                            case Kernel.ChangeReason.Add:
+
+                                // establish subscription
+                                var observable = _observableSelector(change.Current);
+                                subscriptions[change.Key] = observable.Subscribe(val => EvaluateEmission(change.Key, Convert.ToBoolean(val), change.Current));
+                                break;
+                            case Kernel.ChangeReason.Update:
+
+                                // replace subscription
+                                if (subscriptions.TryGetValue(change.Key, out var old))
+                                {
+                                    old.Dispose();
+                                }
+
+                                var obs = _observableSelector(change.Current);
+                                subscriptions[change.Key] = obs.Subscribe(val => EvaluateEmission(change.Key, Convert.ToBoolean(val), change.Current));
+                                if (slots.TryGetValue(change.Key, out var slot))
+                                {
+                                    slot.Item = change.Current;
+                                }
+
+                                break;
+                            case Kernel.ChangeReason.Remove:
+                                if (subscriptions.TryGetValue(change.Key, out var sub))
+                                {
+                                    sub.Dispose();
+                                    subscriptions.Remove(change.Key);
+                                }
+
+                                if (slots.TryGetValue(change.Key, out var s) && s.Included)
+                                {
+                                    var cs = new ChangeSet<TObject, TKey>();
+                                    cs.Add(new Change<TObject, TKey>(Kernel.ChangeReason.Remove, change.Key, change.Current, change.Current));
+                                    observer.OnNext(cs);
+                                }
+
+                                slots.Remove(change.Key);
+                                break;
+                            case Kernel.ChangeReason.Refresh:
+
+                                // no structural change; keep existing inclusion state
+                                break;
+                        }
                     }
-                }
-                observer.OnNext(changes); // propagate original changes downstream
-            }, observer.OnErrorResume, observer.OnCompleted).AddTo(disp);
+
+                    observer.OnNext(changes); // propagate original changes downstream
+                },
+                observer.OnErrorResume,
+                observer.OnCompleted).AddTo(disp);
 
             return Disposable.Create(() =>
             {
@@ -110,6 +119,7 @@ internal sealed class FilterOnObservable<TObject, TKey, TBool>
                 {
                     sub.Dispose();
                 }
+
                 subscriptions.Clear();
                 disp.Dispose();
             });

@@ -30,7 +30,4 @@
             <_Parameter1>R3Ext.Tests</_Parameter1>
         </AssemblyAttribute>
     </ItemGroup>
-    <ItemGroup>
-        <Compile Remove="ReactivePortedExtensions.cs" />
-    </ItemGroup>
 </Project>

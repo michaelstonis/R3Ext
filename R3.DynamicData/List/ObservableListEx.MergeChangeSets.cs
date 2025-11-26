@@ -4,6 +4,9 @@ using System.Linq;
 
 namespace R3.DynamicData.List;
 
+/// <summary>
+/// Extension methods for observable list change sets.
+/// </summary>
 public static partial class ObservableListEx
 {
     /// <summary>
@@ -11,6 +14,9 @@ public static partial class ObservableListEx
     /// Emits Add when an item first appears in any source. Emits Remove only when the item
     /// is absent from all sources. Order of the resulting list is the order of first appearance.
     /// </summary>
+    /// <typeparam name="T">The type of items in the change sets.</typeparam>
+    /// <param name="sources">The source observables to merge.</param>
+    /// <returns>An observable that emits the merged change sets.</returns>
     public static Observable<IChangeSet<T>> MergeChangeSets<T>(params Observable<IChangeSet<T>>[] sources)
         where T : notnull
     {

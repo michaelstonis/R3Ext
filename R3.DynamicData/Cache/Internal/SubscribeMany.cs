@@ -1,7 +1,4 @@
 // Port of DynamicData to R3.
-
-// Style suppression pragmas for internal operator.
-#pragma warning disable SA1116, SA1513, SA1516, SA1503, SA1127, SA1210
 namespace R3.DynamicData.Cache.Internal;
 
 internal sealed class SubscribeMany<TObject, TKey>
@@ -27,47 +24,57 @@ internal sealed class SubscribeMany<TObject, TKey>
                 var disposables = new CompositeDisposable();
                 var subscriptions = new Dictionary<TKey, IDisposable>();
 
-                state.Source.Subscribe(changes =>
-                {
-                    lock (locker)
+                state.Source.Subscribe(
+                    changes =>
                     {
-                        foreach (var change in changes)
+                        lock (locker)
                         {
-                            switch (change.Reason)
+                            foreach (var change in changes)
                             {
-                                case Kernel.ChangeReason.Add:
-                                    if (!subscriptions.ContainsKey(change.Key))
-                                    {
+                                switch (change.Reason)
+                                {
+                                    case Kernel.ChangeReason.Add:
+                                        if (!subscriptions.ContainsKey(change.Key))
+                                        {
+                                            subscriptions[change.Key] = state.SubscriptionFactory(change.Current);
+                                        }
+
+                                        break;
+                                    case Kernel.ChangeReason.Update:
+
+                                        // Dispose previous subscription (object updated) then create new one.
+                                        if (subscriptions.TryGetValue(change.Key, out var existing))
+                                        {
+                                            existing.Dispose();
+                                        }
+
                                         subscriptions[change.Key] = state.SubscriptionFactory(change.Current);
-                                    }
-                                    break;
-                                case Kernel.ChangeReason.Update:
-                                    // Dispose previous subscription (object updated) then create new one.
-                                    if (subscriptions.TryGetValue(change.Key, out var existing))
-                                    {
-                                        existing.Dispose();
-                                    }
-                                    subscriptions[change.Key] = state.SubscriptionFactory(change.Current);
-                                    break;
-                                case Kernel.ChangeReason.Remove:
-                                    if (subscriptions.TryGetValue(change.Key, out var sub))
-                                    {
-                                        sub.Dispose();
-                                        subscriptions.Remove(change.Key);
-                                    }
-                                    break;
-                                case Kernel.ChangeReason.Refresh:
-                                    // Refresh keeps same object; ensure subscription exists but do not recreate.
-                                    if (!subscriptions.ContainsKey(change.Key))
-                                    {
-                                        subscriptions[change.Key] = state.SubscriptionFactory(change.Current);
-                                    }
-                                    break;
+                                        break;
+                                    case Kernel.ChangeReason.Remove:
+                                        if (subscriptions.TryGetValue(change.Key, out var sub))
+                                        {
+                                            sub.Dispose();
+                                            subscriptions.Remove(change.Key);
+                                        }
+
+                                        break;
+                                    case Kernel.ChangeReason.Refresh:
+
+                                        // Refresh keeps same object; ensure subscription exists but do not recreate.
+                                        if (!subscriptions.ContainsKey(change.Key))
+                                        {
+                                            subscriptions[change.Key] = state.SubscriptionFactory(change.Current);
+                                        }
+
+                                        break;
+                                }
                             }
+
+                            observer.OnNext(changes);
                         }
-                        observer.OnNext(changes);
-                    }
-                }, observer.OnErrorResume, observer.OnCompleted).AddTo(disposables);
+                    },
+                    observer.OnErrorResume,
+                    observer.OnCompleted).AddTo(disposables);
 
                 return Disposable.Create(() =>
                 {
@@ -78,6 +85,7 @@ internal sealed class SubscribeMany<TObject, TKey>
                         {
                             sub.Dispose();
                         }
+
                         subscriptions.Clear();
                     }
                 });

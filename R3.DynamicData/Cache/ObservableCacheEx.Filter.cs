@@ -1,28 +1,37 @@
 // Static predicate Filter operator for cache change sets.
-#pragma warning disable SA1503
-#pragma warning disable SA1513
-#pragma warning disable SA1515
-#pragma warning disable SA1116
-#pragma warning disable SA1107
-
 using R3.DynamicData.Kernel;
 
 namespace R3.DynamicData.Cache;
 
+/// <summary>
+/// Extension methods for cache filtering operations.
+/// </summary>
 public static partial class ObservableCacheEx
 {
     /// <summary>
     /// Filters a cache changeset by a predicate. Emits Add/Update/Remove/Refresh for items that satisfy the predicate.
     /// </summary>
-    // Renamed to avoid ambiguity with R3.DynamicData.Operators.FilterOperator.Filter
+    /// <typeparam name="TObject">The type of the objects in the cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable cache.</param>
+    /// <param name="predicate">The predicate to filter items.</param>
+    /// <returns>An observable that emits filtered change sets.</returns>
+    /// <remarks>Renamed to avoid ambiguity with R3.DynamicData.Operators.FilterOperator.Filter.</remarks>
     public static Observable<IChangeSet<TObject, TKey>> FilterCacheInternal<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         Func<TObject, bool> predicate)
         where TKey : notnull
         where TObject : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (predicate is null)
+        {
+            throw new ArgumentNullException(nameof(predicate));
+        }
 
         var state = new FilterCacheState<TObject, TKey>(source, predicate);
         return Observable.Create<IChangeSet<TObject, TKey>, FilterCacheState<TObject, TKey>>(
@@ -31,7 +40,8 @@ public static partial class ObservableCacheEx
             {
                 var included = new HashSet<TKey>();
 
-                return state.Source.Subscribe(changes =>
+                return state.Source.Subscribe(
+                    changes =>
                 {
                     try
                     {
@@ -48,8 +58,10 @@ public static partial class ObservableCacheEx
                                             included.Add(change.Key);
                                             outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, change.Key, change.Current));
                                         }
+
                                         break;
                                     }
+
                                 case ChangeReason.Update:
                                     {
                                         var wasIncluded = included.Contains(change.Key);
@@ -69,17 +81,21 @@ public static partial class ObservableCacheEx
                                             included.Add(change.Key);
                                             outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, change.Key, change.Current));
                                         }
+
                                         // else both false: ignore
                                         break;
                                     }
+
                                 case ChangeReason.Remove:
                                     {
                                         if (included.Remove(change.Key))
                                         {
                                             outSet.Add(new Change<TObject, TKey>(ChangeReason.Remove, change.Key, change.Current, change.Current));
                                         }
+
                                         break;
                                     }
+
                                 case ChangeReason.Refresh:
                                     {
                                         var wasIncluded = included.Contains(change.Key);
@@ -96,10 +112,12 @@ public static partial class ObservableCacheEx
                                         else if (!wasIncluded && nowIncluded)
                                         {
                                             included.Add(change.Key);
-                                            outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, change.Key, change.Current));
+                                            outSet.Add(new Change<TObject, TKey>(ChangeReason.Refresh, change.Key, change.Current, change.Current));
                                         }
+
                                         break;
                                     }
+
                                 case ChangeReason.Moved:
                                     break;
                             }
@@ -114,7 +132,9 @@ public static partial class ObservableCacheEx
                     {
                         observer.OnErrorResume(ex);
                     }
-                }, observer.OnErrorResume, observer.OnCompleted);
+                },
+                    observer.OnErrorResume,
+                    observer.OnCompleted);
             });
     }
 

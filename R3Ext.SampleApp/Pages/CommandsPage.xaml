@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="R3Ext.SampleApp.CommandsPage"
+             Title="Reactive Commands">
+    <Grid RowDefinitions="Auto,*">
+        <!-- Header -->
+        <VerticalStackLayout Grid.Row="0"
+                             Padding="20"
+                             BackgroundColor="{AppThemeBinding Light={StaticResource SurfaceColor}, Dark={StaticResource SurfaceDark}}">
+            <Label Text="Reactive Commands"
+                   Style="{StaticResource PageTitleStyle}" />
+            <Label Text="RxCommand with execution tracking, error handling, and composition"
+                   Style="{StaticResource PageSubtitleStyle}"
+                   Margin="0,0,0,0" />
+        </VerticalStackLayout>
+        <!-- Content -->
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="20"
+                                 Spacing="16">
+                <!-- Simple Sync Command -->
+                <Frame Style="{StaticResource CardFrameStyle}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Simple Synchronous Command"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0" />
+                        <Label Text="Basic command that increments a counter"
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label x:Name="CounterLabel"
+                               Text="Count: 0"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               HorizontalOptions="Center"
+                               Margin="0,8" />
+                        <Button x:Name="IncrementButton"
+                                Text="Increment Counter"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Clicked="OnIncrementClicked" />
+                    </VerticalStackLayout>
+                </Frame>
+                <!-- Async Command -->
+                <Frame Style="{StaticResource CardFrameStyle}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Asynchronous Command"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0" />
+                        <Label Text="Async operation with cancellation support and execution tracking"
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label x:Name="LoadStatusLabel"
+                               Text="Not started"
+                               FontSize="14"
+                               HorizontalOptions="Center" />
+                        <ActivityIndicator x:Name="LoadingIndicator"
+                                           IsVisible="False"
+                                           IsRunning="False"
+                                           HorizontalOptions="Center"
+                                           Margin="0,8" />
+                        <HorizontalStackLayout Spacing="8"
+                                               HorizontalOptions="Center">
+                            <Button x:Name="LoadDataButton"
+                                    Text="Load Data (3s)"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Clicked="OnLoadDataClicked" />
+                            <Button x:Name="CancelButton"
+                                    Text="Cancel"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    IsEnabled="False"
+                                    Clicked="OnCancelClicked" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Frame>
+                <!-- Parameterized Command -->
+                <Frame Style="{StaticResource CardFrameStyle}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Parameterized Command"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0" />
+                        <Label Text="Command that accepts parameters and has CanExecute gating"
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Frame Style="{StaticResource InputFrameStyle}">
+                            <Entry x:Name="MessageEntry"
+                                   Placeholder="Enter a message..."
+                                   TextChanged="OnMessageTextChanged" />
+                        </Frame>
+                        <Label x:Name="EchoLabel"
+                               Text="Echo will appear here"
+                               FontSize="14"
+                               FontAttributes="Italic"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"
+                               HorizontalOptions="Center" />
+                        <Button x:Name="EchoButton"
+                                Text="Echo Message"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                IsEnabled="False"
+                                Clicked="OnEchoClicked" />
+                    </VerticalStackLayout>
+                </Frame>
+                <!-- Error Handling -->
+                <Frame Style="{StaticResource CardFrameStyle}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Error Handling"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0" />
+                        <Label Text="Command with ThrownExceptions observable for error capture"
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label x:Name="ErrorLabel"
+                               Text="No errors"
+                               Style="{StaticResource SuccessTextStyle}"
+                               HorizontalOptions="Center" />
+                        <Button x:Name="ThrowErrorButton"
+                                Text="Trigger Error"
+                                Style="{StaticResource DangerButtonStyle}"
+                                Clicked="OnThrowErrorClicked" />
+                        <Button x:Name="ClearErrorButton"
+                                Text="Clear Error"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Clicked="OnClearErrorClicked" />
+                    </VerticalStackLayout>
+                </Frame>
+                <!-- Command Composition -->
+                <Frame Style="{StaticResource CardFrameStyle}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Command Composition"
+                               Style="{StaticResource SectionTitleStyle}"
+                               Margin="0" />
+                        <Label Text="Combine multiple commands into one"
+                               Style="{StaticResource BodyTextStyle}" />
+                        <Label x:Name="CompositionLabel"
+                               Text="Ready"
+                               FontSize="14"
+                               HorizontalOptions="Center" />
+                        <Button x:Name="SaveAllButton"
+                                Text="Save All (Combined)"
+                                Style="{StaticResource SuccessButtonStyle}"
+                                Clicked="OnSaveAllClicked" />
+                    </VerticalStackLayout>
+                </Frame>
+                <!-- Execution Log -->
+                <Frame Style="{StaticResource CardFrameStyle}">
+                    <VerticalStackLayout Spacing="12">
+                        <HorizontalStackLayout HorizontalOptions="FillAndExpand">
+                            <Label Text="Execution Log"
+                                   Style="{StaticResource SectionTitleStyle}"
+                                   Margin="0"
+                                   HorizontalOptions="StartAndExpand" />
+                            <Button Text="Clear"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    FontSize="12"
+                                    Padding="8,4"
+                                    Clicked="OnClearLogClicked" />
+                        </HorizontalStackLayout>
+                        <CollectionView x:Name="LogCollectionView"
+                                        HeightRequest="200">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Label Text="{Binding .}"
+                                           Style="{StaticResource MonospaceStyle}"
+                                           Padding="4,2" />
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Frame>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>
