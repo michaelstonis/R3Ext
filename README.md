@@ -4,20 +4,13 @@
 
 # R3Ext
 
-**Production-Ready Reactive Extensions for Modern .NET**
+**Source‑Generated High-Performance Reactive MVVM & Dynamic Data for .NET**
 
-[![NuGet](https://img.shields.io/nuget/v/R3Ext.svg)](https://www.nuget.org/packages/R3Ext/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com/download)
+[![NuGet](https://img.shields.io/nuget/v/R3Ext.svg)](https://www.nuget.org/packages/R3Ext/) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![.NET](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com/download)
 
-_Enterprise-grade reactive programming with ReactiveUI patterns, DynamicData collections, and compile-time safe bindings_
+_Compile-time bindings, AOT-friendly change sets, and zero-reflection reactive state_
 
-[Features](#features) •
-[Installation](#installation) •
-[Quick Start](#quick-start) •
-[Documentation](#documentation) •
-[Examples](#examples) •
-[Contributing](#contributing)
+[Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Examples](#examples) • [Contributing](#contributing)
 
 </div>
 
@@ -25,17 +18,22 @@ _Enterprise-grade reactive programming with ReactiveUI patterns, DynamicData col
 
 ## Overview
 
-R3Ext is a production-ready reactive programming library built on [R3](https://github.com/Cysharp/R3), combining the best of ReactiveUI, DynamicData, and System.Reactive into a modern, high-performance package. With source-generated bindings, reactive collections, and comprehensive operators, R3Ext makes building reactive applications fast, type-safe, and maintainable.
+R3Ext is a reactive programming library built on [R3](https://github.com/Cysharp/R3), combining the best of ReactiveUI, DynamicData, and System.Reactive into a modern, high-performance package. With source-generated bindings, reactive collections, and comprehensive operators, R3Ext makes building reactive applications fast, type-safe, AOT-ready, and maintainable.
 
-### Why Choose R3Ext?
+### Why R3Ext (Performance, AOT, Source-Gen)
 
--   **🚀 High Performance**: Built on R3's zero-allocation foundation with optimized hot paths
--   **🔧 Source Generators**: Compile-time binding generation eliminates runtime reflection
--   **📊 Reactive Collections**: Full DynamicData port for observable collections with caching, filtering, and transformations
--   **📱 MAUI First-Class**: Seamless .NET MAUI integration with automatic UI thread marshaling
--   **🎯 Battle-Tested Patterns**: ReactiveUI-compatible APIs proven in production applications
--   **⚡ Native AOT Ready**: Full trimming and AOT compatibility for minimal deployment sizes
--   **🔍 Type Safety**: Compile-time verification of property paths and binding expressions
+R3Ext unifies reactive MVVM, dynamic collections, and operator libraries with a focus on speed, AOT-compatibility, and developer ergonomics:
+
+- **🚀 High Performance**: Built on R3’s zero-allocation foundation; optimized hot paths and minimal JIT surfaces.
+- **🔧 Source-Generated Bindings**: Pure compile-time generation for `WhenChanged`, `WhenObserved`, and binding APIs—no runtime expression parsing or reflection.
+- **⚡ Native AOT & Trimming**: No hidden reflection or dynamic codegen; explicit property chains in generated code ensure safe trimming and AOT-ready binaries.
+- **📉 Low Allocation Profile**: Binding subscriptions and change set operators minimize transient allocations and closures.
+- **🔁 Incremental Change Processing**: DynamicData port optimized for diff-based updates (filter, transform, group, sort) avoiding full recomputation.
+- **🧪 Build-Time Validation**: Invalid property paths fail at build instead of throwing at runtime.
+- **📊 Reactive Collections**: Full DynamicData port—observable caches/lists with rich operators for shaping live data.
+- **📱 MAUI First-Class**: Automatic UI thread marshaling and MAUI-aware scheduling for responsive apps.
+- **🎯 Proven Patterns**: ReactiveUI-compatible APIs (commands, interactions) widely adopted in production.
+- **🔍 Strongly Typed**: Compile-time verification of property paths and binding expressions; null-propagation support.
 
 ---
 
@@ -137,15 +135,15 @@ cache.Connect()
 
 **Operators:**
 
-| Category | Operators |
-|----------|-----------|
-| **Filtering** | `Filter`, `FilterOnObservable`, `AutoRefresh` |
-| **Transformation** | `Transform`, `TransformMany`, `TransformAsync` |
-| **Sorting** | `Sort`, `SortAsync` |
-| **Grouping** | `Group`, `GroupWithImmutableState`, `GroupOn` |
-| **Aggregation** | `Count`, `Sum`, `Avg`, `Min`, `Max` |
-| **Change Tracking** | `DistinctValues`, `MergeChangeSet`, `Clone` |
-| **Binding** | `Bind`, `ObserveOn`, `SubscribeMany` |
+| Category            | Operators                                      |
+| ------------------- | ---------------------------------------------- |
+| **Filtering**       | `Filter`, `FilterOnObservable`, `AutoRefresh`  |
+| **Transformation**  | `Transform`, `TransformMany`, `TransformAsync` |
+| **Sorting**         | `Sort`, `SortAsync`                            |
+| **Grouping**        | `Group`, `GroupWithImmutableState`, `GroupOn`  |
+| **Aggregation**     | `Count`, `Sum`, `Avg`, `Min`, `Max`            |
+| **Change Tracking** | `DistinctValues`, `MergeChangeSet`, `Clone`    |
+| **Binding**         | `Bind`, `ObserveOn`, `SubscribeMany`           |
 
 **Performance Features:**
 
@@ -500,8 +498,8 @@ public class ShoppingCartViewModel : RxObject
         // Observable collection with filtering and transformation
         _productsCache.Connect()
             .Filter(this.WhenChanged(x => x.SearchText.Value)
-                .Select(search => new Func<Product, bool>(p => 
-                    string.IsNullOrEmpty(search) || 
+                .Select(search => new Func<Product, bool>(p =>
+                    string.IsNullOrEmpty(search) ||
                     p.Name.Contains(search, StringComparison.OrdinalIgnoreCase))))
             .Transform(p => new ProductViewModel(p))
             .Bind(out _items)
@@ -609,16 +607,19 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 R3Ext is built on the shoulders of giants, bringing together proven patterns from the reactive programming ecosystem:
 
 -   **[R3](https://github.com/Cysharp/R3)** by Yoshifumi Kawai (neuecc) and Cysharp
+
     -   High-performance reactive foundation with zero-allocation design
     -   Core observable primitives and scheduling infrastructure
     -   Native AOT and trimming support
 
 -   **[ReactiveUI](https://github.com/reactiveui/ReactiveUI)** by the ReactiveUI team
+
     -   `RxCommand` pattern for reactive commands
     -   `Interaction` workflow for view-viewmodel communication
     -   MVVM binding concepts and `WhenChanged` operator inspiration
 
 -   **[DynamicData](https://github.com/reactivemarbles/DynamicData)** by Roland Pheasant and ReactiveMarbles
+
     -   Complete port of observable collections to R3
     -   Cache and list operators for reactive collections
     -   Change set optimization and transformation pipelines
@@ -627,7 +628,7 @@ R3Ext is built on the shoulders of giants, bringing together proven patterns fro
     -   Extension operator implementations
     -   Advanced observable composition patterns
 
-R3Ext combines these battle-tested patterns with modern .NET features (source generators, AOT compilation, unsafe accessor) to deliver a production-ready reactive programming experience.
+R3Ext combines these common reactive patterns with modern .NET features (source generators, AOT compilation, unsafe accessor) to deliver a reactive programming experience.
 
 ---
 
