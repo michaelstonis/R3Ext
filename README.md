@@ -24,16 +24,16 @@ R3Ext is a reactive programming library built on [R3](https://github.com/Cysharp
 
 R3Ext unifies reactive MVVM, dynamic collections, and operator libraries with a focus on speed, AOT-compatibility, and developer ergonomics:
 
-- **🚀 High Performance**: Built on R3’s zero-allocation foundation; optimized hot paths and minimal JIT surfaces.
-- **🔧 Source-Generated Bindings**: Pure compile-time generation for `WhenChanged`, `WhenObserved`, and binding APIs—no runtime expression parsing or reflection.
-- **⚡ Native AOT & Trimming**: No hidden reflection or dynamic codegen; explicit property chains in generated code ensure safe trimming and AOT-ready binaries.
-- **📉 Low Allocation Profile**: Binding subscriptions and change set operators minimize transient allocations and closures.
-- **🔁 Incremental Change Processing**: DynamicData port optimized for diff-based updates (filter, transform, group, sort) avoiding full recomputation.
-- **🧪 Build-Time Validation**: Invalid property paths fail at build instead of throwing at runtime.
-- **📊 Reactive Collections**: Full DynamicData port—observable caches/lists with rich operators for shaping live data.
-- **📱 MAUI First-Class**: Automatic UI thread marshaling and MAUI-aware scheduling for responsive apps.
-- **🎯 Proven Patterns**: ReactiveUI-compatible APIs (commands, interactions) widely adopted in production.
-- **🔍 Strongly Typed**: Compile-time verification of property paths and binding expressions; null-propagation support.
+-   **🚀 High Performance**: Built on R3’s zero-allocation foundation; optimized hot paths and minimal JIT surfaces.
+-   **🔧 Source-Generated Bindings**: Pure compile-time generation for `WhenChanged`, `WhenObserved`, and binding APIs—no runtime expression parsing or reflection.
+-   **⚡ Native AOT & Trimming**: No hidden reflection or dynamic codegen; explicit property chains in generated code ensure safe trimming and AOT-ready binaries.
+-   **📉 Low Allocation Profile**: Binding subscriptions and change set operators minimize transient allocations and closures.
+-   **🔁 Incremental Change Processing**: DynamicData port optimized for diff-based updates (filter, transform, group, sort) avoiding full recomputation.
+-   **🧪 Build-Time Validation**: Invalid property paths fail at build instead of throwing at runtime.
+-   **📊 Reactive Collections**: Full DynamicData port—observable caches/lists with rich operators for shaping live data.
+-   **📱 MAUI First-Class**: Automatic UI thread marshaling and MAUI-aware scheduling for responsive apps.
+-   **🎯 Proven Patterns**: ReactiveUI-compatible APIs (commands, interactions) widely adopted in production.
+-   **🔍 Strongly Typed**: Compile-time verification of property paths and binding expressions; null-propagation support.
 
 ---
 
@@ -231,6 +231,66 @@ viewModel.ConfirmDelete.RegisterHandler(async interaction =>
     bool result = await DisplayAlert("Confirm", interaction.Input, "Yes", "No");
     interaction.SetOutput(result);
 });
+```
+
+End‑to‑end sample with a command triggering an interaction and a view handler:
+
+```csharp
+// ViewModel: trigger an Interaction from a command
+public class FilesViewModel : RxObject
+{
+    public Interaction<string, bool> ConfirmDelete { get; } = new();
+    public RxCommand<string, Unit> DeleteFileCommand { get; }
+
+    public FilesViewModel()
+    {
+        DeleteFileCommand = RxCommand.CreateFromTask<string>(async (fileName, ct) =>
+        {
+            var ok = await ConfirmDelete.Handle($"Delete '{fileName}'?");
+            if (!ok) return;
+            await DeleteFileAsync(fileName, ct);
+        });
+    }
+
+    private Task DeleteFileAsync(string fileName, CancellationToken ct)
+        => Task.Delay(100, ct); // replace with real delete
+}
+
+// View: register the handler (e.g., MAUI ContentPage)
+public partial class FilesPage : ContentPage
+{
+    readonly FilesViewModel _vm;
+    readonly CompositeDisposable _subscriptions = new();
+
+    public FilesPage()
+    {
+        InitializeComponent();
+        _vm = new FilesViewModel();
+        BindingContext = _vm;
+
+        // Show a modal confirmation and return the result to the interaction
+        _vm.ConfirmDelete.RegisterHandler(async interaction =>
+        {
+            bool result = await DisplayAlert("Confirm", interaction.Input, "Delete", "Cancel");
+            interaction.SetOutput(result);
+        }).AddTo(_subscriptions);
+
+        // Wire a button to the command
+        DeleteButton.Clicked += (_, __) =>
+        {
+            var fileName = SelectedFileName();
+            _vm.DeleteFileCommand.Execute(fileName);
+        };
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        _subscriptions.Dispose(); // unregister handler
+    }
+
+    string SelectedFileName() => "report.pdf"; // sample
+}
 ```
 
 ### 🎨 Signal Utilities
