@@ -1,5 +1,5 @@
 // Port of DynamicData TransformAsync to R3.
-#pragma warning disable SA1516, SA1515, SA1503, SA1513, SA1117, SA1116
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,12 +8,20 @@ using System.Threading.Tasks;
 
 namespace R3.DynamicData.Cache;
 
+/// <summary>Async transformation extension methods for observable caches.</summary>
 public static partial class ObservableCacheEx
 {
     /// <summary>
     /// Asynchronously transforms items in the cache using a task-based selector.
     /// When an item is removed before its transformation completes, the task is cancelled.
     /// </summary>
+    /// <typeparam name="TSource">The type of source objects.</typeparam>
+    /// <typeparam name="TKey">The type of keys.</typeparam>
+    /// <typeparam name="TDestination">The type of destination objects.</typeparam>
+    /// <param name="source">The source observable cache change set.</param>
+    /// <param name="transformFactory">The async transformation function.</param>
+    /// <returns>An observable of change sets with transformed items.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when source or transformFactory is null.</exception>
     public static Observable<IChangeSet<TDestination, TKey>> TransformAsync<TSource, TKey, TDestination>(
         this Observable<IChangeSet<TSource, TKey>> source,
         Func<TSource, Task<TDestination>> transformFactory)
@@ -21,8 +29,16 @@ public static partial class ObservableCacheEx
         where TKey : notnull
         where TDestination : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (transformFactory is null) throw new ArgumentNullException(nameof(transformFactory));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (transformFactory is null)
+        {
+            throw new ArgumentNullException(nameof(transformFactory));
+        }
+
         return TransformAsync(source, (item, _) => transformFactory(item));
     }
 
@@ -30,6 +46,13 @@ public static partial class ObservableCacheEx
     /// Asynchronously transforms items in the cache using a task-based selector with cancellation support.
     /// When an item is removed before its transformation completes, the cancellation token is triggered.
     /// </summary>
+    /// <typeparam name="TSource">The type of source objects.</typeparam>
+    /// <typeparam name="TKey">The type of keys.</typeparam>
+    /// <typeparam name="TDestination">The type of destination objects.</typeparam>
+    /// <param name="source">The source observable cache change set.</param>
+    /// <param name="transformFactory">The async transformation function with cancellation token.</param>
+    /// <returns>An observable of change sets with transformed items.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when source or transformFactory is null.</exception>
     public static Observable<IChangeSet<TDestination, TKey>> TransformAsync<TSource, TKey, TDestination>(
         this Observable<IChangeSet<TSource, TKey>> source,
         Func<TSource, CancellationToken, Task<TDestination>> transformFactory)
@@ -37,8 +60,15 @@ public static partial class ObservableCacheEx
         where TKey : notnull
         where TDestination : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (transformFactory is null) throw new ArgumentNullException(nameof(transformFactory));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (transformFactory is null)
+        {
+            throw new ArgumentNullException(nameof(transformFactory));
+        }
 
         return Observable.Create<IChangeSet<TDestination, TKey>>(observer =>
         {
@@ -46,7 +76,8 @@ public static partial class ObservableCacheEx
             var completed = new Dictionary<TKey, TDestination>();
             var gate = new object();
 
-            return source.Subscribe(changeSet =>
+            return source.Subscribe(
+                changeSet =>
             {
                 foreach (var change in changeSet)
                 {
@@ -77,7 +108,9 @@ public static partial class ObservableCacheEx
                             break;
                     }
                 }
-            }, observer.OnErrorResume, observer.OnCompleted);
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
         });
     }
 
@@ -107,7 +140,8 @@ public static partial class ObservableCacheEx
         var cts = new CancellationTokenSource();
         transformations[key] = new PendingTransformation(cts);
 
-        Task.Run(async () =>
+        Task.Run(
+            async () =>
         {
             try
             {
@@ -155,7 +189,8 @@ public static partial class ObservableCacheEx
                     observer.OnErrorResume(ex);
                 }
             }
-        }, cts.Token);
+        },
+            cts.Token);
     }
 
     private static void HandleRemove<TKey, TDestination>(

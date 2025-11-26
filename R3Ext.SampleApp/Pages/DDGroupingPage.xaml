@@ -4,19 +4,25 @@
              x:Class="R3Ext.SampleApp.DDGroupingPage"
              Title="Grouping">
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="16">
+        <VerticalStackLayout Padding="20"
+                             Spacing="16">
             <Label Text="DynamicData Grouping"
                    Style="{StaticResource Headline}" />
             <Label Text="Demonstrates Group and GroupOn operators with dynamic updates."
                    TextColor="Gray" />
-
             <!-- Input Controls -->
-            <Frame BorderColor="LightBlue" Padding="12">
+            <Frame BorderColor="LightBlue"
+                   Padding="12">
                 <VerticalStackLayout Spacing="8">
-                    <Label Text="Add Products" FontAttributes="Bold" />
-                    <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
-                        <Entry x:Name="ProductNameEntry" Placeholder="Product Name" />
-                        <Picker x:Name="CategoryPicker" Grid.Column="1" Title="Category">
+                    <Label Text="Add Products"
+                           FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,*,Auto"
+                          ColumnSpacing="8">
+                        <Entry x:Name="ProductNameEntry"
+                               Placeholder="Product Name" />
+                        <Picker x:Name="CategoryPicker"
+                                Grid.Column="1"
+                                Title="Category">
                             <Picker.Items>
                                 <x:String>Electronics</x:String>
                                 <x:String>Books</x:String>
@@ -24,37 +30,50 @@
                                 <x:String>Food</x:String>
                             </Picker.Items>
                         </Picker>
-                        <Button Text="Add" Grid.Column="2" Clicked="OnAddProduct" />
+                        <Button Text="Add"
+                                Grid.Column="2"
+                                Clicked="OnAddProduct" />
                     </Grid>
-                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                        <Button Text="Add Sample Products" Clicked="OnAddSampleData" />
-                        <Button Text="Clear" Grid.Column="1" BackgroundColor="DarkRed" Clicked="OnClear" />
+                    <Grid ColumnDefinitions="*,*"
+                          ColumnSpacing="8">
+                        <Button Text="Add Sample Products"
+                                Clicked="OnAddSampleData" />
+                        <Button Text="Clear"
+                                Grid.Column="1"
+                                BackgroundColor="DarkRed"
+                                Clicked="OnClear" />
                     </Grid>
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Grouped Display -->
-            <Label Text="Products Grouped by Category:" FontAttributes="Bold" />
+            <Label Text="Products Grouped by Category:"
+                   FontAttributes="Bold" />
             <CollectionView x:Name="GroupsView">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <VerticalStackLayout Spacing="4" Padding="0,8">
-                            <Frame BackgroundColor="LightGray" Padding="8" Margin="0">
+                        <VerticalStackLayout Spacing="4"
+                                             Padding="0,8">
+                            <Frame BackgroundColor="LightGray"
+                                   Padding="8"
+                                   Margin="0">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <Label Text="{Binding Category}" 
-                                           FontAttributes="Bold" 
+                                    <Label Text="{Binding Category}"
+                                           FontAttributes="Bold"
                                            FontSize="16" />
-                                    <Label Text="{Binding Count, StringFormat='({0} items)'}" 
+                                    <Label Text="{Binding Count, StringFormat='({0} items)'}"
                                            Grid.Column="1"
                                            TextColor="Gray" />
                                 </Grid>
                             </Frame>
-                            <CollectionView ItemsSource="{Binding Items}" Margin="16,0,0,0">
+                            <CollectionView ItemsSource="{Binding Items}"
+                                            Margin="16,0,0,0">
                                 <CollectionView.ItemTemplate>
                                     <DataTemplate>
-                                        <Grid Padding="4" ColumnDefinitions="*,Auto">
-                                            <Label Text="{Binding Name}" VerticalOptions="Center" />
-                                            <Button Text="✕" 
+                                        <Grid Padding="4"
+                                              ColumnDefinitions="*,Auto">
+                                            <Label Text="{Binding Name}"
+                                                   VerticalOptions="Center" />
+                                            <Button Text="✕"
                                                     Grid.Column="1"
                                                     FontSize="12"
                                                     Padding="8,4"

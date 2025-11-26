@@ -1,7 +1,4 @@
 // Port of DynamicData to R3.
-
-// Style suppression pragmas for internal operator.
-#pragma warning disable SA1116, SA1513, SA1516, SA1503, SA1127, SA1210
 using System.ComponentModel;
 
 namespace R3.DynamicData.Cache.Internal;
@@ -14,7 +11,8 @@ internal sealed class AutoRefresh<TObject, TAny>
     private readonly TimeSpan? _buffer;
     private readonly TimeProvider? _timeProvider;
 
-    public AutoRefresh(Observable<IChangeSet<TObject, object>> source,
+    public AutoRefresh(
+        Observable<IChangeSet<TObject, object>> source,
         Func<TObject, Observable<TAny>> reEvaluator,
         TimeSpan? buffer = null,
         TimeProvider? timeProvider = null)
@@ -52,37 +50,45 @@ internal sealed class AutoRefresh<TObject, TAny>
             var disp = new CompositeDisposable();
 
             // Maintain latest dictionary while forwarding original changes.
-            _source.Subscribe(changes =>
-            {
-                foreach (var change in changes)
+            _source.Subscribe(
+                changes =>
                 {
-                    switch (change.Reason)
+                    foreach (var change in changes)
                     {
-                        case Kernel.ChangeReason.Add:
-                        case Kernel.ChangeReason.Update:
-                            latest[change.Key] = change.Current;
-                            break;
-                        case Kernel.ChangeReason.Remove:
-                            latest.Remove(change.Key);
-                            break;
-                        case Kernel.ChangeReason.Refresh:
-                            // no structural update
-                            break;
+                        switch (change.Reason)
+                        {
+                            case Kernel.ChangeReason.Add:
+                            case Kernel.ChangeReason.Update:
+                                latest[change.Key] = change.Current;
+                                break;
+                            case Kernel.ChangeReason.Remove:
+                                latest.Remove(change.Key);
+                                break;
+                            case Kernel.ChangeReason.Refresh:
+
+                                // no structural update
+                                break;
+                        }
                     }
-                }
-                observer.OnNext(changes);
-            }, observer.OnErrorResume, observer.OnCompleted).AddTo(disp);
+
+                    observer.OnNext(changes);
+                },
+                observer.OnErrorResume,
+                observer.OnCompleted).AddTo(disp);
 
             // Emit refresh changes.
-            bufferedRefreshKeys.Subscribe(key =>
-            {
-                if (latest.TryGetValue(key, out var item))
+            bufferedRefreshKeys.Subscribe(
+                key =>
                 {
-                    var cs = new ChangeSet<TObject, object>();
-                    cs.Add(new Change<TObject, object>(Kernel.ChangeReason.Refresh, key, item));
-                    observer.OnNext(cs);
-                }
-            }, observer.OnErrorResume, observer.OnCompleted).AddTo(disp);
+                    if (latest.TryGetValue(key, out var item))
+                    {
+                        var cs = new ChangeSet<TObject, object>();
+                        cs.Add(new Change<TObject, object>(Kernel.ChangeReason.Refresh, key, item));
+                        observer.OnNext(cs);
+                    }
+                },
+                observer.OnErrorResume,
+                observer.OnCompleted).AddTo(disp);
 
             return disp;
         });
@@ -95,6 +101,7 @@ internal sealed class AutoRefresh<TObject, TAny>
             var tp = _timeProvider ?? ObservableSystem.DefaultTimeProvider;
             return source.Debounce(_buffer.Value, tp);
         }
+
         return source;
     }
 }

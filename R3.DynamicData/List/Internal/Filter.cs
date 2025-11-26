@@ -21,43 +21,56 @@ internal sealed class Filter<T>
 
     public Observable<IChangeSet<T>> Run()
     {
-        return Observable.Create<IChangeSet<T>>(observer =>
-        {
-            var slots = new List<Slot>(); // mirrors source ordering
-            var filtered = new ChangeAwareList<T>();
+        return Observable.Create<IChangeSet<T>, FilterState<T>>(
+            new FilterState<T>(_source, _predicate),
+            static (observer, state) =>
+            {
+                var slots = new List<Slot>(); // mirrors source ordering
+                var filtered = new ChangeAwareList<T>();
 
-            var disp = _source.Subscribe(
-                changes =>
-                {
-                    try
+                var disp = state.Source.Subscribe(
+                    (observer, state, slots, filtered),
+                    static (changes, tuple) =>
                     {
-                        Process(slots, filtered, changes);
-                        var output = filtered.CaptureChanges();
-                        if (output.Count > 0)
+                        try
                         {
-                            observer.OnNext(output);
+                            Process(tuple.slots, tuple.filtered, changes, tuple.state.Predicate);
+                            var output = tuple.filtered.CaptureChanges();
+                            if (output.Count > 0)
+                            {
+                                tuple.observer.OnNext(output);
+                            }
                         }
-                    }
-                    catch (Exception ex)
+                        catch (Exception ex)
+                        {
+                            tuple.observer.OnErrorResume(ex);
+                        }
+                    },
+                    static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                    static (result, tuple) =>
                     {
-                        observer.OnErrorResume(ex);
-                    }
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted);
+                        if (result.IsSuccess)
+                        {
+                            tuple.observer.OnCompleted();
+                        }
+                        else
+                        {
+                            tuple.observer.OnCompleted(result);
+                        }
+                    });
 
-            return disp;
-        });
+                return disp;
+            });
     }
 
-    private void Process(List<Slot> slots, ChangeAwareList<T> filtered, IChangeSet<T> changes)
+    private static void Process(List<Slot> slots, ChangeAwareList<T> filtered, IChangeSet<T> changes, Func<T, bool> predicate)
     {
         foreach (var change in changes)
         {
             switch (change.Reason)
             {
                 case ListChangeReason.Add:
-                    HandleAdd(slots, filtered, change.Item, change.CurrentIndex);
+                    HandleAdd(slots, filtered, change.Item, change.CurrentIndex, predicate);
                     break;
 
                 case ListChangeReason.AddRange:
@@ -66,12 +79,12 @@ internal sealed class Filter<T>
                         int idx = change.CurrentIndex;
                         foreach (var item in change.Range)
                         {
-                            HandleAdd(slots, filtered, item, idx++);
+                            HandleAdd(slots, filtered, item, idx++, predicate);
                         }
                     }
                     else
                     {
-                        HandleAdd(slots, filtered, change.Item, change.CurrentIndex);
+                        HandleAdd(slots, filtered, change.Item, change.CurrentIndex, predicate);
                     }
 
                     break;
@@ -96,7 +109,7 @@ internal sealed class Filter<T>
                     break;
 
                 case ListChangeReason.Replace:
-                    HandleReplace(slots, filtered, change.CurrentIndex, change.Item);
+                    HandleReplace(slots, filtered, change.CurrentIndex, change.Item, predicate);
                     break;
 
                 case ListChangeReason.Moved:
@@ -115,7 +128,7 @@ internal sealed class Filter<T>
                     break;
 
                 case ListChangeReason.Refresh:
-                    HandleRefresh(slots, filtered, change.CurrentIndex);
+                    HandleRefresh(slots, filtered, change.CurrentIndex, predicate);
                     break;
             }
         }
@@ -135,9 +148,9 @@ internal sealed class Filter<T>
         return count;
     }
 
-    private void HandleAdd(List<Slot> slots, ChangeAwareList<T> filtered, T item, int sourceIndex)
+    private static void HandleAdd(List<Slot> slots, ChangeAwareList<T> filtered, T item, int sourceIndex, Func<T, bool> predicate)
     {
-        bool passes = _predicate(item);
+        bool passes = predicate(item);
         slots.Insert(sourceIndex, new Slot { Item = item, Passes = passes });
         if (!passes)
         {
@@ -148,7 +161,7 @@ internal sealed class Filter<T>
         filtered.Insert(filteredIndex, item);
     }
 
-    private void HandleRemove(List<Slot> slots, ChangeAwareList<T> filtered, int sourceIndex)
+    private static void HandleRemove(List<Slot> slots, ChangeAwareList<T> filtered, int sourceIndex)
     {
         if (sourceIndex < 0 || sourceIndex >= slots.Count)
         {
@@ -165,7 +178,7 @@ internal sealed class Filter<T>
         slots.RemoveAt(sourceIndex);
     }
 
-    private void HandleReplace(List<Slot> slots, ChangeAwareList<T> filtered, int sourceIndex, T newItem)
+    private static void HandleReplace(List<Slot> slots, ChangeAwareList<T> filtered, int sourceIndex, T newItem, Func<T, bool> predicate)
     {
         if (sourceIndex < 0 || sourceIndex >= slots.Count)
         {
@@ -173,7 +186,7 @@ internal sealed class Filter<T>
         }
 
         var slot = slots[sourceIndex];
-        bool newPass = _predicate(newItem);
+        bool newPass = predicate(newItem);
         if (slot.Passes && newPass)
         {
             // replace in filtered
@@ -206,7 +219,7 @@ internal sealed class Filter<T>
         slot.Item = newItem;
     }
 
-    private void HandleMove(List<Slot> slots, ChangeAwareList<T> filtered, int oldIndex, int newIndex)
+    private static void HandleMove(List<Slot> slots, ChangeAwareList<T> filtered, int oldIndex, int newIndex)
     {
         if (oldIndex == newIndex)
         {
@@ -238,7 +251,7 @@ internal sealed class Filter<T>
         filtered.Move(oldFilteredIndex, newFilteredIndex);
     }
 
-    private void HandleRefresh(List<Slot> slots, ChangeAwareList<T> filtered, int sourceIndex)
+    private static void HandleRefresh(List<Slot> slots, ChangeAwareList<T> filtered, int sourceIndex, Func<T, bool> predicate)
     {
         if (sourceIndex < 0 || sourceIndex >= slots.Count)
         {
@@ -246,7 +259,7 @@ internal sealed class Filter<T>
         }
 
         var slot = slots[sourceIndex];
-        bool newPass = _predicate(slot.Item);
+        bool newPass = predicate(slot.Item);
         if (slot.Passes && newPass)
         {
             // emit refresh as replace
@@ -268,6 +281,18 @@ internal sealed class Filter<T>
             slot.Passes = true;
             int filteredIndex = CountPassingBefore(slots, sourceIndex);
             filtered.Insert(filteredIndex, slot.Item);
+        }
+    }
+
+    private readonly struct FilterState<TItem>
+    {
+        public readonly Observable<IChangeSet<TItem>> Source;
+        public readonly Func<TItem, bool> Predicate;
+
+        public FilterState(Observable<IChangeSet<TItem>> source, Func<TItem, bool> predicate)
+        {
+            Source = source;
+            Predicate = predicate;
         }
     }
 }

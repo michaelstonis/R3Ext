@@ -1,9 +1,19 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.Build.Framework;
 
 namespace R3Ext.Bindings.MauiTargets;
+
+// AOT-compatible JSON serialization context
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(GenerateUiBindingTargetsTask.UiBindingMetadataDto))]
+[JsonSerializable(typeof(GenerateUiBindingTargetsTask.UiControlTypeDto))]
+[JsonSerializable(typeof(GenerateUiBindingTargetsTask.UiControlFieldDto))]
+internal partial class UiBindingTargetsJsonContext : JsonSerializerContext
+{
+}
 
 public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Task
 {
@@ -77,7 +87,7 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
 
             Directory.CreateDirectory(IntermediateOutputPath);
             string outputPath = Path.Combine(IntermediateOutputPath, "R3Ext.BindingTargets.json");
-            string json = JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = false, });
+            string json = JsonSerializer.Serialize(metadata, UiBindingTargetsJsonContext.Default.UiBindingMetadataDto);
             File.WriteAllText(outputPath, json);
             Log.LogMessage(MessageImportance.Low, $"R3Ext: wrote UI binding metadata to {outputPath}");
             return true;
@@ -375,21 +385,21 @@ public sealed class GenerateUiBindingTargetsTask : Microsoft.Build.Utilities.Tas
         return count;
     }
 
-    private sealed class UiBindingMetadataDto
+    internal sealed class UiBindingMetadataDto
     {
         public string AssemblyName { get; set; } = string.Empty;
 
         public UiControlTypeDto[] Controls { get; set; } = Array.Empty<UiControlTypeDto>();
     }
 
-    private sealed class UiControlTypeDto
+    internal sealed class UiControlTypeDto
     {
         public string Type { get; set; } = string.Empty;
 
         public UiControlFieldDto[] Fields { get; set; } = Array.Empty<UiControlFieldDto>();
     }
 
-    private sealed class UiControlFieldDto
+    internal sealed class UiControlFieldDto
     {
         public string Name { get; set; } = string.Empty;
 

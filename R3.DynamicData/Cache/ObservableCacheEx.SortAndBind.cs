@@ -1,15 +1,5 @@
 // Combined Sort + Bind operator for cache side (inspired by DynamicData SortAndBind).
 // Provides lower allocation and avoids transmitting full sorted state via intermediate sorted change sets.
-
-#pragma warning disable SA1503 // Braces should not be omitted
-#pragma warning disable SA1513 // Closing brace should be followed by blank line
-#pragma warning disable SA1116 // Parameters should begin on the line after the declaration when spanning multiple lines
-#pragma warning disable SA1515 // Single-line comment should be preceded by blank line
-#pragma warning disable SA1514 // Element documentation header should be preceded by blank line
-#pragma warning disable SA1127 // Generic type constraints should be on their own line
-#pragma warning disable SA1413 // Use trailing comma in multi-line initializers
-#pragma warning disable SA1107 // Code should not contain multiple statements on one line
-
 using System.Collections.ObjectModel;
 using R3.DynamicData.Binding;
 using R3.DynamicData.Kernel;
@@ -19,36 +9,30 @@ using R3.DynamicData.List.Internal;
 namespace R3.DynamicData.Cache;
 
 /// <summary>
-/// Options for SortAndBind optimization.
+/// Extension methods for observable cache change sets.
 /// </summary>
-public sealed class SortAndBindOptions
-{
-    /// <summary>Gets or sets optional initial capacity hint for backing collection (best effort).</summary>
-    public int? InitialCapacity { get; set; }
-
-    /// <summary>Gets or sets a value indicating whether binary search is used for inserts/removes (requires immutable sort keys).</summary>
-    public bool UseBinarySearch { get; set; }
-
-    /// <summary>Gets or sets a value indicating whether replace semantics are used for updates instead of remove + add.</summary>
-    public bool UseReplaceForUpdates { get; set; }
-
-    /// <summary>Gets or sets threshold of accumulated changes before performing a reset-style rebuild.</summary>
-    public int ResetThreshold { get; set; } = BindingOptions.DefaultResetThreshold;
-}
-
 public static partial class ObservableCacheEx
 {
     /// <summary>
     /// Sorts cache items and binds directly to a read-only observable collection.
     /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="readOnly">The read-only observable collection output.</param>
+    /// <param name="comparer">The comparer for sorting.</param>
+    /// <param name="options">Optional configuration for sort and bind behavior.</param>
+    /// <returns>A disposable subscription.</returns>
     public static IDisposable SortAndBind<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         out ReadOnlyObservableCollection<TObject> readOnly,
         IComparer<TObject> comparer,
         SortAndBindOptions? options = null)
-        where TObject : notnull where TKey : notnull
+        where TObject : notnull
+        where TKey : notnull
     {
         var opt = options ?? new SortAndBindOptions();
+
         // ObservableCollection has no capacity ctor; ignore InitialCapacity except for potential future optimization.
         var target = new ObservableCollectionExtended<TObject>();
         readOnly = new ReadOnlyObservableCollection<TObject>(target);
@@ -58,12 +42,20 @@ public static partial class ObservableCacheEx
     /// <summary>
     /// Sorts cache items and binds directly into provided observable collection.
     /// </summary>
+    /// <typeparam name="TObject">The type of the object.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <param name="target">The target observable collection.</param>
+    /// <param name="comparer">The comparer for sorting.</param>
+    /// <param name="options">Optional configuration for sort and bind behavior.</param>
+    /// <returns>A disposable subscription.</returns>
     public static IDisposable SortAndBind<TObject, TKey>(
         this Observable<IChangeSet<TObject, TKey>> source,
         IObservableCollection<TObject> target,
         IComparer<TObject> comparer,
         SortAndBindOptions? options = null)
-        where TObject : notnull where TKey : notnull
+        where TObject : notnull
+        where TKey : notnull
     {
         return source.SortAndBindInternal(target, comparer, options ?? new SortAndBindOptions());
     }
@@ -73,7 +65,8 @@ public static partial class ObservableCacheEx
         IObservableCollection<TObject> target,
         IComparer<TObject> comparer,
         SortAndBindOptions options)
-        where TObject : notnull where TKey : notnull
+        where TObject : notnull
+        where TKey : notnull
     {
         // Maintain sorted list as ChangeAwareList for efficient diff capture when resets not needed.
         var sorted = new ChangeAwareList<TObject>();
@@ -87,6 +80,7 @@ public static partial class ObservableCacheEx
             {
                 target.Add(item);
             }
+
             pendingChangeCount = 0;
         }
 
@@ -99,14 +93,17 @@ public static partial class ObservableCacheEx
                     case ListChangeReason.Add:
                         target.Insert(change.CurrentIndex, change.Item);
                         break;
+
                     case ListChangeReason.Remove:
                         target.RemoveAt(change.CurrentIndex);
                         break;
+
                     case ListChangeReason.Moved:
                         var mv = target[change.PreviousIndex];
                         target.RemoveAt(change.PreviousIndex);
                         target.Insert(change.CurrentIndex, mv);
                         break;
+
                     case ListChangeReason.Replace:
                         if (options.UseReplaceForUpdates)
                         {
@@ -117,7 +114,9 @@ public static partial class ObservableCacheEx
                             target.RemoveAt(change.CurrentIndex);
                             target.Insert(change.CurrentIndex, change.Item);
                         }
+
                         break;
+
                     case ListChangeReason.Clear:
                         target.Clear();
                         break;
@@ -136,15 +135,18 @@ public static partial class ObservableCacheEx
                         InsertSorted(sorted, change.Current, comparer, options.UseBinarySearch);
                         pendingChangeCount++;
                         break;
+
                     case ChangeReason.Update:
                         if (keyMap.TryGetValue(change.Key, out var old))
                         {
                             RemoveSorted(sorted, old, comparer, options.UseBinarySearch);
                         }
+
                         keyMap[change.Key] = change.Current;
                         InsertSorted(sorted, change.Current, comparer, options.UseBinarySearch);
                         pendingChangeCount++;
                         break;
+
                     case ChangeReason.Remove:
                         if (keyMap.TryGetValue(change.Key, out var rem))
                         {
@@ -152,8 +154,11 @@ public static partial class ObservableCacheEx
                             keyMap.Remove(change.Key);
                             pendingChangeCount++;
                         }
+
                         break;
+
                     case ChangeReason.Refresh:
+
                         // Refresh: re-sort entire list; treat as potential bulk.
                         ResortAll(sorted, comparer);
                         pendingChangeCount = options.ResetThreshold; // force rebuild decision below.
@@ -185,11 +190,15 @@ public static partial class ObservableCacheEx
             list.Add(item);
             return;
         }
+
         int index;
         if (useBinary)
         {
             index = BinarySearch(list, item, comparer);
-            if (index < 0) index = ~index;
+            if (index < 0)
+            {
+                index = ~index;
+            }
         }
         else
         {
@@ -203,6 +212,7 @@ public static partial class ObservableCacheEx
                 }
             }
         }
+
         list.Insert(index, item);
     }
 
@@ -216,7 +226,11 @@ public static partial class ObservableCacheEx
             if (index >= 0)
             {
                 // Walk to exact reference (handles equal comparer values).
-                while (index > 0 && comparer.Compare(list[index - 1], item) == 0) index--;
+                while (index > 0 && comparer.Compare(list[index - 1], item) == 0)
+                {
+                    index--;
+                }
+
                 for (int i = index; i < list.Count && comparer.Compare(list[i], item) == 0; i++)
                 {
                     if (EqualityComparer<T>.Default.Equals(list[i], item))
@@ -230,21 +244,37 @@ public static partial class ObservableCacheEx
         else
         {
             index = list.IndexOf(item);
-            if (index >= 0) list.RemoveAt(index);
+            if (index >= 0)
+            {
+                list.RemoveAt(index);
+            }
         }
     }
 
     private static int BinarySearch<T>(ChangeAwareList<T> list, T item, IComparer<T> comparer)
         where T : notnull
     {
-        int lo = 0; int hi = list.Count - 1;
+        int lo = 0;
+        int hi = list.Count - 1;
         while (lo <= hi)
         {
             int mid = lo + ((hi - lo) / 2);
             int cmp = comparer.Compare(list[mid], item);
-            if (cmp == 0) return mid;
-            if (cmp < 0) lo = mid + 1; else hi = mid - 1;
+            if (cmp == 0)
+            {
+                return mid;
+            }
+
+            if (cmp < 0)
+            {
+                lo = mid + 1;
+            }
+            else
+            {
+                hi = mid - 1;
+            }
         }
+
         return ~lo;
     }
 

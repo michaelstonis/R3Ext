@@ -1,7 +1,4 @@
 // Port of DynamicData to R3.
-
-// Style suppression pragmas for internal operator.
-#pragma warning disable SA1116, SA1513, SA1516, SA1503, SA1127, SA1210
 namespace R3.DynamicData.Cache.Internal;
 
 internal sealed class DisposeMany<TObject, TKey>
@@ -19,14 +16,18 @@ internal sealed class DisposeMany<TObject, TKey>
 
     public Observable<IChangeSet<TObject, TKey>> Run()
     {
-        return Observable.Create<IChangeSet<TObject, TKey>>(observer =>
-        {
+        var state = new DisposeManyState(_source, _disposeAction);
+        return Observable.Create<IChangeSet<TObject, TKey>, DisposeManyState>(
+            state,
+            static (observer, state) =>
+            {
             var current = new Dictionary<TKey, TObject>();
-            var disp = _source.Subscribe(changes =>
+            var disp = state.Source.Subscribe(
+                changes =>
             {
                 try
                 {
-                    ProcessChanges(current, changes);
+                    state.ProcessChanges(current, changes);
                     if (changes.Count > 0)
                     {
                         observer.OnNext(changes);
@@ -38,65 +39,86 @@ internal sealed class DisposeMany<TObject, TKey>
                 }
             }, observer.OnErrorResume, observer.OnCompleted);
 
-            return Disposable.Create(() =>
-            {
-                foreach (var item in current.Values)
+            return Disposable.Combine(
+                disp,
+                Disposable.Create((current, state), static state =>
                 {
-                    SafeDispose(item);
-                }
-                current.Clear();
-                disp.Dispose();
-            });
+                    foreach (var item in state.current.Values)
+                    {
+                        DisposeManyState.SafeDispose(item, state.state.DisposeAction);
+                    }
+
+                    state.current.Clear();
+                }));
         });
     }
 
-    private void ProcessChanges(Dictionary<TKey, TObject> current, IChangeSet<TObject, TKey> changes)
+    private readonly struct DisposeManyState
     {
-        foreach (var change in changes)
-        {
-            switch (change.Reason)
-            {
-                case Kernel.ChangeReason.Add:
-                    current[change.Key] = change.Current;
-                    break;
-                case Kernel.ChangeReason.Update:
-                    if (current.TryGetValue(change.Key, out var old))
-                    {
-                        SafeDispose(old);
-                    }
-                    current[change.Key] = change.Current;
-                    break;
-                case Kernel.ChangeReason.Remove:
-                    if (current.TryGetValue(change.Key, out var removed))
-                    {
-                        SafeDispose(removed);
-                        current.Remove(change.Key);
-                    }
-                    break;
-                case Kernel.ChangeReason.Refresh:
-                    // No disposal; item unchanged.
-                    break;
-            }
-        }
-    }
+        public readonly Observable<IChangeSet<TObject, TKey>> Source;
+        public readonly Action<TObject>? DisposeAction;
 
-    private void SafeDispose(TObject item)
-    {
-        try
+        public DisposeManyState(Observable<IChangeSet<TObject, TKey>> source, Action<TObject>? disposeAction)
         {
-            if (_disposeAction != null)
+            Source = source;
+            DisposeAction = disposeAction;
+        }
+
+        public void ProcessChanges(Dictionary<TKey, TObject> current, IChangeSet<TObject, TKey> changes)
+        {
+            foreach (var change in changes)
             {
-                _disposeAction(item);
-                return;
-            }
-            if (item is IDisposable d)
-            {
-                d.Dispose();
+                switch (change.Reason)
+                {
+                    case Kernel.ChangeReason.Add:
+                        current[change.Key] = change.Current;
+                        break;
+
+                    case Kernel.ChangeReason.Update:
+                        if (current.TryGetValue(change.Key, out var old))
+                        {
+                            SafeDispose(old, DisposeAction);
+                        }
+
+                        current[change.Key] = change.Current;
+                        break;
+
+                    case Kernel.ChangeReason.Remove:
+                        if (current.TryGetValue(change.Key, out var removed))
+                        {
+                            SafeDispose(removed, DisposeAction);
+                            current.Remove(change.Key);
+                        }
+
+                        break;
+
+                    case Kernel.ChangeReason.Refresh:
+
+                        // No disposal; item unchanged.
+                        break;
+                }
             }
         }
-        catch
+
+        public static void SafeDispose(TObject item, Action<TObject>? disposeAction)
         {
-            // Swallow disposal exceptions.
+            try
+            {
+                if (disposeAction != null)
+                {
+                    disposeAction(item);
+                    return;
+                }
+
+                if (item is IDisposable d)
+                {
+                    d.Dispose();
+                }
+            }
+            catch
+            {
+                // Swallow disposal exceptions.
+            }
         }
     }
 }

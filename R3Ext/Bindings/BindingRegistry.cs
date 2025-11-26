@@ -53,9 +53,23 @@ public static class BindingRegistry
         }
     }
 
+    // For WhenObserved, similar to WhenEntry but for observable properties
+    private sealed class WhenObservedEntry
+    {
+        public required Type ObjType { get; init; }
+
+        public required Func<object, Observable<object>> Factory { get; init; }
+
+        public override string ToString()
+        {
+            return $"WhenObservedEntry[{ObjType.Name}]";
+        }
+    }
+
     private static readonly Dictionary<string, List<OneWayEntry>> _oneWay = new();
     private static readonly Dictionary<string, List<TwoWayEntry>> _twoWay = new();
     private static readonly Dictionary<string, List<WhenEntry>> _whenChanged = new();
+    private static readonly Dictionary<string, List<WhenObservedEntry>> _whenObserved = new();
 
     // Registration API (called from generated module initializers in referencing assemblies)
     public static void RegisterOneWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath,
@@ -110,17 +124,30 @@ public static class BindingRegistry
         list.Add(new WhenEntry { ObjType = typeof(TObj), Factory = o => factory((TObj)o!).Select(v => (object?)v!), });
     }
 
+    public static void RegisterWhenObserved<TObj, TReturn>(string whenPath, Func<TObj, Observable<TReturn>> factory)
+    {
+        // whenPath is usually "TypeSimpleName|lambdaText" per generator. Index by path after the first '|'.
+        (string typePart, string pathPart) = SplitTypePath(whenPath);
+        Log($"[BindingRegistry] RegisterWhenObserved {typePart}|{pathPart} as {typeof(TObj).Name}");
+        if (!_whenObserved.TryGetValue(pathPart, out List<WhenObservedEntry>? list))
+        {
+            list = new List<WhenObservedEntry>();
+            _whenObserved[pathPart] = list;
+        }
+
+        list.Add(new WhenObservedEntry { ObjType = typeof(TObj), Factory = o => factory((TObj)o!).Select(v => (object?)v!), });
+    }
+
     // TryCreate APIs used by generated extension methods before falling back to specialized implementations
     public static bool TryCreateOneWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath, TFrom fromObj, TTarget targetObj,
         Func<TFromProp, TTargetProp>? conv, out IDisposable disposable)
     {
         string key = fromPath + "|" + toPath;
-        Type fromRuntime = fromObj?.GetType() ?? typeof(TFrom);
-        Type targetRuntime = targetObj?.GetType() ?? typeof(TTarget);
-        Log($"[BindingRegistry] TryCreateOneWay lookup {key} for {fromRuntime.Name}->{targetRuntime.Name}");
+        Log($"[BindingRegistry] TryCreateOneWay lookup {key} for {typeof(TFrom).Name}->{typeof(TTarget).Name}");
         if (_oneWay.TryGetValue(key, out List<OneWayEntry>? list))
         {
-            OneWayEntry? entry = PickBest(list, fromRuntime, targetRuntime);
+            // AOT-compatible: Use exact type match based on generic parameters, not runtime types
+            OneWayEntry? entry = PickBestExact<TFrom, TTarget>(list);
             if (entry is not null)
             {
                 disposable = entry.Factory(fromObj!, targetObj!, conv);
@@ -136,12 +163,11 @@ public static class BindingRegistry
         Func<TFromProp, TTargetProp>? hostToTarget, Func<TTargetProp, TFromProp>? targetToHost, out IDisposable disposable)
     {
         string key = fromPath + "|" + toPath;
-        Type fromRuntime = fromObj?.GetType() ?? typeof(TFrom);
-        Type targetRuntime = targetObj?.GetType() ?? typeof(TTarget);
-        Log($"[BindingRegistry] TryCreateTwoWay lookup {key} for {fromRuntime.Name}<->{targetRuntime.Name}");
+        Log($"[BindingRegistry] TryCreateTwoWay lookup {key} for {typeof(TFrom).Name}<->{typeof(TTarget).Name}");
         if (_twoWay.TryGetValue(key, out List<TwoWayEntry>? list))
         {
-            TwoWayEntry? entry = PickBest(list, fromRuntime, targetRuntime);
+            // AOT-compatible: Use exact type match based on generic parameters, not runtime types
+            TwoWayEntry? entry = PickBestExact<TFrom, TTarget>(list);
             if (entry is not null)
             {
                 disposable = entry.Factory(fromObj!, targetObj!, hostToTarget, targetToHost);
@@ -156,11 +182,11 @@ public static class BindingRegistry
     public static bool TryCreateWhenChanged<TObj, TReturn>(string whenPath, TObj obj, out Observable<TReturn> observable)
     {
         (string typePart, string pathPart) = SplitTypePath(whenPath);
-        Type objRuntime = obj?.GetType() ?? typeof(TObj);
-        Log($"[BindingRegistry] TryCreateWhenChanged lookup {typePart}|{pathPart} for {objRuntime.Name}");
+        Log($"[BindingRegistry] TryCreateWhenChanged lookup {typePart}|{pathPart} for {typeof(TObj).Name}");
         if (_whenChanged.TryGetValue(pathPart, out List<WhenEntry>? list))
         {
-            WhenEntry? entry = PickBest(list, objRuntime);
+            // AOT-compatible: Use exact type match based on generic parameter, not runtime type
+            WhenEntry? entry = PickBestExact<TObj>(list);
             if (entry is not null)
             {
                 Observable<object> raw = entry.Factory(obj!);
@@ -174,102 +200,129 @@ public static class BindingRegistry
         return false;
     }
 
-    private static OneWayEntry? PickBest(List<OneWayEntry> list, Type fromRuntime, Type targetRuntime)
+    public static bool TryCreateWhenObserved<TObj, TReturn>(string whenPath, TObj obj, out Observable<TReturn> observable)
     {
-        OneWayEntry? best = null;
-        int bestScore = int.MaxValue;
+        (string typePart, string pathPart) = SplitTypePath(whenPath);
+        Log($"[BindingRegistry] TryCreateWhenObserved lookup {typePart}|{pathPart} for {typeof(TObj).Name}");
+        if (_whenObserved.TryGetValue(pathPart, out List<WhenObservedEntry>? list))
+        {
+            // AOT-compatible: Use exact type match based on generic parameter, not runtime type
+            WhenObservedEntry? entry = PickBestExact<TObj>(list);
+            if (entry is not null)
+            {
+                Observable<object> raw = entry.Factory(obj!);
+                observable = raw.Select(v => (TReturn)v!);
+                return true;
+            }
+        }
+
+        // No generated binding found - fail fast for AOT compatibility
+        observable = default!;
+        return false;
+    }
+
+    // AOT-compatible: Exact type matching using generics instead of runtime type inspection
+    private static OneWayEntry? PickBestExact<TFrom, TTarget>(List<OneWayEntry> list)
+    {
+        Type fromType = typeof(TFrom);
+        Type targetType = typeof(TTarget);
+
+        // First, try exact match
         foreach (OneWayEntry e in list)
         {
-            if (!e.FromType.IsAssignableFrom(fromRuntime) || !e.TargetType.IsAssignableFrom(targetRuntime))
+            if (e.FromType == fromType && e.TargetType == targetType)
             {
-                continue;
-            }
-
-            int score = Distance(e.FromType, fromRuntime) + Distance(e.TargetType, targetRuntime);
-            if (score < bestScore)
-            {
-                best = e;
-                bestScore = score;
+                return e;
             }
         }
 
-        return best;
+        // If no exact match, look for compatible base types (still AOT-safe with typeof)
+        // This preserves some polymorphism while avoiding runtime GetType()
+        foreach (OneWayEntry e in list)
+        {
+            if (e.FromType.IsAssignableFrom(fromType) && e.TargetType.IsAssignableFrom(targetType))
+            {
+                return e;
+            }
+        }
+
+        return null;
     }
 
-    private static TwoWayEntry? PickBest(List<TwoWayEntry> list, Type fromRuntime, Type targetRuntime)
+    private static TwoWayEntry? PickBestExact<TFrom, TTarget>(List<TwoWayEntry> list)
     {
-        TwoWayEntry? best = null;
-        int bestScore = int.MaxValue;
+        Type fromType = typeof(TFrom);
+        Type targetType = typeof(TTarget);
+
+        // First, try exact match
         foreach (TwoWayEntry e in list)
         {
-            if (!e.FromType.IsAssignableFrom(fromRuntime) || !e.TargetType.IsAssignableFrom(targetRuntime))
+            if (e.FromType == fromType && e.TargetType == targetType)
             {
-                continue;
-            }
-
-            int score = Distance(e.FromType, fromRuntime) + Distance(e.TargetType, targetRuntime);
-            if (score < bestScore)
-            {
-                best = e;
-                bestScore = score;
+                return e;
             }
         }
 
-        return best;
+        // If no exact match, look for compatible base types (still AOT-safe with typeof)
+        foreach (TwoWayEntry e in list)
+        {
+            if (e.FromType.IsAssignableFrom(fromType) && e.TargetType.IsAssignableFrom(targetType))
+            {
+                return e;
+            }
+        }
+
+        return null;
     }
 
-    private static WhenEntry? PickBest(List<WhenEntry> list, Type objRuntime)
+    private static WhenEntry? PickBestExact<TObj>(List<WhenEntry> list)
     {
-        WhenEntry? best = null;
-        int bestScore = int.MaxValue;
+        Type objType = typeof(TObj);
+
+        // First, try exact match
         foreach (WhenEntry e in list)
         {
-            if (!e.ObjType.IsAssignableFrom(objRuntime))
+            if (e.ObjType == objType)
             {
-                continue;
-            }
-
-            int score = Distance(e.ObjType, objRuntime);
-            if (score < bestScore)
-            {
-                best = e;
-                bestScore = score;
+                return e;
             }
         }
 
-        return best;
+        // If no exact match, look for compatible base types (still AOT-safe with typeof)
+        foreach (WhenEntry e in list)
+        {
+            if (e.ObjType.IsAssignableFrom(objType))
+            {
+                return e;
+            }
+        }
+
+        return null;
     }
 
-    private static int Distance(Type baseType, Type runtimeType)
+    private static WhenObservedEntry? PickBestExact<TObj>(List<WhenObservedEntry> list)
     {
-        if (baseType == runtimeType)
-        {
-            return 0;
-        }
+        Type objType = typeof(TObj);
 
-        if (!baseType.IsAssignableFrom(runtimeType))
+        // First, try exact match
+        foreach (WhenObservedEntry e in list)
         {
-            return int.MaxValue / 2;
-        }
-
-        // If baseType is interface, use small constant distance to favor more specific classes
-        if (baseType.IsInterface)
-        {
-            return 1;
-        }
-
-        int d = 0;
-        for (Type? t = runtimeType; t is not null && baseType.IsAssignableFrom(t); t = t.BaseType)
-        {
-            if (t == baseType)
+            if (e.ObjType == objType)
             {
-                return d;
+                return e;
             }
-
-            d++;
         }
 
-        return d;
+        // If no exact match, look for compatible base types (still AOT-safe with typeof)
+        foreach (WhenObservedEntry e in list)
+        {
+            if (e.ObjType.IsAssignableFrom(objType))
+            {
+                return e;
+            }
+        }
+
+        return null;
     }
 
     private static (string typePart, string pathPart) SplitTypePath(string whenPath)

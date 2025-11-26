@@ -2,6 +2,9 @@
 
 namespace R3.DynamicData.List;
 
+/// <summary>
+/// Extension methods for observable list change sets.
+/// </summary>
 public static partial class ObservableListEx
 {
     /// <summary>
@@ -37,114 +40,134 @@ public static partial class ObservableListEx
         where TSource : notnull
         where TDestination : notnull
     {
-        return Observable.Create<IChangeSet<TDestination>>(observer =>
-        {
-            var transformations = new Dictionary<TSource, PendingTransformation<TSource, TDestination>>();
-            var completedItems = new List<TransformedItem<TSource, TDestination>>();
-            var gate = new object();
-
-            return source.Subscribe(changeSet =>
+        return Observable.Create<IChangeSet<TDestination>, TransformAsyncState<TSource, TDestination>>(
+            new TransformAsyncState<TSource, TDestination>(source, transformFactory),
+            static (observer, state) =>
             {
-                foreach (var change in changeSet)
+                return state.Source.Subscribe(changeSet =>
                 {
-                    switch (change.Reason)
+                    foreach (var change in changeSet)
                     {
-                        case ListChangeReason.Add:
-                        case ListChangeReason.Replace:
-                            HandleAddOrReplace(
-                                change,
-                                transformFactory,
-                                transformations,
-                                completedItems,
-                                observer,
-                                gate);
-                            break;
-
-                        case ListChangeReason.Remove:
-                            HandleRemove(
-                                change.Item,
-                                transformations,
-                                completedItems,
-                                observer,
-                                gate);
-                            break;
-
-                        case ListChangeReason.AddRange:
-                            foreach (var item in change.Range)
-                            {
-                                var addChange = new Change<TSource>(ListChangeReason.Add, item, -1);
+                        switch (change.Reason)
+                        {
+                            case ListChangeReason.Add:
+                            case ListChangeReason.Replace:
                                 HandleAddOrReplace(
-                                    addChange,
-                                    transformFactory,
-                                    transformations,
-                                    completedItems,
+                                    change,
+                                    state.TransformFactory,
+                                    state.Transformations,
+                                    state.CompletedItems,
                                     observer,
-                                    gate);
-                            }
+                                    state.Gate);
+                                break;
 
-                            break;
+                            case ListChangeReason.Remove:
+                                HandleRemove(
+                                    change.Item,
+                                    state.Transformations,
+                                    state.CompletedItems,
+                                    observer,
+                                    state.Gate);
+                                break;
 
-                        case ListChangeReason.RemoveRange:
-                            foreach (var item in change.Range)
-                            {
-                                HandleRemove(item, transformations, completedItems, observer, gate);
-                            }
-
-                            break;
-
-                        case ListChangeReason.Clear:
-                            foreach (var transformation in transformations.Values)
-                            {
-                                transformation.Cts.Cancel();
-                                transformation.Cts.Dispose();
-                            }
-
-                            transformations.Clear();
-
-                            if (completedItems.Count > 0)
-                            {
-                                var clearedItems = completedItems.Select(x => x.Destination).ToList();
-                                completedItems.Clear();
-                                observer.OnNext(
-                                    new ChangeSet<TDestination>(
-                                        new[]
-                                        {
-                                            new Change<TDestination>(ListChangeReason.Clear, clearedItems, 0),
-                                        }));
-                            }
-
-                            break;
-
-                        case ListChangeReason.Moved:
-                            // For moved items, if transformation is complete, emit a move for the destination
-                            var movedItem = completedItems.FirstOrDefault(x => EqualityComparer<TSource>.Default.Equals(x.Source, change.Item));
-                            if (movedItem != null)
-                            {
-                                var oldIndex = completedItems.IndexOf(movedItem);
-                                if (oldIndex >= 0)
+                            case ListChangeReason.AddRange:
+                                foreach (var item in change.Range)
                                 {
-                                    completedItems.RemoveAt(oldIndex);
-                                    var newIndex = Math.Min(change.CurrentIndex, completedItems.Count);
-                                    completedItems.Insert(newIndex, movedItem);
+                                    var addChange = new Change<TSource>(ListChangeReason.Add, item, -1);
+                                    HandleAddOrReplace(
+                                        addChange,
+                                        state.TransformFactory,
+                                        state.Transformations,
+                                        state.CompletedItems,
+                                        observer,
+                                        state.Gate);
+                                }
 
+                                break;
+
+                            case ListChangeReason.RemoveRange:
+                                foreach (var item in change.Range)
+                                {
+                                    HandleRemove(item, state.Transformations, state.CompletedItems, observer, state.Gate);
+                                }
+
+                                break;
+
+                            case ListChangeReason.Clear:
+                                foreach (var transformation in state.Transformations.Values)
+                                {
+                                    transformation.Cts.Cancel();
+                                    transformation.Cts.Dispose();
+                                }
+
+                                state.Transformations.Clear();
+
+                                if (state.CompletedItems.Count > 0)
+                                {
+                                    var clearedItems = state.CompletedItems.Select(x => x.Destination).ToList();
+                                    state.CompletedItems.Clear();
                                     observer.OnNext(
                                         new ChangeSet<TDestination>(
                                             new[]
                                             {
-                                                new Change<TDestination>(
-                                                    ListChangeReason.Moved,
-                                                    movedItem.Destination,
-                                                    newIndex,
-                                                    oldIndex),
+                                                new Change<TDestination>(ListChangeReason.Clear, clearedItems, 0),
                                             }));
                                 }
-                            }
 
-                            break;
+                                break;
+
+                            case ListChangeReason.Moved:
+                                // For moved items, if transformation is complete, emit a move for the destination
+                                var movedItem = state.CompletedItems.FirstOrDefault(x => EqualityComparer<TSource>.Default.Equals(x.Source, change.Item));
+                                if (movedItem != null)
+                                {
+                                    var oldIndex = state.CompletedItems.IndexOf(movedItem);
+                                    if (oldIndex >= 0)
+                                    {
+                                        state.CompletedItems.RemoveAt(oldIndex);
+                                        var newIndex = Math.Min(change.CurrentIndex, state.CompletedItems.Count);
+                                        state.CompletedItems.Insert(newIndex, movedItem);
+
+                                        observer.OnNext(
+                                            new ChangeSet<TDestination>(
+                                                new[]
+                                                {
+                                                    new Change<TDestination>(
+                                                        ListChangeReason.Moved,
+                                                        movedItem.Destination,
+                                                        newIndex,
+                                                        oldIndex),
+                                                }));
+                                    }
+                                }
+
+                                break;
+                        }
                     }
-                }
+                });
             });
-        });
+    }
+
+    private sealed class TransformAsyncState<TSource, TDestination>
+        where TSource : notnull
+        where TDestination : notnull
+    {
+        public readonly Observable<IChangeSet<TSource>> Source;
+        public readonly Func<TSource, CancellationToken, Task<TDestination>> TransformFactory;
+        public readonly Dictionary<TSource, PendingTransformation<TSource, TDestination>> Transformations;
+        public readonly List<TransformedItem<TSource, TDestination>> CompletedItems;
+        public readonly object Gate;
+
+        public TransformAsyncState(
+            Observable<IChangeSet<TSource>> source,
+            Func<TSource, CancellationToken, Task<TDestination>> transformFactory)
+        {
+            Source = source;
+            TransformFactory = transformFactory;
+            Transformations = new Dictionary<TSource, PendingTransformation<TSource, TDestination>>();
+            CompletedItems = new List<TransformedItem<TSource, TDestination>>();
+            Gate = new object();
+        }
     }
 
     private static void HandleAddOrReplace<TSource, TDestination>(

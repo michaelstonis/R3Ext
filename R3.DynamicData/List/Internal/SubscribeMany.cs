@@ -3,6 +3,7 @@
 namespace R3.DynamicData.List.Internal;
 
 internal sealed class SubscribeMany<T>
+    where T : notnull
 {
     private readonly Observable<IChangeSet<T>> _source;
     private readonly Func<T, IDisposable> _subscriptionFactory;
@@ -15,120 +16,135 @@ internal sealed class SubscribeMany<T>
 
     public Observable<IChangeSet<T>> Run()
     {
-        return Observable.Create<IChangeSet<T>>(observer =>
-        {
-            var locker = new object();
-            var disposables = new CompositeDisposable();
-            var subscriptions = new Dictionary<T, IDisposable>();
+        return Observable.Create<IChangeSet<T>, SubscribeManyState<T>>(
+            new SubscribeManyState<T>(_source, _subscriptionFactory),
+            static (observer, state) =>
+            {
+                var locker = new object();
+                var disposables = new CompositeDisposable();
+                var subscriptions = new Dictionary<T, IDisposable>();
 
-            _source.Subscribe(
+                state.Source.Subscribe(
                 changes =>
-            {
-                lock (locker)
                 {
-                    foreach (var change in changes)
+                    lock (locker)
                     {
-                        switch (change.Reason)
+                        foreach (var change in changes)
                         {
-                            case ListChangeReason.Add:
-                            case ListChangeReason.Refresh:
-                                if (change.Item != null && !subscriptions.ContainsKey(change.Item))
-                                {
-                                    subscriptions[change.Item] = _subscriptionFactory(change.Item);
-                                }
-
-                                break;
-
-                            case ListChangeReason.AddRange:
-                                if (change.Range.Count > 0)
-                                {
-                                    foreach (var item in change.Range)
+                            switch (change.Reason)
+                            {
+                                case ListChangeReason.Add:
+                                case ListChangeReason.Refresh:
+                                    if (change.Item != null && !subscriptions.ContainsKey(change.Item))
                                     {
-                                        if (item != null && !subscriptions.ContainsKey(item))
+                                        subscriptions[change.Item] = state.SubscriptionFactory(change.Item);
+                                    }
+
+                                    break;
+
+                                case ListChangeReason.AddRange:
+                                    if (change.Range.Count > 0)
+                                    {
+                                        foreach (var item in change.Range)
                                         {
-                                            subscriptions[item] = _subscriptionFactory(item);
+                                            if (item != null && !subscriptions.ContainsKey(item))
+                                            {
+                                                subscriptions[item] = state.SubscriptionFactory(item);
+                                            }
                                         }
                                     }
-                                }
-                                else if (change.Item != null && !subscriptions.ContainsKey(change.Item))
-                                {
-                                    subscriptions[change.Item] = _subscriptionFactory(change.Item);
-                                }
-
-                                break;
-
-                            case ListChangeReason.Remove:
-                                if (change.Item != null && subscriptions.TryGetValue(change.Item, out var subscription))
-                                {
-                                    subscription.Dispose();
-                                    subscriptions.Remove(change.Item);
-                                }
-
-                                break;
-
-                            case ListChangeReason.RemoveRange:
-                                if (change.Range.Count > 0)
-                                {
-                                    foreach (var item in change.Range)
+                                    else if (change.Item != null && !subscriptions.ContainsKey(change.Item))
                                     {
-                                        if (item != null && subscriptions.TryGetValue(item, out var sub))
+                                        subscriptions[change.Item] = state.SubscriptionFactory(change.Item);
+                                    }
+
+                                    break;
+
+                                case ListChangeReason.Remove:
+                                    if (change.Item != null && subscriptions.TryGetValue(change.Item, out var subscription))
+                                    {
+                                        subscription.Dispose();
+                                        subscriptions.Remove(change.Item);
+                                    }
+
+                                    break;
+
+                                case ListChangeReason.RemoveRange:
+                                    if (change.Range.Count > 0)
+                                    {
+                                        foreach (var item in change.Range)
                                         {
-                                            sub.Dispose();
-                                            subscriptions.Remove(item);
+                                            if (item != null && subscriptions.TryGetValue(item, out var sub))
+                                            {
+                                                sub.Dispose();
+                                                subscriptions.Remove(item);
+                                            }
                                         }
                                     }
-                                }
-                                else if (change.Item != null && subscriptions.TryGetValue(change.Item, out var sub2))
-                                {
-                                    sub2.Dispose();
-                                    subscriptions.Remove(change.Item);
-                                }
+                                    else if (change.Item != null && subscriptions.TryGetValue(change.Item, out var sub2))
+                                    {
+                                        sub2.Dispose();
+                                        subscriptions.Remove(change.Item);
+                                    }
 
-                                break;
+                                    break;
 
-                            case ListChangeReason.Clear:
-                                // Dispose all subscriptions on clear
-                                foreach (var sub in subscriptions.Values)
-                                {
-                                    sub.Dispose();
-                                }
+                                case ListChangeReason.Clear:
+                                    // Dispose all subscriptions on clear
+                                    foreach (var sub in subscriptions.Values)
+                                    {
+                                        sub.Dispose();
+                                    }
 
-                                subscriptions.Clear();
-                                break;
+                                    subscriptions.Clear();
+                                    break;
 
-                            case ListChangeReason.Replace:
-                                if (change.PreviousItem != null && subscriptions.TryGetValue(change.PreviousItem, out var oldSubscription))
-                                {
-                                    oldSubscription.Dispose();
-                                    subscriptions.Remove(change.PreviousItem);
-                                }
+                                case ListChangeReason.Replace:
+                                    if (change.PreviousItem != null && subscriptions.TryGetValue(change.PreviousItem, out var oldSubscription))
+                                    {
+                                        oldSubscription.Dispose();
+                                        subscriptions.Remove(change.PreviousItem);
+                                    }
 
-                                if (change.Item != null && !subscriptions.ContainsKey(change.Item))
-                                {
-                                    subscriptions[change.Item] = _subscriptionFactory(change.Item);
-                                }
+                                    if (change.Item != null && !subscriptions.ContainsKey(change.Item))
+                                    {
+                                        subscriptions[change.Item] = state.SubscriptionFactory(change.Item);
+                                    }
 
-                                break;
+                                    break;
+                            }
                         }
+
+                        observer.OnNext(changes);
                     }
+                }, observer.OnErrorResume, observer.OnCompleted).AddTo(disposables);
 
-                    observer.OnNext(changes);
-                }
-            }, observer.OnErrorResume, observer.OnCompleted).AddTo(disposables);
-
-            return Disposable.Create(() =>
-            {
-                disposables.Dispose();
-                lock (locker)
+                return Disposable.Create(() =>
                 {
-                    foreach (var subscription in subscriptions.Values)
+                    disposables.Dispose();
+                    lock (locker)
                     {
-                        subscription.Dispose();
-                    }
+                        foreach (var subscription in subscriptions.Values)
+                        {
+                            subscription.Dispose();
+                        }
 
-                    subscriptions.Clear();
-                }
+                        subscriptions.Clear();
+                    }
+                });
             });
-        });
+    }
+
+    private readonly struct SubscribeManyState<TItem>
+        where TItem : notnull
+    {
+        public readonly Observable<IChangeSet<TItem>> Source;
+        public readonly Func<TItem, IDisposable> SubscriptionFactory;
+
+        public SubscribeManyState(Observable<IChangeSet<TItem>> source, Func<TItem, IDisposable> subscriptionFactory)
+        {
+            Source = source;
+            SubscriptionFactory = subscriptionFactory;
+        }
     }
 }

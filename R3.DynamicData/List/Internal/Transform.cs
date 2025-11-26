@@ -15,34 +15,47 @@ internal sealed class Transform<TSource, TResult>
 
     public Observable<IChangeSet<TResult>> Run()
     {
-        return Observable.Create<IChangeSet<TResult>>(observer =>
-        {
-            var list = new ChangeAwareList<TResult>();
-            var disposable = _source.Subscribe(
-                changes =>
-                {
-                    try
+        return Observable.Create<IChangeSet<TResult>, TransformState<TSource, TResult>>(
+            new TransformState<TSource, TResult>(_source, _selector),
+            static (observer, state) =>
+            {
+                var list = new ChangeAwareList<TResult>();
+                var disposable = state.Source.Subscribe(
+                    (observer, state, list),
+                    static (changes, tuple) =>
                     {
-                        Process(list, changes);
-                        var output = list.CaptureChanges();
-                        if (output.Count > 0)
+                        try
                         {
-                            observer.OnNext(output);
+                            Process(tuple.list, changes, tuple.state.Selector);
+                            var output = tuple.list.CaptureChanges();
+                            if (output.Count > 0)
+                            {
+                                tuple.observer.OnNext(output);
+                            }
                         }
-                    }
-                    catch (Exception ex)
+                        catch (Exception ex)
+                        {
+                            tuple.observer.OnErrorResume(ex);
+                        }
+                    },
+                    static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                    static (result, tuple) =>
                     {
-                        observer.OnErrorResume(ex);
-                    }
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted);
+                        if (result.IsSuccess)
+                        {
+                            tuple.observer.OnCompleted();
+                        }
+                        else
+                        {
+                            tuple.observer.OnCompleted(result);
+                        }
+                    });
 
-            return disposable;
-        });
+                return disposable;
+            });
     }
 
-    private void Process(ChangeAwareList<TResult> target, IChangeSet<TSource> changes)
+    private static void Process(ChangeAwareList<TResult> target, IChangeSet<TSource> changes, Func<TSource, TResult> selector)
     {
         // Optimize for initial adds when empty
         if (target.Count == 0)
@@ -63,13 +76,13 @@ internal sealed class Transform<TSource, TResult>
                 {
                     if (c.Reason == ListChangeReason.Add)
                     {
-                        target.Add(_selector(c.Item));
+                        target.Add(selector(c.Item));
                     }
                     else if (c.Reason == ListChangeReason.AddRange)
                     {
                         if (c.Range.Count > 0)
                         {
-                            var projected = c.Range.Select(_selector).ToList();
+                            var projected = c.Range.Select(selector).ToList();
                             foreach (var p in projected)
                             {
                                 target.Add(p);
@@ -77,7 +90,7 @@ internal sealed class Transform<TSource, TResult>
                         }
                         else
                         {
-                            target.Add(_selector(c.Item));
+                            target.Add(selector(c.Item));
                         }
                     }
                 }
@@ -91,17 +104,17 @@ internal sealed class Transform<TSource, TResult>
             switch (change.Reason)
             {
                 case ListChangeReason.Add:
-                    target.Insert(change.CurrentIndex, _selector(change.Item));
+                    target.Insert(change.CurrentIndex, selector(change.Item));
                     break;
                 case ListChangeReason.AddRange:
                     if (change.Range.Count > 0)
                     {
-                        var items = change.Range.Select(_selector).ToList();
+                        var items = change.Range.Select(selector).ToList();
                         target.InsertRange(items, change.CurrentIndex);
                     }
                     else
                     {
-                        target.Insert(change.CurrentIndex, _selector(change.Item));
+                        target.Insert(change.CurrentIndex, selector(change.Item));
                     }
 
                     break;
@@ -120,7 +133,7 @@ internal sealed class Transform<TSource, TResult>
 
                     break;
                 case ListChangeReason.Replace:
-                    target[change.CurrentIndex] = _selector(change.Item);
+                    target[change.CurrentIndex] = selector(change.Item);
                     break;
                 case ListChangeReason.Moved:
                     target.Move(change.PreviousIndex, change.CurrentIndex);
@@ -132,11 +145,23 @@ internal sealed class Transform<TSource, TResult>
                     // map the item again; emit replace to reflect potential value changes
                     if (change.CurrentIndex >= 0 && change.CurrentIndex < target.Count)
                     {
-                        target[change.CurrentIndex] = _selector(change.Item);
+                        target[change.CurrentIndex] = selector(change.Item);
                     }
 
                     break;
             }
+        }
+    }
+
+    private readonly struct TransformState<TSourceItem, TResultItem>
+    {
+        public readonly Observable<IChangeSet<TSourceItem>> Source;
+        public readonly Func<TSourceItem, TResultItem> Selector;
+
+        public TransformState(Observable<IChangeSet<TSourceItem>> source, Func<TSourceItem, TResultItem> selector)
+        {
+            Source = source;
+            Selector = selector;
         }
     }
 }

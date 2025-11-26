@@ -120,12 +120,15 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     /// <inheritdoc/>
     public Observable<Change<TObject, TKey>> Watch(TKey key)
     {
-        return Observable.Create<Change<TObject, TKey>>(observer =>
+        var state = new WatchState(_changes, key);
+        return Observable.Create<Change<TObject, TKey>, WatchState>(
+            state,
+            static (observer, state) =>
         {
-            return _changes.Subscribe(
+            return state.Changes.Subscribe(
                 changes =>
                 {
-                    foreach (var change in changes.Where(c => EqualityComparer<TKey>.Default.Equals(c.Key, key)))
+                    foreach (var change in changes.Where(c => EqualityComparer<TKey>.Default.Equals(c.Key, state.Key)))
                     {
                         observer.OnNext(change);
                     }
@@ -133,6 +136,18 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
                 observer.OnErrorResume,
                 observer.OnCompleted);
         });
+    }
+
+    private readonly struct WatchState
+    {
+        public readonly Subject<IChangeSet<TObject, TKey>> Changes;
+        public readonly TKey Key;
+
+        public WatchState(Subject<IChangeSet<TObject, TKey>> changes, TKey key)
+        {
+            Changes = changes;
+            Key = key;
+        }
     }
 
     /// <inheritdoc/>

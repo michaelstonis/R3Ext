@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace R3Ext.Bindings.SourceGenerator;
 
 [Generator(LanguageNames.CSharp)]
-public sealed class BindingGeneratorV2 : IIncrementalGenerator
+public sealed class BindingGenerator : IIncrementalGenerator
 {
     private static readonly DiagnosticDescriptor IncompleteBindingDescriptor = new(
         "R3BG001",
@@ -87,9 +87,14 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             ImmutableArray<InvocationModel> all = models!.OfType<InvocationModel>().ToImmutableArray();
 
             // Debug logging - write to generated file as comments
-            // Debug logging - commented out after confirming deduplication fix
+            // Commented out after confirming WhenValueChanged deduplication fix
             // var debugInfo = new StringBuilder();
             // debugInfo.AppendLine($"// DEBUG: Assembly={asmName}, InvocationModels={all.Length}, Filtered={filteredCount}");
+            // debugInfo.AppendLine($"// DEBUG: All invocations by Kind:");
+            // foreach (var inv in all)
+            // {
+            //     debugInfo.AppendLine($"//   - Kind={inv.Kind}, WhenPath={inv.WhenPath ?? "NULL"}, FromPath={inv.FromPath ?? "NULL"}, ToPath={inv.ToPath ?? "NULL"}, Loc={inv.Location.GetLineSpan()}");
+            // }
             // debugInfo.AppendLine($"// DEBUG: WhenChanged invocations BEFORE deduplication: {all.Count(m => m.Kind == "WhenChanged")}");
             // foreach (var inv in all.Where(m => m.Kind == "WhenChanged"))
             // {
@@ -109,6 +114,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             // {
             //     debugInfo.AppendLine($"//   - Filtered at {item.Location.GetLineSpan()}: {item.Reason}");
             // }
+            // debugInfo.AppendLine("// DEBUG: End of debug output");
 
             // Post-process unresolved target chains using UI metadata (now that we have compilation + lookup)
             foreach (InvocationModel? m in all)
@@ -159,7 +165,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                         spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve 'to' property chain"));
                     }
                 }
-                else if (m.Kind == "WhenChanged" && m.FromSegments.Count == 0)
+                else if ((m.Kind == "WhenChanged" || m.Kind == "WhenValueChanged" || m.Kind == "AutoRefresh" || m.Kind == "WhenObserved") && m.FromSegments.Count == 0)
                 {
                     spc.ReportDiagnostic(Diagnostic.Create(IncompleteBindingDescriptor, m.Location, m.Kind, "unable to resolve monitored property chain"));
 
@@ -174,12 +180,29 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             // Populate type name metadata BEFORE deduplication so we can use root type in the key
             foreach (InvocationModel? m in all)
             {
-                if (m.Kind == "WhenChanged")
+                if (m.Kind == "WhenChanged" || m.Kind == "WhenValueChanged" || m.Kind == "AutoRefresh" || m.Kind == "WhenObserved")
                 {
                     if (m.FromSegments.Count > 0)
                     {
                         m.WhenRootTypeName = m.FromSegments[0].DeclaringTypeName;
-                        m.WhenLeafTypeName = m.FromSegments.Last().TypeName;
+                        string leafType = m.FromSegments.Last().TypeName;
+
+                        // For WhenObserved, the leaf is Observable<T>, but we need T
+                        // Extract the inner type from Observable<T>
+                        if (m.Kind == "WhenObserved" && leafType.StartsWith("global::R3.Observable<") && leafType.EndsWith(">"))
+                        {
+                            // Extract T from Observable<T>
+                            m.WhenLeafTypeName = leafType.Substring("global::R3.Observable<".Length, leafType.Length - "global::R3.Observable<".Length - 1);
+                        }
+                        else if (m.Kind == "WhenObserved" && leafType.StartsWith("Observable<") && leafType.EndsWith(">"))
+                        {
+                            // Handle non-fully-qualified Observable<T>
+                            m.WhenLeafTypeName = leafType.Substring("Observable<".Length, leafType.Length - "Observable<".Length - 1);
+                        }
+                        else
+                        {
+                            m.WhenLeafTypeName = leafType;
+                        }
 
                         // For root INPC check: need to lookup the declaring type symbol
                         // But we don't have Compilation here, so we'll use a heuristic:
@@ -214,6 +237,9 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                     "BindOneWay" => $"{m.Kind}|{m.RootFromTypeName}|{m.FromPath}|{m.RootTargetTypeName}|{m.ToPath}",
                     "BindTwoWay" => $"{m.Kind}|{m.RootFromTypeName}|{m.FromPath}|{m.RootTargetTypeName}|{m.ToPath}",
                     "WhenChanged" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
+                    "WhenValueChanged" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
+                    "AutoRefresh" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
+                    "WhenObserved" => $"{m.Kind}|{m.WhenRootTypeName}|{m.WhenPath}",
                     _ => m.Kind,
                 };
             }
@@ -233,13 +259,14 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             string source = emitter.Emit(distinct.ToImmutableArray(), asmName);
 
             // Prepend debug info
+            // var debugInfo = new StringBuilder();
             // debugInfo.AppendLine($"// DEBUG: After deduplication: {distinct.Count} distinct invocations");
             // foreach (var inv in distinct.Where(m => m.Kind == "WhenChanged"))
             // {
             //     debugInfo.AppendLine($"//   - KEPT: Path={inv.WhenPath}, Loc={inv.Location.GetLineSpan()}");
             // }
-
             // var finalSource = debugInfo.ToString() + source;
+
             spc.AddSource("R3Ext_BindingGeneratorV2.g.cs", SourceText.From(source, Encoding.UTF8));
         });
     }
@@ -249,7 +276,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         if (ies.Expression is MemberAccessExpressionSyntax maes)
         {
             string name = maes.Name.Identifier.ValueText;
-            return name is "BindTwoWay" or "BindOneWay" or "WhenChanged";
+            return name is "BindTwoWay" or "BindOneWay" or "WhenChanged" or "WhenValueChanged" or "AutoRefresh" or "WhenObserved";
         }
 
         return false;
@@ -283,7 +310,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             return new FilteredInvocation(location, reason, ies.ToString());
         }
 
-        if (symbol.Name is not ("BindTwoWay" or "BindOneWay" or "WhenChanged"))
+        if (symbol.Name is not ("BindTwoWay" or "BindOneWay" or "WhenChanged" or "WhenValueChanged" or "AutoRefresh" or "WhenObserved"))
         {
             return new FilteredInvocation(location, $"method name '{symbol.Name}' is not a recognized binding method", ies.ToString());
         }
@@ -305,7 +332,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
         string? inferredTargetRootTypeNameFromHeuristic = null;
         List<(string, string, string)> failures = new();
 
-        if (symbol.Name == "WhenChanged")
+        if (symbol.Name == "WhenChanged" || symbol.Name == "WhenValueChanged" || symbol.Name == "AutoRefresh" || symbol.Name == "WhenObserved")
         {
             if (args.Count < 1)
             {
@@ -317,7 +344,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
             if (whenLambda is not null)
             {
                 ExtractSegments(ctx.SemanticModel, whenLambda, fromSegments,
-                    (member, expr, reason) => failures.Add((member, expr, reason))); // reuse fromSegments for WhenChanged chain
+                    (member, expr, reason) => failures.Add((member, expr, reason))); // reuse fromSegments for WhenChanged/WhenObserved chain
             }
         }
         else
@@ -413,7 +440,7 @@ public sealed class BindingGeneratorV2 : IIncrementalGenerator
                 ContainingTypeName = capturedContainingTypeName,
                 SymbolResolutionFailures = failures,
             };
-        if (symbol.Name != "WhenChanged")
+        if (symbol.Name != "WhenChanged" && symbol.Name != "WhenValueChanged" && symbol.Name != "AutoRefresh")
         {
             ITypeSymbol? ta = null;
             if (symbol.IsGenericMethod && symbol.TypeArguments.Length >= 3)
@@ -907,7 +934,8 @@ internal sealed class CodeEmitter
             EmitUnsafeAccessors(invocations, sb);
             this.EmitBindOneWay(invocations.Where(i => i.Kind == "BindOneWay").ToImmutableArray(), sb);
             this.EmitBindTwoWay(invocations.Where(i => i.Kind == "BindTwoWay").ToImmutableArray(), sb);
-            this.EmitWhenChanged(invocations.Where(i => i.Kind == "WhenChanged").ToImmutableArray(), sb);
+            this.EmitWhenChanged(invocations.Where(i => i.Kind == "WhenChanged" || i.Kind == "WhenValueChanged" || i.Kind == "AutoRefresh").ToImmutableArray(), sb);
+            this.EmitWhenObserved(invocations.Where(i => i.Kind == "WhenObserved").ToImmutableArray(), sb);
             sb.AppendLine("}");
         }
         else
@@ -919,8 +947,9 @@ internal sealed class CodeEmitter
             EmitUnsafeAccessors(invocations, sb);
             int owCount = invocations.Count(i => i.Kind == "BindOneWay");
             int twCount = invocations.Count(i => i.Kind == "BindTwoWay");
-            int wcCount = invocations.Count(i => i.Kind == "WhenChanged");
-            sb.AppendLine($"    // Generator summary for {asm}: OW={owCount}, TW={twCount}, WC={wcCount}");
+            int wcCount = invocations.Count(i => i.Kind == "WhenChanged" || i.Kind == "WhenValueChanged" || i.Kind == "AutoRefresh");
+            int woCount = invocations.Count(i => i.Kind == "WhenObserved");
+            sb.AppendLine($"    // Generator summary for {asm}: OW={owCount}, TW={twCount}, WC={wcCount}, WO={woCount}");
 
             // Debug: list invocations and metadata readiness
             foreach (InvocationModel? inv in invocations)
@@ -951,13 +980,21 @@ internal sealed class CodeEmitter
                     sb.AppendLine(
                         $"        BindingRegistry.RegisterTwoWay<{inv.RootFromTypeName},{inv.FromLeafTypeName},{inv.RootTargetTypeName},{inv.TargetLeafTypeName}>(\"{Escape(inv.FromPath)}\", \"{Escape(inv.ToPath)}\", (f,t,ht,th) => __RegBindTwoWay_{id}(f,t,ht,th));");
                 }
-                else if (inv.Kind == "WhenChanged" && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
+                else if ((inv.Kind == "WhenChanged" || inv.Kind == "WhenValueChanged" || inv.Kind == "AutoRefresh") && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
                 {
                     string id = Hash(inv.WhenRootTypeName + "|" + inv.WhenPath);
                     string simple = Simple(inv.WhenRootTypeName);
                     string composite = simple + "|" + Escape(inv.WhenPath);
                     sb.AppendLine(
                         $"        BindingRegistry.RegisterWhenChanged<{inv.WhenRootTypeName},{inv.WhenLeafTypeName}>(\"{composite}\", obj => __RegWhenChanged_{id}(obj));");
+                }
+                else if (inv.Kind == "WhenObserved" && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
+                {
+                    string id = Hash(inv.WhenRootTypeName + "|" + inv.WhenPath);
+                    string simple = Simple(inv.WhenRootTypeName);
+                    string composite = simple + "|" + Escape(inv.WhenPath);
+                    sb.AppendLine(
+                        $"        BindingRegistry.RegisterWhenObserved<{inv.WhenRootTypeName},{inv.WhenLeafTypeName}>(\"{composite}\", obj => __RegWhenObserved_{id}(obj));");
                 }
             }
 
@@ -983,12 +1020,20 @@ internal sealed class CodeEmitter
                         this.EmitTwoWayRegistrationBody(id, inv, sb);
                     }
                 }
-                else if (inv.Kind == "WhenChanged" && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
+                else if ((inv.Kind == "WhenChanged" || inv.Kind == "WhenValueChanged" || inv.Kind == "AutoRefresh") && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
                 {
                     string id = Hash(inv.WhenRootTypeName + "|" + inv.WhenPath);
                     if (emitted.Add("wc" + id))
                     {
                         this.EmitWhenRegistrationBody(id, inv, sb);
+                    }
+                }
+                else if (inv.Kind == "WhenObserved" && inv.WhenPath is not null && inv.WhenRootTypeName is not null && inv.WhenLeafTypeName is not null)
+                {
+                    string id = Hash(inv.WhenRootTypeName + "|" + inv.WhenPath);
+                    if (emitted.Add("wo" + id))
+                    {
+                        this.EmitWhenObservedRegistrationBody(id, inv, sb);
                     }
                 }
             }
@@ -1124,6 +1169,7 @@ internal sealed class CodeEmitter
 
     private void EmitWhenChanged(ImmutableArray<InvocationModel> models, StringBuilder sb)
     {
+        // Public overload with CallerArgumentExpression
         sb.AppendLine(
             "    public static partial Observable<TReturn> WhenChanged<TObj,TReturn>(this TObj objectToMonitor, Expression<Func<TObj,TReturn>> propertyExpression, [CallerArgumentExpression(\"propertyExpression\")] string? propertyExpressionPath = null)");
         sb.AppendLine("    {");
@@ -1148,6 +1194,15 @@ internal sealed class CodeEmitter
         }
 
         sb.AppendLine("        throw new NotSupportedException(\"No generated WhenChanged for provided property expression.\");");
+        sb.AppendLine("    }");
+
+        // Internal overload that accepts explicit expression path (for WhenValueChanged integration)
+        sb.AppendLine(
+            "    public static Observable<TReturn> WhenChangedWithPath<TObj,TReturn>(this TObj objectToMonitor, Expression<Func<TObj,TReturn>> propertyExpression, string explicitPath)");
+        sb.AppendLine("    {");
+        sb.AppendLine(
+            "        var __key = typeof(TObj).Name + \"|\" + explicitPath; if (BindingRegistry.TryCreateWhenChanged<TObj,TReturn>(__key, objectToMonitor, out var __obs)) return __obs;");
+        sb.AppendLine("        throw new NotSupportedException($\"No generated WhenChanged for provided property expression with explicit path: {explicitPath}\");");
         sb.AppendLine("    }");
 
         foreach (InvocationModel? m in models)
@@ -1703,6 +1758,184 @@ internal sealed class CodeEmitter
         sb.AppendLine("                }");
         sb.AppendLine("            });");
         sb.AppendLine("        }).DistinctUntilChanged();");
+        sb.AppendLine("    }");
+    }
+
+    private void EmitWhenObserved(ImmutableArray<InvocationModel> models, StringBuilder sb)
+    {
+        // Public overload with CallerArgumentExpression
+        sb.AppendLine(
+            "    public static partial Observable<TReturn> WhenObserved<TObj,TReturn>(this TObj objectToMonitor, Expression<Func<TObj,Observable<TReturn>>> propertyExpression, [CallerArgumentExpression(\"propertyExpression\")] string? propertyExpressionPath = null)");
+        sb.AppendLine("    {");
+        sb.AppendLine(
+            "        if (propertyExpressionPath is not null){ var __key = typeof(TObj).Name + \"|\" + propertyExpressionPath; if (BindingRegistry.TryCreateWhenObserved<TObj,TReturn>(__key, objectToMonitor, out var __obs)) return __obs; }");
+        if (!models.IsDefaultOrEmpty && models.Count(m => m.WhenPath is not null) > 0)
+        {
+            sb.AppendLine("        switch (propertyExpressionPath)");
+            sb.AppendLine("        {");
+            foreach (InvocationModel? m in models)
+            {
+                if (m.WhenPath is null)
+                {
+                    continue;
+                }
+
+                string id = Hash(m.WhenRootTypeName + "|" + m.WhenPath);
+                sb.AppendLine($"            case \"{Escape(m.WhenPath)}\": return __WhenObserved_{id}(objectToMonitor);");
+            }
+
+            sb.AppendLine("        }");
+        }
+
+        sb.AppendLine("        throw new NotSupportedException(\"No generated WhenObserved for provided property expression.\");");
+        sb.AppendLine("    }");
+
+        foreach (InvocationModel? m in models)
+        {
+            if (m.WhenPath is null || m.WhenLambda is null)
+            {
+                continue;
+            }
+
+            string id = Hash(m.WhenRootTypeName + "|" + m.WhenPath);
+            this.EmitWhenObservedBody(id, m, sb);
+        }
+    }
+
+    private void EmitWhenObservedBody(string id, InvocationModel m, StringBuilder sb)
+    {
+        // WhenObserved implementation: observes properties that return IObservable<T> and switches to them
+        sb.AppendLine($"    private static Observable<TReturn> __WhenObserved_{id}<TObj,TReturn>(TObj root)");
+        sb.AppendLine("    {");
+
+        // If no segments, can't really handle this case
+        if (m.FromSegments.Count == 0)
+        {
+            sb.AppendLine("        return Observable.Empty<TReturn>();");
+            sb.AppendLine("    }");
+            return;
+        }
+
+        sb.AppendLine("        if (root is null) return Observable.Empty<TReturn>();");
+
+        string leafAccess = BuildChainAccess("root", m.FromSegments);
+
+        // Single segment: simple observation - the leaf property should be an IObservable<TReturn>
+        if (m.FromSegments.Count == 1)
+        {
+            PropertySegment seg = m.FromSegments[0];
+
+            // Use compile-time check: does the declaring type implement INPC?
+            if (seg.DeclaringTypeImplementsNotify)
+            {
+                // Root type implements INPC - use ObservePropertyChanged then Switch
+                string propAccess = BuildObservePropertyAccess(seg, $"(({seg.TypeName})x)");
+                sb.AppendLine($"        return ((INotifyPropertyChanged)root).ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine("            .Select(static v => (Observable<TReturn>)(object?)v!)");
+                sb.AppendLine("            .Switch();");
+            }
+            else
+            {
+                // Root type does not implement INPC - use EveryValueChanged then Switch
+                sb.AppendLine($"        return Observable.EveryValueChanged(root, static x => {leafAccess.Replace("root", "x")})");
+                sb.AppendLine("            .Select(static v => (Observable<TReturn>)(object?)v!)");
+                sb.AppendLine("            .Switch();");
+            }
+
+            sb.AppendLine("    }");
+            return;
+        }
+
+        // Multi-segment chain: use Observable.Create with dynamic rewiring
+        // The chain navigation is similar to WhenChanged, but we emit Observable<TReturn> and use Switch
+        sb.AppendLine("        return Observable.Create<TReturn>(observer => {");
+        sb.AppendLine("            var subscriptions = new IDisposable?[" + m.FromSegments.Count + "];");
+        sb.AppendLine("            IDisposable? innerSubscription = null;");
+
+        // Segment variables
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
+            PropertySegment seg = m.FromSegments[i];
+            sb.AppendLine($"            {seg.TypeName} __seg_{i} = default!;");
+        }
+
+        sb.AppendLine("            void UpdateChain()");
+        sb.AppendLine("            {");
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
+            string access = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+            sb.AppendLine($"                try {{ __seg_{i} = {access}; }} catch {{ __seg_{i} = default!; }}");
+        }
+
+        sb.AppendLine("            }");
+
+        sb.AppendLine("            void SubscribeToObservable()");
+        sb.AppendLine("            {");
+        sb.AppendLine("                innerSubscription?.Dispose();");
+        sb.AppendLine("                innerSubscription = null;");
+        sb.AppendLine("                try");
+        sb.AppendLine("                {");
+        sb.AppendLine($"                    var obs = (Observable<TReturn>)(object?){leafAccess}!;");
+        sb.AppendLine("                    if (obs != null)");
+        sb.AppendLine("                    {");
+        sb.AppendLine("                        innerSubscription = obs.Subscribe(observer);");
+        sb.AppendLine("                    }");
+        sb.AppendLine("                }");
+        sb.AppendLine("                catch { }");
+        sb.AppendLine("            }");
+
+        sb.AppendLine("            void Rewire(int fromIndex)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                for (int i = fromIndex; i < subscriptions.Length; i++)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    subscriptions[i]?.Dispose();");
+        sb.AppendLine("                    subscriptions[i] = null;");
+        sb.AppendLine("                }");
+        sb.AppendLine("                UpdateChain();");
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
+            PropertySegment seg = m.FromSegments[i];
+            string parentRef = i == 0 ? "root" : $"__seg_{i - 1}";
+            string parentType = i == 0 ? "TObj" : m.FromSegments[i - 1].TypeName;
+            string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})x)");
+
+            // Use compile-time check: segment 0's parent is root (use DeclaringTypeImplementsNotify),
+            // segment i>0's parent is segment[i-1] (use IsNotify)
+            bool parentImplementsNotify = i == 0 ? seg.DeclaringTypeImplementsNotify : m.FromSegments[i - 1].IsNotify;
+
+            sb.AppendLine($"                if (fromIndex <= {i})");
+            sb.AppendLine("                {");
+            if (parentImplementsNotify)
+            {
+                // Parent implements INPC - use ObservePropertyChanged
+                sb.AppendLine($"                    subscriptions[{i}] = ((INotifyPropertyChanged){parentRef}).ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); SubscribeToObservable(); }});");
+                sb.AppendLine("                    R3ExtGeneratedInstrumentation.NotifyWires++;");
+            }
+            else
+            {
+                // Parent does not implement INPC - use EveryValueChanged
+                string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                    subscriptions[{i}] = Observable.EveryValueChanged(root, static x => {segAccess.Replace("root", "x")})");
+                sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); SubscribeToObservable(); }});");
+            }
+
+            sb.AppendLine("                }");
+        }
+
+        sb.AppendLine("            }");
+
+        sb.AppendLine("            Rewire(0);");
+        sb.AppendLine("            SubscribeToObservable();");
+        sb.AppendLine("            return Disposable.Create(() =>");
+        sb.AppendLine("            {");
+        sb.AppendLine("                innerSubscription?.Dispose();");
+        sb.AppendLine("                for (int i = 0; i < subscriptions.Length; i++)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    subscriptions[i]?.Dispose();");
+        sb.AppendLine("                }");
+        sb.AppendLine("            });");
+        sb.AppendLine("        });");
         sb.AppendLine("    }");
     }
 
@@ -2540,6 +2773,198 @@ internal sealed class CodeEmitter
         sb.AppendLine("    }");
     }
 
+    private void EmitWhenObservedRegistrationBody(string id, InvocationModel m, StringBuilder sb)
+    {
+        // WhenObserved registration body - similar to WhenRegistrationBody but switches to observables
+        sb.AppendLine($"    private static Observable<{m.WhenLeafTypeName}> __RegWhenObserved_{id}({m.WhenRootTypeName} root)");
+        sb.AppendLine("    {");
+
+        if (m.FromSegments.Count == 0)
+        {
+            sb.AppendLine("        return Observable.Empty<" + m.WhenLeafTypeName + ">();");
+            sb.AppendLine("    }");
+            return;
+        }
+
+        sb.AppendLine("        if (root is null) return Observable.Empty<" + m.WhenLeafTypeName + ">();");
+
+        string leafAccess = BuildChainAccess("root", m.FromSegments);
+
+        // Single segment: simple observation - the leaf property should be an IObservable<TReturn>
+        if (m.FromSegments.Count == 1)
+        {
+            PropertySegment seg = m.FromSegments[0];
+            bool rootImplementsNotify = seg.DeclaringTypeImplementsNotify;
+
+            if (rootImplementsNotify)
+            {
+                // Root implements INPC - use ObservePropertyChanged then Switch
+                string propAccess = BuildObservePropertyAccess(seg, $"(({m.WhenRootTypeName})(object)x)");
+                sb.AppendLine($"        return root.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine("            .Select(static v => (Observable<" + m.WhenLeafTypeName + ">)(object?)v!)");
+                sb.AppendLine("            .Switch();");
+            }
+            else
+            {
+                // Root doesn't implement INPC - use EveryValueChanged then Switch
+                sb.AppendLine($"        return Observable.EveryValueChanged(root, x => {leafAccess.Replace("root", "x")})");
+                sb.AppendLine("            .Select(static v => (Observable<" + m.WhenLeafTypeName + ">)(object?)v!)");
+                sb.AppendLine("            .Switch();");
+            }
+
+            sb.AppendLine("    }");
+            return;
+        }
+
+        // Multi-segment: use Observable.Create with dynamic rewiring (closure-free via class state)
+        string stateType = $"WhenObservedState_{m.FromSegments.Count}_{id}";
+        sb.AppendLine("        return Observable.Create<" + m.WhenLeafTypeName + ">(observer => {");
+        sb.AppendLine($"            var state = new {stateType}(observer, root);");
+        sb.AppendLine("            state.Initialize();");
+        sb.AppendLine("            return state;");
+        sb.AppendLine("        });");
+        sb.AppendLine("    }");
+        sb.AppendLine(string.Empty);
+
+        // Generate state class for WhenObserved with inner subscription management
+        sb.AppendLine($"    sealed class {stateType} : IDisposable");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        private readonly Observer<{m.WhenLeafTypeName}> observer;");
+        sb.AppendLine($"        private readonly {m.WhenRootTypeName} root;");
+
+        // For WhenObserved, we only monitor intermediate segments (not the final Observable property)
+        sb.AppendLine($"        private readonly IDisposable?[] subscriptions = new IDisposable?[{m.FromSegments.Count - 1}];");
+        sb.AppendLine("        private IDisposable? innerSubscription;");
+        sb.AppendLine("        private bool rewiring;");
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
+            PropertySegment seg = m.FromSegments[i];
+            sb.AppendLine($"        private {seg.TypeName} seg_{i};");
+        }
+
+        sb.AppendLine(string.Empty);
+        sb.AppendLine($"        public {stateType}(Observer<{m.WhenLeafTypeName}> observer, {m.WhenRootTypeName} root)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            this.observer = observer;");
+        sb.AppendLine("            this.root = root;");
+        sb.AppendLine("        }");
+
+        sb.AppendLine(string.Empty);
+        sb.AppendLine("        public void Initialize()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            UpdateChain();");
+        sb.AppendLine("            Rewire(0);");
+        sb.AppendLine("            SubscribeToObservable();");
+        sb.AppendLine("        }");
+
+        sb.AppendLine(string.Empty);
+        sb.AppendLine("        private void UpdateChain()");
+        sb.AppendLine("        {");
+        for (int i = 0; i < m.FromSegments.Count; i++)
+        {
+            string access = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+            sb.AppendLine($"            try {{ seg_{i} = {access}; }} catch {{ seg_{i} = default!; }}");
+        }
+
+        sb.AppendLine("        }");
+
+        sb.AppendLine(string.Empty);
+        sb.AppendLine("        private void SubscribeToObservable()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            innerSubscription?.Dispose();");
+        sb.AppendLine("            innerSubscription = null;");
+        sb.AppendLine("            if (rewiring) return;");
+        sb.AppendLine("            try");
+        sb.AppendLine("            {");
+        string emitAccess = leafAccess.Replace("__seg_", "seg_");
+        sb.AppendLine("                var obs = (Observable<" + m.WhenLeafTypeName + ">)(object?)" + emitAccess + "!;");
+        sb.AppendLine("                if (obs != null)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    innerSubscription = obs.Subscribe(observer);");
+        sb.AppendLine("                }");
+        sb.AppendLine("            }");
+        sb.AppendLine("            catch { }");
+        sb.AppendLine("        }");
+
+        sb.AppendLine(string.Empty);
+        sb.AppendLine("        private void Rewire(int fromIndex)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (rewiring) return;");
+        sb.AppendLine("            rewiring = true;");
+        sb.AppendLine("            try");
+        sb.AppendLine("            {");
+        sb.AppendLine("                for (int i = fromIndex; i < subscriptions.Length; i++)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    subscriptions[i]?.Dispose();");
+        sb.AppendLine("                    subscriptions[i] = null;");
+        sb.AppendLine("                }");
+        sb.AppendLine("                UpdateChain();");
+
+        // For WhenObserved, we only monitor changes to segments 0..N-2 (not the final Observable property)
+        // The final Observable is subscribed to directly in SubscribeToObservable()
+        int segmentCountToMonitor = m.FromSegments.Count - 1;
+
+        for (int i = 0; i < segmentCountToMonitor; i++)
+        {
+            PropertySegment seg = m.FromSegments[i];
+            string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
+            string parentType = i == 0 ? m.WhenRootTypeName! : m.FromSegments[i - 1].TypeName;
+            bool parentImplementsNotify = i == 0 ? seg.DeclaringTypeImplementsNotify : m.FromSegments[i - 1].IsNotify;
+
+            sb.AppendLine($"                if (fromIndex <= {i})");
+            sb.AppendLine("                {");
+
+            if (parentImplementsNotify)
+            {
+                // Parent implements INPC - use ObservePropertyChanged
+                // Add null check for parent segment (handles null intermediates gracefully)
+                if (i > 0)
+                {
+                    sb.AppendLine($"                    if ({parentRef} != null)");
+                    sb.AppendLine("                    {");
+                }
+
+                string indent = i > 0 ? "    " : string.Empty;
+                string propAccess = BuildObservePropertyAccess(seg, $"(({parentType})(object)x)");
+                sb.AppendLine($"                    {indent}subscriptions[{i}] = {parentRef}.ObservePropertyChanged(static x => {propAccess})");
+                sb.AppendLine($"                    {indent}    .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.SubscribeToObservable(); }});");
+                sb.AppendLine($"                    {indent}R3ExtGeneratedInstrumentation.NotifyWires++;");
+
+                if (i > 0)
+                {
+                    sb.AppendLine("                    }");
+                }
+            }
+            else
+            {
+                // Parent doesn't implement INPC - use EveryValueChanged
+                string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
+                sb.AppendLine($"                    subscriptions[{i}] = Observable.EveryValueChanged(root, x => {segAccess.Replace("root", "x")})");
+                sb.AppendLine($"                        .Subscribe(this, static (_, s) => {{ s.Rewire({i + 1}); s.SubscribeToObservable(); }});");
+            }
+
+            sb.AppendLine("                }");
+        }
+
+        sb.AppendLine("            }");
+        sb.AppendLine("            finally { rewiring = false; }");
+        sb.AppendLine("        }");
+
+        sb.AppendLine(string.Empty);
+        sb.AppendLine("        public void Dispose()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            innerSubscription?.Dispose();");
+        sb.AppendLine("            if (subscriptions != null)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                for (int i = 0; i < subscriptions.Length; i++)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    subscriptions[i]?.Dispose();");
+        sb.AppendLine("                }");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+    }
+
     // old placeholder helpers removed; replaced by chain-aware emission above
     private static string ExtractMemberAccess(SimpleLambdaExpressionSyntax lambda, string rootParam = null!)
     {
@@ -2727,9 +3152,12 @@ internal sealed class CodeEmitter
             string containerAccess = BuildChainAccess(root, segments.Take(segments.Count - 1).ToList());
             PropertySegment? leaf = segments.Last();
             string key = SanKey(leaf);
-            string direct = containerAccess + "." + leaf.Name + " = " + valueExpr + ";";
+
+            // For assignments, we need the non-nullable version to avoid null-conditional assignment syntax (?.=)
+            string containerForAssignment = containerAccess.Replace("?.", ".");
+            string direct = containerForAssignment + "." + leaf.Name + " = " + valueExpr + ";";
             return $"if(({containerAccess}) != null) {{ " + (leaf.SetterIsNonPublic
-                ? $"#if NET8_0_OR_GREATER || NET9_0_OR_GREATER\n                __UA_SET_{key}({containerAccess}, ({leaf.TypeName}) (object?){valueExpr}!);\n#else\n                {direct}\n#endif"
+                ? $"#if NET8_0_OR_GREATER || NET9_0_OR_GREATER\n                __UA_SET_{key}({containerForAssignment}, ({leaf.TypeName}) (object?){valueExpr}!);\n#else\n                {direct}\n#endif"
                 : direct) + " }";
         }
 

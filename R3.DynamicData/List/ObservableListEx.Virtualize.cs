@@ -2,8 +2,11 @@
 
 using R3.DynamicData.List;
 
-namespace R3.DynamicData.Cache;
+namespace R3.DynamicData.List;
 
+/// <summary>
+/// Extension methods for observable list change sets.
+/// </summary>
 public static partial class ObservableListEx
 {
     /// <summary>
@@ -18,63 +21,78 @@ public static partial class ObservableListEx
         Observable<VirtualRequest> virtualRequests)
         where T : notnull
     {
-        return Observable.Create<IChangeSet<T>>(observer =>
-        {
-            var fullList = new List<T>();
-            var currentWindow = new VirtualRequest(0, 10);
-            VirtualRequest? previousWindow = null;
-            var disposables = new CompositeDisposable();
+        return Observable.Create<IChangeSet<T>, VirtualizeState<T>>(
+            new VirtualizeState<T>(source, virtualRequests),
+            static (observer, state) =>
+            {
+                var fullList = new List<T>();
+                var windowState = new WindowState(new VirtualRequest(0, 10));
+                var disposables = new CompositeDisposable();
 
-            // Subscribe to source changes
-            source.Subscribe(
-                changes =>
-                {
-                    try
+                // Subscribe to source changes
+                state.Source.Subscribe(
+                    (observer, fullList, windowState),
+                    static (changes, tuple) =>
                     {
-                        // Apply changes to full list
-                        ApplyChangesToFullList(fullList, changes);
-
-                        // Emit windowed changes
-                        var windowedChanges = CreateWindowedChangeset(fullList, previousWindow, currentWindow);
-                        if (windowedChanges.Count > 0)
+                        try
                         {
-                            observer.OnNext(windowedChanges);
+                            // Apply changes to full list
+                            ApplyChangesToFullList(tuple.fullList, changes);
+
+                            // Emit windowed changes
+                            var windowedChanges = CreateWindowedChangeset(tuple.fullList, tuple.windowState.PreviousWindow, tuple.windowState.CurrentWindow);
+                            if (windowedChanges.Count > 0)
+                            {
+                                tuple.observer.OnNext(windowedChanges);
+                            }
+
+                            tuple.windowState.PreviousWindow = tuple.windowState.CurrentWindow;
                         }
-
-                        previousWindow = currentWindow;
-                    }
-                    catch (Exception ex)
-                    {
-                        observer.OnErrorResume(ex);
-                    }
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted).AddTo(disposables);
-
-            // Subscribe to virtual requests
-            virtualRequests.Subscribe(
-                request =>
-                {
-                    try
-                    {
-                        previousWindow = currentWindow;
-                        currentWindow = request;
-
-                        // Emit changes for new window
-                        var windowedChanges = CreateWindowedChangeset(fullList, previousWindow, currentWindow);
-                        if (windowedChanges.Count > 0)
+                        catch (Exception ex)
                         {
-                            observer.OnNext(windowedChanges);
+                            tuple.observer.OnErrorResume(ex);
                         }
-                    }
-                    catch (Exception ex)
+                    },
+                    static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                    static (result, tuple) =>
                     {
-                        observer.OnErrorResume(ex);
-                    }
-                }).AddTo(disposables);
+                        if (result.IsSuccess)
+                        {
+                            tuple.observer.OnCompleted();
+                        }
+                        else
+                        {
+                            tuple.observer.OnCompleted(result);
+                        }
+                    }).AddTo(disposables);
 
-            return disposables;
-        });
+                // Subscribe to virtual requests
+                state.VirtualRequests.Subscribe(
+                    (observer, fullList, windowState),
+                    static (request, tuple) =>
+                    {
+                        try
+                        {
+                            tuple.windowState.PreviousWindow = tuple.windowState.CurrentWindow;
+                            tuple.windowState.CurrentWindow = request;
+
+                            // Emit changes for new window
+                            var windowedChanges = CreateWindowedChangeset(tuple.fullList, tuple.windowState.PreviousWindow, tuple.windowState.CurrentWindow);
+                            if (windowedChanges.Count > 0)
+                            {
+                                tuple.observer.OnNext(windowedChanges);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            tuple.observer.OnErrorResume(ex);
+                        }
+                    },
+                    static (ex, tuple) => { /* Ignore errors from virtualRequests */ },
+                    static (result, tuple) => { /* VirtualRequests completion doesn't affect main stream */ }).AddTo(disposables);
+
+                return disposables;
+            });
     }
 
     private static void ApplyChangesToFullList<T>(List<T> fullList, IChangeSet<T> changes)
@@ -242,7 +260,32 @@ public static partial class ObservableListEx
             throw new ArgumentOutOfRangeException(nameof(pageSize));
         }
 
-        var virtualRequests = pageRequests.Select(page => new VirtualRequest(page * pageSize, pageSize));
+        var virtualRequests = pageRequests.Select(pageSize, static (page, size) => new VirtualRequest(page * size, size));
         return source.Virtualize(virtualRequests);
+    }
+
+    private readonly struct VirtualizeState<T>
+        where T : notnull
+    {
+        public readonly Observable<IChangeSet<T>> Source;
+        public readonly Observable<VirtualRequest> VirtualRequests;
+
+        public VirtualizeState(Observable<IChangeSet<T>> source, Observable<VirtualRequest> virtualRequests)
+        {
+            Source = source;
+            VirtualRequests = virtualRequests;
+        }
+    }
+
+    private sealed class WindowState
+    {
+        public VirtualRequest CurrentWindow;
+        public VirtualRequest? PreviousWindow;
+
+        public WindowState(VirtualRequest initialWindow)
+        {
+            CurrentWindow = initialWindow;
+            PreviousWindow = null;
+        }
     }
 }

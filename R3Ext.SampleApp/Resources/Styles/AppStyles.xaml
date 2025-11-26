@@ -1,0 +1,270 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- Premium Color Palette -->
+    <!-- Primary - Deep indigo with violet undertones -->
+    <Color x:Key="PrimaryColor">#5B4FC8</Color>
+    <Color x:Key="PrimaryDark">#4A3FB0</Color>
+    <Color x:Key="PrimaryLight">#7B6EE8</Color>
+    <Color x:Key="PrimaryContainer">#EDE7FF</Color>
+    <Color x:Key="OnPrimary">#FFFFFF</Color>
+    
+    <!-- Accent - Vibrant coral -->
+    <Color x:Key="AccentColor">#FF6B6B</Color>
+    <Color x:Key="AccentLight">#FF8787</Color>
+    <Color x:Key="AccentContainer">#FFE5E5</Color>
+    
+    <!-- Secondary - Teal -->
+    <Color x:Key="SecondaryColor">#4ECDC4</Color>
+    <Color x:Key="SecondaryDark">#3DB9B0</Color>
+    <Color x:Key="SecondaryContainer">#E0F7F6</Color>
+    
+    <!-- Success -->
+    <Color x:Key="SuccessColor">#51CF66</Color>
+    <Color x:Key="SuccessContainer">#E7F8EA</Color>
+    
+    <!-- Error -->
+    <Color x:Key="ErrorColor">#FF6B6B</Color>
+    <Color x:Key="ErrorContainer">#FFE5E5</Color>
+    
+    <!-- Surface & Background -->
+    <Color x:Key="BackgroundColor">#F8F9FA</Color>
+    <Color x:Key="BackgroundGradientStart">#FFFFFF</Color>
+    <Color x:Key="BackgroundGradientEnd">#F3F4F6</Color>
+    <Color x:Key="SurfaceColor">#FFFFFF</Color>
+    <Color x:Key="SurfaceElevated">#FFFFFF</Color>
+    <Color x:Key="SurfaceOverlay">#F8F9FA</Color>
+    
+    <!-- Text Colors -->
+    <Color x:Key="TextPrimary">#1A1A2E</Color>
+    <Color x:Key="TextSecondary">#6B7280</Color>
+    <Color x:Key="TextTertiary">#9CA3AF</Color>
+    <Color x:Key="TextInverse">#FFFFFF</Color>
+    
+    <!-- Borders & Dividers -->
+    <Color x:Key="BorderColor">#E5E7EB</Color>
+    <Color x:Key="DividerColor">#F3F4F6</Color>
+    
+    <!-- Shadows -->
+    <Color x:Key="ShadowColor">#10000000</Color>
+    <Color x:Key="ShadowMedium">#20000000</Color>
+    
+    <!-- Dark Theme -->
+    <Color x:Key="BackgroundDark">#0F0F1E</Color>
+    <Color x:Key="BackgroundGradientStartDark">#1A1A2E</Color>
+    <Color x:Key="BackgroundGradientEndDark">#16213E</Color>
+    <Color x:Key="SurfaceDark">#1A1A2E</Color>
+    <Color x:Key="SurfaceElevatedDark">#252547</Color>
+    <Color x:Key="TextPrimaryDark">#FFFFFF</Color>
+    <Color x:Key="TextSecondaryDark">#B8B8D1</Color>
+    <Color x:Key="TextTertiaryDark">#8A8AA5</Color>
+    <Color x:Key="BorderDark">#2D2D44</Color>
+    <Color x:Key="DividerDark">#25254A</Color>
+    
+    <!-- Premium Typography System -->
+    <Style x:Key="PageTitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="34" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimaryDark}}" />
+    </Style>
+
+    <Style x:Key="PageSubtitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextSecondary}, Dark={StaticResource TextSecondaryDark}}" />
+        <Setter Property="Opacity" Value="0.9" />
+    </Style>
+
+    <Style x:Key="SectionTitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimaryDark}}" />
+        <Setter Property="Margin" Value="0,0,0,4" />
+    </Style>
+
+    <Style x:Key="SectionSubtitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextSecondary}, Dark={StaticResource TextSecondaryDark}}" />
+        <Setter Property="FontAttributes" Value="None" />
+        <Setter Property="Margin" Value="0,0,0,20" />
+    </Style>
+
+    <Style x:Key="CardTitleStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextPrimary}, Dark={StaticResource TextPrimaryDark}}" />
+    </Style>
+
+    <Style x:Key="CardDescriptionStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextSecondary}, Dark={StaticResource TextSecondaryDark}}" />
+        <Setter Property="LineBreakMode" Value="TailTruncation" />
+        <Setter Property="MaxLines" Value="2" />
+    </Style>
+
+    <Style x:Key="BodyTextStyle" TargetType="Label">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextSecondary}, Dark={StaticResource TextSecondaryDark}}" />
+        <Setter Property="LineBreakMode" Value="WordWrap" />
+    </Style>
+
+    <Style x:Key="MonospaceStyle" TargetType="Label">
+        <Setter Property="FontFamily" Value="Courier" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource TextSecondary}, Dark={StaticResource TextSecondaryDark}}" />
+    </Style>
+
+    <!-- Premium Card System -->
+    <Style x:Key="CardFrameStyle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceColor}, Dark={StaticResource SurfaceElevatedDark}}" />
+        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource BorderColor}, Dark={StaticResource BorderDark}}" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="20" />
+        <Setter Property="HasShadow" Value="True" />
+        <Setter Property="Margin" Value="0,0,0,16" />
+    </Style>
+
+    <Style x:Key="FeatureCardStyle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceColor}, Dark={StaticResource SurfaceElevatedDark}}" />
+        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource BorderColor}, Dark={StaticResource BorderDark}}" />
+        <Setter Property="CornerRadius" Value="20" />
+        <Setter Property="Padding" Value="18" />
+        <Setter Property="HasShadow" Value="True" />
+        <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <Style x:Key="HeroCardStyle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceColor}, Dark={StaticResource SurfaceElevatedDark}}" />
+        <Setter Property="BorderColor" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="24" />
+        <Setter Property="Padding" Value="24" />
+        <Setter Property="HasShadow" Value="True" />
+        <Setter Property="Margin" Value="0,0,0,20" />
+    </Style>
+
+    <Style x:Key="CompactCardStyle" TargetType="Frame" BasedOn="{StaticResource CardFrameStyle}">
+        <Setter Property="Padding" Value="16" />
+        <Setter Property="Margin" Value="0,0,0,12" />
+        <Setter Property="CornerRadius" Value="16" />
+    </Style>
+
+    <!-- Premium Button Styles -->
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource PrimaryColor}, Dark={StaticResource PrimaryLight}}" />
+        <Setter Property="TextColor" Value="{StaticResource OnPrimary}" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="28,14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="HeightRequest" Value="52" />
+    </Style>
+
+    <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceOverlay}, Dark={StaticResource SurfaceElevatedDark}}" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryColor}, Dark={StaticResource PrimaryLight}}" />
+        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource BorderColor}, Dark={StaticResource BorderDark}}" />
+        <Setter Property="BorderWidth" Value="1.5" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="28,14" />
+        <Setter Property="FontAttributes" Value="Bold" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="HeightRequest" Value="52" />
+    </Style>
+
+    <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+        <Setter Property="BackgroundColor" Value="{StaticResource ErrorColor}" />
+        <Setter Property="TextColor" Value="{StaticResource TextInverse}" />
+    </Style>
+
+    <Style x:Key="SuccessButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+        <Setter Property="BackgroundColor" Value="{StaticResource SuccessColor}" />
+        <Setter Property="TextColor" Value="{StaticResource TextInverse}" />
+    </Style>
+
+    <Style x:Key="AccentButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+        <Setter Property="BackgroundColor" Value="{StaticResource AccentColor}" />
+        <Setter Property="TextColor" Value="{StaticResource TextInverse}" />
+    </Style>
+
+    <!-- Feature Card Template -->
+    <DataTemplate x:Key="FeatureCardTemplate">
+        <Frame Style="{StaticResource FeatureCardStyle}">
+            <Frame.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding NavigateCommand}" />
+            </Frame.GestureRecognizers>
+            <Grid RowDefinitions="Auto,Auto,Auto">
+                <Label Grid.Row="0" 
+                       Text="{Binding Icon}"
+                       FontSize="32"
+                       HorizontalOptions="Start"
+                       Margin="0,0,0,8" />
+                <Label Grid.Row="1"
+                       Text="{Binding Title}"
+                       Style="{StaticResource SectionTitleStyle}"
+                       Margin="0,0,0,4" />
+                <Label Grid.Row="2"
+                       Text="{Binding Description}"
+                       Style="{StaticResource BodyTextStyle}"
+                       MaxLines="2"
+                       LineBreakMode="TailTruncation" />
+            </Grid>
+        </Frame>
+    </DataTemplate>
+
+    <!-- Premium Badge Styles -->
+    <Style x:Key="BadgeStyle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource PrimaryContainer}, Dark={StaticResource SurfaceElevatedDark}}" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="HasShadow" Value="False" />
+        <Setter Property="BorderColor" Value="Transparent" />
+    </Style>
+
+    <Style x:Key="BadgeLabelStyle" TargetType="Label">
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryColor}, Dark={StaticResource TextPrimaryDark}}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <Style x:Key="AccentBadgeStyle" TargetType="Frame" BasedOn="{StaticResource BadgeStyle}">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource AccentContainer}, Dark={StaticResource SurfaceElevatedDark}}" />
+    </Style>
+
+    <!-- Separator -->
+    <Style x:Key="SeparatorStyle" TargetType="BoxView">
+        <Setter Property="HeightRequest" Value="1" />
+        <Setter Property="Color" Value="{AppThemeBinding Light={StaticResource DividerColor}, Dark={StaticResource DividerDark}}" />
+        <Setter Property="Margin" Value="0,20" />
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+
+    <!-- Premium Input Styles -->
+    <Style x:Key="InputFrameStyle" TargetType="Frame">
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource SurfaceColor}, Dark={StaticResource SurfaceElevatedDark}}" />
+        <Setter Property="BorderColor" Value="{AppThemeBinding Light={StaticResource BorderColor}, Dark={StaticResource BorderDark}}" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="16,14" />
+        <Setter Property="HasShadow" Value="False" />
+    </Style>
+
+    <!-- Status Colors -->
+    <Style x:Key="SuccessTextStyle" TargetType="Label" BasedOn="{StaticResource BodyTextStyle}">
+        <Setter Property="TextColor" Value="{StaticResource SuccessColor}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <Style x:Key="ErrorTextStyle" TargetType="Label" BasedOn="{StaticResource BodyTextStyle}">
+        <Setter Property="TextColor" Value="{StaticResource ErrorColor}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+    <Style x:Key="InfoTextStyle" TargetType="Label" BasedOn="{StaticResource BodyTextStyle}">
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource PrimaryColor}, Dark={StaticResource PrimaryLight}}" />
+    </Style>
+
+    <Style x:Key="AccentTextStyle" TargetType="Label" BasedOn="{StaticResource BodyTextStyle}">
+        <Setter Property="TextColor" Value="{StaticResource AccentColor}" />
+        <Setter Property="FontAttributes" Value="Bold" />
+    </Style>
+
+</ResourceDictionary>

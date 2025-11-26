@@ -1,10 +1,12 @@
 // Port of DynamicData TransformSafe to R3.
-#pragma warning disable SA1516, SA1515, SA1503, SA1513, SA1117, SA1116
 using System;
 using R3.DynamicData.Kernel;
 
 namespace R3.DynamicData.Cache;
 
+/// <summary>
+/// Extension methods for observable cache change sets.
+/// </summary>
 public static partial class ObservableCacheEx
 {
     /// <summary>
@@ -26,15 +28,27 @@ public static partial class ObservableCacheEx
         where TKey : notnull
         where TDestination : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (transformFactory is null) throw new ArgumentNullException(nameof(transformFactory));
-        if (errorHandler is null) throw new ArgumentNullException(nameof(errorHandler));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (transformFactory is null)
+        {
+            throw new ArgumentNullException(nameof(transformFactory));
+        }
+
+        if (errorHandler is null)
+        {
+            throw new ArgumentNullException(nameof(errorHandler));
+        }
 
         return Observable.Create<IChangeSet<TDestination, TKey>>(observer =>
         {
             var cache = new Dictionary<TKey, TDestination>();
 
-            return source.Subscribe(changeSet =>
+            return source.Subscribe(
+                changeSet =>
             {
                 var transformedSet = new ChangeSet<TDestination, TKey>();
 
@@ -59,6 +73,7 @@ public static partial class ObservableCacheEx
                                 {
                                     transformedSet.Add(new Change<TDestination, TKey>(reason, change.Key, transformed));
                                 }
+
                                 break;
 
                             case ChangeReason.Remove:
@@ -67,6 +82,7 @@ public static partial class ObservableCacheEx
                                     cache.Remove(change.Key);
                                     transformedSet.Add(new Change<TDestination, TKey>(ChangeReason.Remove, change.Key, removed, removed));
                                 }
+
                                 break;
 
                             case ChangeReason.Refresh:
@@ -74,9 +90,11 @@ public static partial class ObservableCacheEx
                                 {
                                     transformedSet.Add(new Change<TDestination, TKey>(ChangeReason.Refresh, change.Key, cache[change.Key]));
                                 }
+
                                 break;
 
                             case ChangeReason.Moved:
+
                                 // Cache moves not applicable; ignore.
                                 break;
                         }
@@ -115,15 +133,27 @@ public static partial class ObservableCacheEx
         where TKey : notnull
         where TDestination : notnull
     {
-        if (source is null) throw new ArgumentNullException(nameof(source));
-        if (transformFactory is null) throw new ArgumentNullException(nameof(transformFactory));
-        if (errorHandler is null) throw new ArgumentNullException(nameof(errorHandler));
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (transformFactory is null)
+        {
+            throw new ArgumentNullException(nameof(transformFactory));
+        }
+
+        if (errorHandler is null)
+        {
+            throw new ArgumentNullException(nameof(errorHandler));
+        }
 
         return Observable.Create<IChangeSet<TDestination, TKey>>(observer =>
         {
             var cache = new Dictionary<TKey, TDestination>();
 
-            return source.Subscribe(changeSet =>
+            return source.Subscribe(
+                changeSet =>
             {
                 var transformedSet = new ChangeSet<TDestination, TKey>();
 
@@ -148,6 +178,7 @@ public static partial class ObservableCacheEx
                                 {
                                     transformedSet.Add(new Change<TDestination, TKey>(reason, change.Key, transformed));
                                 }
+
                                 break;
 
                             case ChangeReason.Remove:
@@ -156,6 +187,7 @@ public static partial class ObservableCacheEx
                                     cache.Remove(change.Key);
                                     transformedSet.Add(new Change<TDestination, TKey>(ChangeReason.Remove, change.Key, removed, removed));
                                 }
+
                                 break;
 
                             case ChangeReason.Refresh:
@@ -163,9 +195,11 @@ public static partial class ObservableCacheEx
                                 {
                                     transformedSet.Add(new Change<TDestination, TKey>(ChangeReason.Refresh, change.Key, cache[change.Key]));
                                 }
+
                                 break;
 
                             case ChangeReason.Moved:
+
                                 // Cache moves not applicable; ignore.
                                 break;
                         }

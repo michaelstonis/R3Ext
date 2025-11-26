@@ -7,6 +7,7 @@ using System.Linq.Expressions;
 using R3;
 using R3.DynamicData.Kernel;
 using R3.DynamicData.List;
+using R3Ext;
 
 namespace R3.DynamicData.Binding;
 
@@ -133,10 +134,11 @@ public static class NotifyPropertyChangedEx
     }
 
     /// <summary>
-    /// Creates an observable that emits when a specific property changes.
+    /// Observes property changes on an object that implements INotifyPropertyChanged.
+    /// Uses R3Ext's source-generated WhenChanged operator for AOT-compatible property monitoring.
     /// </summary>
-    /// <typeparam name="TObject">The type of the source object.</typeparam>
-    /// <typeparam name="TProperty">The type of the property.</typeparam>
+    /// <typeparam name="TObject">The type of object to observe.</typeparam>
+    /// <typeparam name="TProperty">The type of property to observe.</typeparam>
     /// <param name="source">The source object to observe.</param>
     /// <param name="propertyAccessor">An expression identifying the property to observe.</param>
     /// <param name="beforeChange">Whether to emit before the change (not currently supported).</param>
@@ -147,23 +149,15 @@ public static class NotifyPropertyChangedEx
         bool beforeChange = false)
         where TObject : INotifyPropertyChanged
     {
-        var propertyName = GetPropertyName(propertyAccessor);
-        return Observable.FromEvent<PropertyChangedEventHandler, PropertyChangedEventArgs>(
-            handler => (sender, args) => handler(args),
-            h => source.PropertyChanged += h,
-            h => source.PropertyChanged -= h)
-            .Where(args => args.PropertyName == propertyName)
-            .Select(_ => new PropertyValue<TObject, TProperty>(source, propertyAccessor.Compile()(source)));
-    }
+        // Use R3Ext's WhenChangedWithPath with explicit path extraction for AOT compatibility
+        // Extract path from expression to pass explicitly (CallerArgumentExpression doesn't work through variables)
+        string path = Cache.ObservableCacheEx.ExtractPropertyPath(propertyAccessor);
 
-    private static string GetPropertyName<TObject, TProperty>(Expression<Func<TObject, TProperty>> propertyAccessor)
-    {
-        if (propertyAccessor.Body is MemberExpression memberExpression && memberExpression.Member is System.Reflection.PropertyInfo)
-        {
-            return memberExpression.Member.Name;
-        }
-
-        throw new ArgumentException("Expression must be a property access expression", nameof(propertyAccessor));
+        // WhenChanged emits initial value, but WhenPropertyChanged should only emit on changes (not initial)
+        // Skip(1) removes the initial value emission
+        return source.WhenChangedWithPath(propertyAccessor, path)
+            .Skip(1)
+            .Select(value => new PropertyValue<TObject, TProperty>(source, value));
     }
 }
 

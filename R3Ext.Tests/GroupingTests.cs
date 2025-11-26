@@ -5,7 +5,6 @@ using System.Linq;
 using R3; // R3 observable extensions
 using R3.DynamicData.Cache;
 using R3.DynamicData.Kernel;
-using ListChangeReason = R3.DynamicData.List.ListChangeReason; // Alias only the enum to avoid Group<> ambiguity
 #pragma warning disable SA1208
 #pragma warning disable SA1516
 #pragma warning disable SA1501
@@ -36,24 +35,33 @@ public class GroupingTests
     public void GroupsAreCreatedAndResetEmitted()
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
-        var groupsObserved = new List<IReadOnlyList<Group<Person, string>>>();
+        var currentGroups = new Dictionary<string, IGroup<Person, int, string>>();
+        var changeSetCount = 0;
+
         var subscription = cache.Connect()
             .GroupOn<Person, int, string>(p => p.Department)
             .Subscribe(cs =>
             {
-                var currentGroups = cs.Where(c => c.Reason == ListChangeReason.Add).Select(c => c.Item).ToList();
-                groupsObserved.Add(currentGroups);
+                changeSetCount++;
+                foreach (var change in cs)
+                {
+                    if (change.Reason == ChangeReason.Add)
+                        currentGroups[change.Key] = change.Current;
+                    else if (change.Reason == ChangeReason.Remove)
+                        currentGroups.Remove(change.Key);
+                }
             });
 
         cache.AddOrUpdate(new Person(1, "HR"));
         cache.AddOrUpdate(new Person(2, "Eng"));
         cache.AddOrUpdate(new Person(3, "Eng"));
 
-        Assert.True(groupsObserved.Count >= 3); // Reset after each add
-        var last = groupsObserved[^1];
-        Assert.Equal(2, last.Count); // HR, Eng
-        var engGroup = last.First(g => g.Key == "Eng");
-        Assert.Equal(2, engGroup.Items.Count);
+        Assert.True(changeSetCount >= 2); // At least 2 groups created
+        Assert.Equal(2, currentGroups.Count); // HR, Eng
+        Assert.True(currentGroups.ContainsKey("HR"));
+        Assert.True(currentGroups.ContainsKey("Eng"));
+        var engGroup = currentGroups["Eng"];
+        Assert.Equal(2, engGroup.Cache.Count);
 
         subscription.Dispose();
     }
@@ -62,14 +70,19 @@ public class GroupingTests
     public void RefreshMovesItemBetweenGroups()
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
-        var groupsObserved = new List<IReadOnlyList<Group<Person, string>>>();
+        var currentGroups = new Dictionary<string, IGroup<Person, int, string>>();
 
         var subscription = cache.Connect()
             .GroupOn<Person, int, string>(p => p.Department)
             .Subscribe(cs =>
             {
-                var currentGroups = cs.Where(c => c.Reason == ListChangeReason.Add).Select(c => c.Item).ToList();
-                groupsObserved.Add(currentGroups);
+                foreach (var change in cs)
+                {
+                    if (change.Reason == ChangeReason.Add)
+                        currentGroups[change.Key] = change.Current;
+                    else if (change.Reason == ChangeReason.Remove)
+                        currentGroups.Remove(change.Key);
+                }
             });
 
         var p1 = new Person(1, "HR");
@@ -77,9 +90,9 @@ public class GroupingTests
         p1.Department = "Finance"; // change department
         cache.Edit(u => u.Refresh(p1.Id));
 
-        var last = groupsObserved[^1];
-        Assert.Contains(last, g => g.Key == "Finance");
-        Assert.DoesNotContain(last, g => g.Key == "HR" && g.Items.Contains(p1));
+        Assert.True(currentGroups.ContainsKey("Finance"));
+        Assert.False(currentGroups.ContainsKey("HR")); // HR group should be removed when empty
+        Assert.Single(currentGroups["Finance"].Cache.Items);
 
         subscription.Dispose();
     }
