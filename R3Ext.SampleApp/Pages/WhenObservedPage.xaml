@@ -130,7 +130,7 @@
                             <DataTemplate>
                                 <Label Text="{Binding .}"
                                        FontSize="12"
-                                       FontFamily="Courier"
+                                       FontFamily="OpenSansRegular"
                                        Padding="5,2" />
                             </DataTemplate>
                         </CollectionView.ItemTemplate>

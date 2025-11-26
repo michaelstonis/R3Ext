@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using R3;
 using R3Ext;
 
@@ -13,6 +14,7 @@ public sealed partial class CommandsPage : ContentPage, IDisposable
     private readonly Subject<bool> _canEcho = new();
     private readonly ObservableCollection<string> _log = new();
     private DisposableBag _disposables;
+    private CancellationTokenSource? _loadDataCts;
     private int _counter = 0;
 
     // Commands
@@ -114,19 +116,43 @@ public sealed partial class CommandsPage : ContentPage, IDisposable
         }).AddTo(ref _disposables);
     }
 
-    private void OnIncrementClicked(object? sender, EventArgs e)
+    private async void OnIncrementClicked(object? sender, EventArgs e)
     {
-        _incrementCommand.Execute().Subscribe().AddTo(ref _disposables);
+        await _incrementCommand.Execute().WaitAsync();
     }
 
-    private void OnLoadDataClicked(object? sender, EventArgs e)
+    private async void OnLoadDataClicked(object? sender, EventArgs e)
     {
-        _loadDataCommand.Execute().Subscribe().AddTo(ref _disposables);
+        // create a CTS so the running command can be cancelled
+        _loadDataCts?.Dispose();
+        _loadDataCts = new CancellationTokenSource();
+
+        try
+        {
+            await _loadDataCommand.Execute().FirstAsync(_loadDataCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Log("Load cancelled");
+        }
+        finally
+        {
+            _loadDataCts?.Dispose();
+            _loadDataCts = null;
+        }
     }
 
     private void OnCancelClicked(object? sender, EventArgs e)
     {
-        Log("Cancel requested (command will cancel on next Execute)");
+        if (_loadDataCts != null && !_loadDataCts.IsCancellationRequested)
+        {
+            _loadDataCts.Cancel();
+            Log("Cancel requested — signalling running command to cancel");
+        }
+        else
+        {
+            Log("No cancellable operation is running");
+        }
     }
 
     private void OnMessageTextChanged(object? sender, TextChangedEventArgs e)
@@ -136,18 +162,18 @@ public sealed partial class CommandsPage : ContentPage, IDisposable
         EchoButton.IsEnabled = hasText;
     }
 
-    private void OnEchoClicked(object? sender, EventArgs e)
+    private async void OnEchoClicked(object? sender, EventArgs e)
     {
         var message = MessageEntry.Text;
         if (!string.IsNullOrWhiteSpace(message))
         {
-            _echoCommand.Execute(message).Subscribe().AddTo(ref _disposables);
+            await _echoCommand.Execute(message).WaitAsync();
         }
     }
 
-    private void OnThrowErrorClicked(object? sender, EventArgs e)
+    private async void OnThrowErrorClicked(object? sender, EventArgs e)
     {
-        _errorCommand.Execute().Subscribe().AddTo(ref _disposables);
+        await _errorCommand.Execute().WaitAsync();
     }
 
     private void OnClearErrorClicked(object? sender, EventArgs e)
@@ -156,9 +182,9 @@ public sealed partial class CommandsPage : ContentPage, IDisposable
         ErrorLabel.TextColor = Colors.Green;
     }
 
-    private void OnSaveAllClicked(object? sender, EventArgs e)
+    private async void OnSaveAllClicked(object? sender, EventArgs e)
     {
-        _saveAllCommand.Execute().Subscribe().AddTo(ref _disposables);
+        await _saveAllCommand.Execute().WaitAsync();
     }
 
     private void OnClearLogClicked(object? sender, EventArgs e)
@@ -183,6 +209,7 @@ public sealed partial class CommandsPage : ContentPage, IDisposable
         _canEcho.Dispose();
         _incrementCommand?.Dispose();
         _loadDataCommand?.Dispose();
+        _loadDataCts?.Dispose();
         _echoCommand?.Dispose();
         _errorCommand?.Dispose();
         _saveAllCommand?.Dispose();

@@ -16,6 +16,7 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(nameof(FormPage), typeof(FormPage));
         Routing.RegisterRoute(nameof(PerformancePage), typeof(PerformancePage));
         Routing.RegisterRoute(nameof(CommandsPage), typeof(CommandsPage));
+        Routing.RegisterRoute(nameof(InteractionPage), typeof(InteractionPage));
 
         // Register DynamicData pages for navigation
         Routing.RegisterRoute(nameof(DynamicDataBasicsPage), typeof(DynamicDataBasicsPage));

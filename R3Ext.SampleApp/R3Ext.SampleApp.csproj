@@ -21,7 +21,7 @@ either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
         <!-- Display name -->
         <ApplicationTitle>R3Ext.SampleApp</ApplicationTitle>
         <!-- App Identifier -->
-        <ApplicationId>com.companyname.r3ext.sampleapp</ApplicationId>
+        <ApplicationId>com.r3ext.sampleapp</ApplicationId>
         <!-- Versions -->
         <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
         <ApplicationVersion>1</ApplicationVersion>
@@ -35,41 +35,27 @@ either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
     </PropertyGroup>
     <ItemGroup>
-        <!-- App Icon -->
-        <MauiIcon Include="Resources\AppIcon\appicon.svg"
-                  ForegroundFile="Resources\AppIcon\appiconfg.svg"
-                  Color="#512BD4" />
+        <!-- App Icon (use consolidated logo) -->
+        <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\logo.svg" Color="#1e1e1e" />
         <!-- Splash Screen -->
-        <MauiSplashScreen Include="Resources\Splash\splash.svg"
-                          Color="#512BD4"
-                          BaseSize="128,128" />
+        <MauiSplashScreen Include="Resources\Splash\logo.svg" Color="#1e1e1e" BaseSize="128,128" />
         <!-- Images -->
         <MauiImage Include="Resources\Images\*" />
-        <MauiImage Update="Resources\Images\dotnet_bot.png"
-                   Resize="True"
-                   BaseSize="300,185" />
         <!-- Custom Fonts -->
         <MauiFont Include="Resources\Fonts\*" />
         <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
-        <MauiAsset Include="Resources\Raw\**"
-                   LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+        <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Microsoft.Maui.Controls"
-                          Version="$(MauiVersion)" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Debug"
-                          Version="9.0.5" />
-        <PackageReference Include="R3Extensions.Maui"
-                          Version="1.3.0" />
-        <PackageReference Include="CommunityToolkit.Mvvm"
-                          Version="8.3.2" />
+        <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.110" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.5" />
+        <PackageReference Include="R3Extensions.Maui" Version="1.3.0" />
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    </ItemGroup>
+    <ItemGroup>
         <ProjectReference Include="..\R3.DynamicData\R3.DynamicData.csproj" />
-    </ItemGroup>
-    <ItemGroup>
         <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
-        <ProjectReference Include="..\R3Ext.Bindings.SourceGenerator\R3Ext.Bindings.SourceGenerator.csproj"
-                          ReferenceOutputAssembly="false"
-                          OutputItemType="Analyzer" />
+        <ProjectReference Include="..\R3Ext.Bindings.SourceGenerator\R3Ext.Bindings.SourceGenerator.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
         <ProjectReference Include="..\R3Ext.Bindings.MauiTargets\R3Ext.Bindings.MauiTargets.csproj" />
     </ItemGroup>
     <!-- Import MAUI binding targets to enable metadata generation -->

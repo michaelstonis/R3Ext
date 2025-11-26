@@ -70,7 +70,7 @@
                         <Label x:Name="DisposableLog"
                                Text=""
                                FontSize="11"
-                               FontFamily="Courier" />
+                               FontFamily="OpenSansRegular" />
                     </ScrollView>
                 </VerticalStackLayout>
             </Frame>

@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="R3Ext.SampleApp.MainPage"
+             Shell.NavBarIsVisible="False"
              Title="R3Ext">
     <Grid RowDefinitions="Auto,*"
           BackgroundColor="{AppThemeBinding Light={StaticResource BackgroundColor}, Dark={StaticResource BackgroundDark}}">
@@ -181,6 +182,23 @@
                             <Label Text="Form Demo"
                                    Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Complete form"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="1"
+                           Grid.Row="4"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="InteractionPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="💬"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Interaction"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="ViewModel ↔ UI dialog"
                                    Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
