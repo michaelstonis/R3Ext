@@ -5,7 +5,6 @@
        xmlns:local="clr-namespace:R3Ext.SampleApp"
        Title="R3Ext"
        FlyoutBehavior="Disabled">
-    
     <!-- Main Hub - Only root page -->
     <ShellContent Title="Home"
                   ContentTemplate="{DataTemplate local:MainPage}"

@@ -98,24 +98,24 @@ public class WhenObservedTests(FrameProviderFixture fp)
         var vm = new ViewModelWithDoc();
         var doc1 = new DocumentWithObservable();
         var doc2 = new DocumentWithObservable();
-        
+
         vm.Document = doc1;
-        
+
         var values = new List<bool>();
         using var d = vm.WhenObserved(x => x.Document.IsSaved).Subscribe(values.Add);
-        
+
         // Emit from first document
         doc1.TriggerSaved(true);
-        
+
         // Switch to second document
         vm.Document = doc2;
-        
+
         // Emit from second document
         doc2.TriggerSaved(false);
-        
+
         // Emit from first document (should not be received)
         doc1.TriggerSaved(true);
-        
+
         Assert.Equal(new[] { true, false }, values);
     }
 
@@ -124,17 +124,17 @@ public class WhenObservedTests(FrameProviderFixture fp)
     {
         var vm = new ViewModelWithDoc();
         var doc = new DocumentWithObservable();
-        
+
         vm.Document = doc;
-        
+
         var values = new List<bool>();
         using var d = vm.WhenObserved(x => x.Document.IsSaved).Subscribe(values.Add);
-        
+
         doc.TriggerSaved(true);
-        
+
         // Set document to null - subscription should handle gracefully
         vm.Document = null!;
-        
+
         // Should have only received the first value
         Assert.Single(values);
         Assert.True(values[0]);
@@ -147,24 +147,24 @@ public class WhenObservedTests(FrameProviderFixture fp)
         var doc1 = new DocumentWithObservable();
         var doc2 = new DocumentWithObservable();
         var doc3 = new DocumentWithObservable();
-        
+
         vm.Document = doc1;
-        
+
         var values = new List<bool>();
         using var d = vm.WhenObserved(x => x.Document.IsSaved).Subscribe(values.Add);
-        
+
         doc1.TriggerSaved(true);
-        
+
         vm.Document = doc2;
         doc2.TriggerSaved(false);
-        
+
         vm.Document = doc3;
         doc3.TriggerSaved(true);
-        
+
         // Old documents should not emit
         doc1.TriggerSaved(false);
         doc2.TriggerSaved(true);
-        
+
         Assert.Equal(new[] { true, false, true }, values);
     }
 
@@ -173,16 +173,16 @@ public class WhenObservedTests(FrameProviderFixture fp)
     {
         var container = new PlainContainerWithObservable();
         var values = new List<bool>();
-        
+
         using var d = container.WhenObserved(x => x.Document.IsSaved).Subscribe(values.Add);
-        
+
         // Since root doesn't implement INPC, it will use EveryValueChanged
         // This tests the fallback mechanism
         fp.Advance();
-        
+
         container.Document.TriggerSaved(true);
         container.Document.TriggerSaved(false);
-        
+
         Assert.Equal(new[] { true, false }, values);
     }
 
@@ -191,16 +191,16 @@ public class WhenObservedTests(FrameProviderFixture fp)
     {
         var doc = new DocumentWithObservable();
         var values = new List<bool>();
-        
+
         var subscription = doc.WhenObserved(x => x.IsSaved).Subscribe(values.Add);
-        
+
         doc.TriggerSaved(true);
-        
+
         subscription.Dispose();
-        
+
         // After disposal, should not receive values
         doc.TriggerSaved(false);
-        
+
         Assert.Single(values);
         Assert.True(values[0]);
     }
@@ -210,16 +210,16 @@ public class WhenObservedTests(FrameProviderFixture fp)
     {
         var doc = new ObservableReturningDoc();
         var values = new List<string>();
-        
+
         using var d = doc.WhenObserved(x => x.CurrentStream).Subscribe(values.Add);
-        
+
         // First stream
         doc.EmitToCurrentStream("A");
-        
+
         // Switch to new stream
         doc.SwitchToNewStream();
         doc.EmitToCurrentStream("B");
-        
+
         Assert.Equal(new[] { "A", "B" }, values);
     }
 
@@ -272,21 +272,21 @@ public class WhenObservedTests(FrameProviderFixture fp)
     {
         var doc = new NullableObservableDoc();
         var values = new List<int>();
-        
+
         // Start with null observable
         doc.SetObservable(null);
-        
+
         using var d = doc.WhenObserved(x => x.ValueStream!).Subscribe(values.Add);
-        
+
         // Should not crash, should not emit
         fp.Advance();
-        
+
         // Now set a real observable
         var subject = new Subject<int>();
         doc.SetObservable(subject.AsObservable());
-        
+
         subject.OnNext(42);
-        
+
         Assert.Single(values);
         Assert.Equal(42, values[0]);
     }
@@ -324,26 +324,26 @@ public class WhenObservedTests(FrameProviderFixture fp)
         var root = new RootWithMiddle();
         var middle = new MiddleWithDoc();
         var doc = new DocumentWithObservable();
-        
+
         root.Middle = middle;
         middle.Document = doc;
-        
+
         var values = new List<bool>();
         using var d = root.WhenObserved(x => x.Middle.Document.IsSaved).Subscribe(values.Add);
-        
+
         doc.TriggerSaved(true);
-        
+
         // Replace middle layer
         var newMiddle = new MiddleWithDoc();
         var newDoc = new DocumentWithObservable();
         newMiddle.Document = newDoc;
-        
+
         root.Middle = newMiddle;
         newDoc.TriggerSaved(false);
-        
+
         // Old doc should not emit
         doc.TriggerSaved(true);
-        
+
         Assert.Equal(new[] { true, false }, values);
     }
 

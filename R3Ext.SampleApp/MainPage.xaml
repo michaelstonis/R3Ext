@@ -60,12 +60,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Deep Binding"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Nested chains"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="0"
@@ -80,12 +77,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="WhenObserved"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Observable props"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="1"
@@ -100,12 +94,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Converters"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Value transforms"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="0"
@@ -120,12 +111,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Forms"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Two-way binding"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="1"
@@ -140,12 +128,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Performance"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Speed tests"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="0"
@@ -160,12 +145,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Commands"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="RxCommand demos"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="1"
@@ -180,12 +162,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Controls"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="UI controls"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="0"
@@ -200,12 +179,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Form Demo"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Complete form"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                 </Grid>
@@ -231,12 +207,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Basics"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="SourceList intro"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="1"
@@ -251,12 +224,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Cache"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="SourceCache ops"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="0"
@@ -271,12 +241,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Filter &amp; Sort"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Data operations"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="1"
@@ -291,12 +258,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Transform"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Data mapping"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="0"
@@ -311,12 +275,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Aggregation"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Count, Sum, Avg"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="1"
@@ -331,12 +292,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Grouping"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Group operations"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="0"
@@ -351,12 +309,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Operators"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Advanced ops"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="1"
@@ -371,12 +326,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="TransformMany"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Flatten collections"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="0"
@@ -391,12 +343,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Distinct Values"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Unique values"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="1"
@@ -411,12 +360,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Auto Refresh"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Reactive updates"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="0"
@@ -431,12 +377,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Logical Ops"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="AND, OR, NOT"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                     <Frame Grid.Column="1"
@@ -451,12 +394,9 @@
                                    FontSize="36"
                                    Margin="0,0,0,4" />
                             <Label Text="Lifecycle"
-                                   Style="{StaticResource CardTitleStyle}"
-                                   />
+                                   Style="{StaticResource CardTitleStyle}" />
                             <Label Text="Connect/Dispose"
-                                   Style="{StaticResource CardDescriptionStyle}"
-                                   
-                                   />
+                                   Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>
                 </Grid>

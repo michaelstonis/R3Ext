@@ -14,10 +14,9 @@
             <Label Text="WhenObserved Operator"
                    FontSize="24"
                    FontAttributes="Bold" />
-            <Label Text="WhenObserved observes properties that return IObservable&lt;T&gt; and automatically switches between them when the property changes. Similar to ReactiveUI's WhenAnyObservable."
+            <Label Text="WhenObserved observes properties that return IObservable&lt;T> and automatically switches between them when the property changes. Similar to ReactiveUI's WhenAnyObservable."
                    FontSize="14"
                    TextColor="Gray" />
-
             <!-- Example 1: Simple Observable Property -->
             <Frame BorderColor="LightGray"
                    Padding="15"
@@ -26,7 +25,7 @@
                     <Label Text="Example 1: Document Save Status"
                            FontSize="18"
                            FontAttributes="Bold" />
-                    <Label Text="Observes: CurrentDocument.IsSaved (Observable&lt;bool&gt;)"
+                    <Label Text="Observes: CurrentDocument.IsSaved (Observable&lt;bool>)"
                            FontSize="12"
                            TextColor="Gray" />
                     <BoxView HeightRequest="1"
@@ -50,7 +49,6 @@
                             BackgroundColor="DarkOrange" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Example 2: Data Stream -->
             <Frame BorderColor="LightGray"
                    Padding="15"
@@ -59,7 +57,7 @@
                     <Label Text="Example 2: Data Stream Values"
                            FontSize="18"
                            FontAttributes="Bold" />
-                    <Label Text="Observes: CurrentStream.DataObservable (Observable&lt;int&gt;)"
+                    <Label Text="Observes: CurrentStream.DataObservable (Observable&lt;int>)"
                            FontSize="12"
                            TextColor="Gray" />
                     <BoxView HeightRequest="1"
@@ -80,7 +78,6 @@
                     </HorizontalStackLayout>
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Example 3: Nested Property -->
             <Frame BorderColor="LightGray"
                    Padding="15"
@@ -105,7 +102,6 @@
                             BackgroundColor="DarkOrange" />
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Event Log -->
             <Frame BorderColor="LightGray"
                    Padding="15"
@@ -141,7 +137,6 @@
                     </CollectionView>
                 </VerticalStackLayout>
             </Frame>
-
             <!-- Key Points -->
             <Frame BorderColor="LightBlue"
                    BackgroundColor="#E3F2FD"
