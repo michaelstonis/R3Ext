@@ -2831,7 +2831,9 @@ internal sealed class CodeEmitter
         sb.AppendLine("    {");
         sb.AppendLine($"        private readonly Observer<{m.WhenLeafTypeName}> observer;");
         sb.AppendLine($"        private readonly {m.WhenRootTypeName} root;");
-        sb.AppendLine($"        private readonly IDisposable?[] subscriptions = new IDisposable?[{m.FromSegments.Count}];");
+
+        // For WhenObserved, we only monitor intermediate segments (not the final Observable property)
+        sb.AppendLine($"        private readonly IDisposable?[] subscriptions = new IDisposable?[{m.FromSegments.Count - 1}];");
         sb.AppendLine("        private IDisposable? innerSubscription;");
         sb.AppendLine("        private bool rewiring;");
         for (int i = 0; i < m.FromSegments.Count; i++)
@@ -2898,7 +2900,11 @@ internal sealed class CodeEmitter
         sb.AppendLine("                }");
         sb.AppendLine("                UpdateChain();");
 
-        for (int i = 0; i < m.FromSegments.Count; i++)
+        // For WhenObserved, we only monitor changes to segments 0..N-2 (not the final Observable property)
+        // The final Observable is subscribed to directly in SubscribeToObservable()
+        int segmentCountToMonitor = m.FromSegments.Count - 1;
+
+        for (int i = 0; i < segmentCountToMonitor; i++)
         {
             PropertySegment seg = m.FromSegments[i];
             string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
