@@ -6,38 +6,37 @@ namespace R3Ext.Tests;
 public class InteractionAdvancedTests
 {
     [Fact]
-    public async Task MultipleHandlers_OnlyFirstThatHandlesExecutes()
+    public async Task MultipleHandlers_AllExecuteInLIFOOrder()
     {
         var interaction = new Interaction<int, string>();
-        var handler1Executed = false;
-        var handler2Executed = false;
-        var handler3Executed = false;
+        var executionOrder = new List<string>();
 
         interaction.RegisterHandler(ctx =>
         {
-            handler1Executed = true;
+            executionOrder.Add("handler1");
 
             // Don't handle
         });
 
         interaction.RegisterHandler(ctx =>
         {
-            handler2Executed = true;
-            ctx.SetOutput("handler2");
+            executionOrder.Add("handler2");
+
+            // Don't handle
         });
 
         interaction.RegisterHandler(ctx =>
         {
-            handler3Executed = true;
+            executionOrder.Add("handler3");
             ctx.SetOutput("handler3");
         });
 
         var result = await interaction.Handle(42).FirstAsync();
 
-        Assert.Equal("handler3", result); // Latest registered
-        Assert.False(handler1Executed);
-        Assert.False(handler2Executed);
-        Assert.True(handler3Executed);
+        Assert.Equal("handler3", result); // Latest registered wins (LIFO order)
+
+        // Short-circuit: once handler3 sets output, remaining handlers are skipped
+        Assert.Equal(new[] { "handler3" }, executionOrder);
     }
 
     [Fact]
@@ -45,13 +44,8 @@ public class InteractionAdvancedTests
     {
         var interaction = new Interaction<int, string>();
 
-        interaction.RegisterHandler(ctx =>
-        {
-            if (ctx.Input > 0)
-            {
-                ctx.SetOutput("positive");
-            }
-        });
+        // Handlers execute in LIFO order (reverse registration)
+        // The last-registered handler that calls SetOutput wins
 
         interaction.RegisterHandler(ctx =>
         {
@@ -61,14 +55,22 @@ public class InteractionAdvancedTests
             }
         });
 
+        interaction.RegisterHandler(ctx =>
+        {
+            if (ctx.Input > 0)
+            {
+                ctx.SetOutput("positive");
+            }
+        });
+
         interaction.RegisterHandler(ctx => ctx.SetOutput("zero"));
 
         var result1 = await interaction.Handle(5).FirstAsync();
         var result2 = await interaction.Handle(-3).FirstAsync();
         var result3 = await interaction.Handle(0).FirstAsync();
 
-        Assert.Equal("positive", result1);
-        Assert.Equal("negative", result2);
+        Assert.Equal("zero", result1);  // zero handler is last registered, runs first, always handles
+        Assert.Equal("zero", result2);  // zero handler is last registered, runs first, always handles
         Assert.Equal("zero", result3);
     }
 
@@ -142,10 +144,9 @@ public class InteractionAdvancedTests
 
         await interaction.Handle(1).FirstAsync();
 
-        Assert.Equal(3, executionOrder.Count);
+        // Short-circuit: handler2 sets output, so handler1 doesn't execute
+        Assert.Single(executionOrder);
         Assert.Equal("handler2", executionOrder[0]);
-        Assert.Equal("handler1-start", executionOrder[1]);
-        Assert.Equal("handler1-end", executionOrder[2]);
     }
 
     [Fact]

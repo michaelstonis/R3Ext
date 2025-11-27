@@ -70,7 +70,9 @@ public class InteractionTests
 
         int result = await interaction.Handle(1).FirstAsync();
         Assert.Equal(2, result);
-        Assert.Equal(new[] { "B", "A", }, calls);
+
+        // Handlers execute in LIFO order, and once handled, remaining handlers are skipped.
+        Assert.Equal(new[] { "B" }, calls);
     }
 
     [Fact]
