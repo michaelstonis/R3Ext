@@ -118,24 +118,39 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var results = new List<IChangeSet<string>>();
+        var tcs1 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs2 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callCount = 0;
 
         using var sub = source.Connect()
             .TransformAsync(async x =>
             {
-                await Task.Delay(10);
+                var count = Interlocked.Increment(ref callCount);
+                if (count == 1)
+                {
+                    await tcs1.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+                else if (count == 2)
+                {
+                    await tcs2.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+
                 return $"Value: {x}";
             })
             .Subscribe(results.Add);
 
         source.Add(1);
-        await Task.Delay(50);
+        await Task.Delay(20);
+        tcs1.SetResult(true);
+        await Task.Delay(20);
 
         Assert.Single(results);
         Assert.Equal(ListChangeReason.Add, results[0].First().Reason);
 
-        // Replace the value
         source.ReplaceAt(0, 2);
-        await Task.Delay(50);
+        await Task.Delay(20);
+        tcs2.SetResult(true);
+        await Task.Delay(20);
 
         Assert.Equal(2, results.Count);
         Assert.Equal(ListChangeReason.Replace, results[1].First().Reason);
@@ -246,11 +261,18 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var results = new List<string>();
+        var tcs1 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs2 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = new Dictionary<int, TaskCompletionSource<bool>> { { 1, tcs1 }, { 2, tcs2 } };
 
         using var sub = source.Connect()
             .TransformAsync(async x =>
             {
-                await Task.Delay(100);
+                if (calls.TryGetValue(x, out var tcs))
+                {
+                    await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+
                 return x.ToString();
             })
             .Subscribe(changeSet =>
@@ -265,14 +287,16 @@ public class TransformAsyncTests
             });
 
         source.Add(1);
+        await Task.Delay(10);
         source.Add(2);
+        await Task.Delay(10);
 
-        // Remove immediately
         source.Remove(1);
+        await Task.Delay(10);
 
-        await Task.Delay(150);
+        tcs2.SetResult(true);
+        await Task.Delay(50);
 
-        // Only item 2 should complete
         Assert.Single(results);
         Assert.Equal("2", results[0]);
     }
