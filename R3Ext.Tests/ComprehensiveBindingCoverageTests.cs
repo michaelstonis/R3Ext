@@ -24,7 +24,7 @@ public class ComprehensiveBindingCoverageTests(FrameProviderFixture fp)
 {
     // ==================== Test Model Classes ====================
 
-    /// <summary>Plain class that does NOT implement INotifyPropertyChanged</summary>
+    /// <summary>Plain class that does NOT implement INotifyPropertyChanged.</summary>
     public class PlainClass
     {
         public string Value { get; set; } = string.Empty;
@@ -33,7 +33,7 @@ public class ComprehensiveBindingCoverageTests(FrameProviderFixture fp)
         public int Counter { get; set; }
     }
 
-    /// <summary>Class that DOES implement INotifyPropertyChanged</summary>
+    /// <summary>Class that DOES implement INotifyPropertyChanged.</summary>
     public class NotifyClass : INotifyPropertyChanged
     {
         private string _value = string.Empty;
@@ -101,26 +101,26 @@ public class ComprehensiveBindingCoverageTests(FrameProviderFixture fp)
         }
     }
 
-    /// <summary>Deep chain: Notify -> Notify -> Notify -> Notify</summary>
+    /// <summary>Deep chain: Notify -> Notify -> Notify -> Notify.</summary>
     public class DeepNotifyChain
     {
         public NotifyClass Level1 { get; set; } = new();
     }
 
-    /// <summary>Mixed chain: Notify -> Plain -> Notify -> Plain</summary>
+    /// <summary>Mixed chain: Notify -> Plain -> Notify -> Plain.</summary>
     public class MixedChain
     {
         public NotifyClass? NotifyRoot { get; set; }
     }
 
-    /// <summary>Target class for binding tests</summary>
+    /// <summary>Target class for binding tests.</summary>
     public class BindTarget
     {
         public string Text { get; set; } = string.Empty;
         public int Number { get; set; }
     }
 
-    /// <summary>INPC target for two-way binding</summary>
+    /// <summary>INPC target for two-way binding.</summary>
     public class NotifyTarget : INotifyPropertyChanged
     {
         private string _text = string.Empty;

@@ -187,17 +187,31 @@ public sealed class BindingGenerator : IIncrementalGenerator
                         m.WhenRootTypeName = m.FromSegments[0].DeclaringTypeName;
                         string leafType = m.FromSegments.Last().TypeName;
 
-                        // For WhenObserved, the leaf is Observable<T>, but we need T
-                        // Extract the inner type from Observable<T>
-                        if (m.Kind == "WhenObserved" && leafType.StartsWith("global::R3.Observable<") && leafType.EndsWith(">"))
+                        // For WhenObserved, the leaf is Observable<T> (possibly nullable), but we need T
+                        if (m.Kind == "WhenObserved")
                         {
-                            // Extract T from Observable<T>
-                            m.WhenLeafTypeName = leafType.Substring("global::R3.Observable<".Length, leafType.Length - "global::R3.Observable<".Length - 1);
-                        }
-                        else if (m.Kind == "WhenObserved" && leafType.StartsWith("Observable<") && leafType.EndsWith(">"))
-                        {
-                            // Handle non-fully-qualified Observable<T>
-                            m.WhenLeafTypeName = leafType.Substring("Observable<".Length, leafType.Length - "Observable<".Length - 1);
+                            string lt = leafType;
+                            bool isNullable = lt.EndsWith("?");
+                            if (isNullable)
+                            {
+                                lt = lt.Substring(0, lt.Length - 1);
+                            }
+
+                            const string fq = "global::R3.Observable<";
+                            const string nq = "Observable<";
+                            if (lt.StartsWith(fq) && lt.EndsWith(">"))
+                            {
+                                m.WhenLeafTypeName = lt.Substring(fq.Length, lt.Length - fq.Length - 1);
+                            }
+                            else if (lt.StartsWith(nq) && lt.EndsWith(">"))
+                            {
+                                m.WhenLeafTypeName = lt.Substring(nq.Length, lt.Length - nq.Length - 1);
+                            }
+                            else
+                            {
+                                // Fallback: not an Observable<T>; use as-is
+                                m.WhenLeafTypeName = leafType;
+                            }
                         }
                         else
                         {
@@ -440,7 +454,7 @@ public sealed class BindingGenerator : IIncrementalGenerator
                 ContainingTypeName = capturedContainingTypeName,
                 SymbolResolutionFailures = failures,
             };
-        if (symbol.Name != "WhenChanged" && symbol.Name != "WhenValueChanged" && symbol.Name != "AutoRefresh")
+        if (symbol.Name != "WhenChanged" && symbol.Name != "WhenValueChanged" && symbol.Name != "AutoRefresh" && symbol.Name != "WhenObserved")
         {
             ITypeSymbol? ta = null;
             if (symbol.IsGenericMethod && symbol.TypeArguments.Length >= 3)
@@ -1654,6 +1668,7 @@ internal sealed class CodeEmitter
         sb.AppendLine("        if (root is null) return Observable.Empty<TReturn>();");
 
         string leafAccess = BuildChainAccess("root", m.FromSegments);
+        string leafAccessSeg = BuildChainAccess("__seg_", m.FromSegments);
 
         // Single segment: simple observation
         if (m.FromSegments.Count == 1)
@@ -1744,6 +1759,7 @@ internal sealed class CodeEmitter
             }
 
             sb.AppendLine("                }");
+            sb.AppendLine(string.Empty);
         }
 
         sb.AppendLine("            }");
@@ -1831,14 +1847,12 @@ internal sealed class CodeEmitter
                 // Root type implements INPC - use ObservePropertyChanged then Switch
                 string propAccess = BuildObservePropertyAccess(seg, $"(({seg.TypeName})x)");
                 sb.AppendLine($"        return ((INotifyPropertyChanged)root).ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine("            .Select(static v => (Observable<TReturn>)(object?)v!)");
                 sb.AppendLine("            .Switch();");
             }
             else
             {
                 // Root type does not implement INPC - use EveryValueChanged then Switch
                 sb.AppendLine($"        return Observable.EveryValueChanged(root, static x => {leafAccess.Replace("root", "x")})");
-                sb.AppendLine("            .Select(static v => (Observable<TReturn>)(object?)v!)");
                 sb.AppendLine("            .Switch();");
             }
 
@@ -1875,7 +1889,8 @@ internal sealed class CodeEmitter
         sb.AppendLine("                innerSubscription = null;");
         sb.AppendLine("                try");
         sb.AppendLine("                {");
-        sb.AppendLine($"                    var obs = (Observable<TReturn>)(object?){leafAccess}!;");
+        sb.AppendLine("                    // Subscribe to the current leaf observable via the cached segment value");
+        sb.AppendLine($"                    var obs = (Observable<TReturn>)(object?)__seg_{m.FromSegments.Count - 1}!;");
         sb.AppendLine("                    if (obs != null)");
         sb.AppendLine("                    {");
         sb.AppendLine("                        innerSubscription = obs.Subscribe(observer);");
@@ -1892,6 +1907,8 @@ internal sealed class CodeEmitter
         sb.AppendLine("                    subscriptions[i] = null;");
         sb.AppendLine("                }");
         sb.AppendLine("                UpdateChain();");
+
+        // Monitor all segments - same pattern as WhenChanged, but leaf calls SubscribeToObservable
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             PropertySegment seg = m.FromSegments[i];
@@ -1909,18 +1926,38 @@ internal sealed class CodeEmitter
             {
                 // Parent implements INPC - use ObservePropertyChanged
                 sb.AppendLine($"                    subscriptions[{i}] = ((INotifyPropertyChanged){parentRef}).ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); SubscribeToObservable(); }});");
-                sb.AppendLine("                    R3ExtGeneratedInstrumentation.NotifyWires++;");
+                if (i == m.FromSegments.Count - 1)
+                {
+                    // Leaf segment: rewire from next index and resubscribe to the new observable
+                    sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); SubscribeToObservable(); }});");
+                    sb.AppendLine("                    R3ExtGeneratedInstrumentation.NotifyWires++;");
+                }
+                else
+                {
+                    // Non-leaf segment: rewire downstream and resubscribe
+                    sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); SubscribeToObservable(); }});");
+                    sb.AppendLine("                    R3ExtGeneratedInstrumentation.NotifyWires++;");
+                }
             }
             else
             {
                 // Parent does not implement INPC - use EveryValueChanged
                 string segAccess = BuildChainAccess("root", m.FromSegments.Take(i + 1).ToList());
                 sb.AppendLine($"                    subscriptions[{i}] = Observable.EveryValueChanged(root, static x => {segAccess.Replace("root", "x")})");
-                sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); SubscribeToObservable(); }});");
+                if (i == m.FromSegments.Count - 1)
+                {
+                    // Leaf segment: rewire from next index and resubscribe to the new observable
+                    sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); SubscribeToObservable(); }});");
+                }
+                else
+                {
+                    // Non-leaf segment: rewire downstream and resubscribe
+                    sb.AppendLine($"                        .Subscribe(_ => {{ Rewire({i + 1}); SubscribeToObservable(); }});");
+                }
             }
 
             sb.AppendLine("                }");
+            sb.AppendLine(string.Empty);
         }
 
         sb.AppendLine("            }");
@@ -2049,7 +2086,7 @@ internal sealed class CodeEmitter
             for (int i = 0; i < m.FromSegments.Count; i++)
             {
                 PropertySegment seg = m.FromSegments[i];
-                sb.AppendLine($"        private {seg.TypeName} seg_{i};");
+                sb.AppendLine($"        private {seg.TypeName} seg_{i} = default!;");
             }
 
             sb.AppendLine(string.Empty);
@@ -2359,7 +2396,7 @@ internal sealed class CodeEmitter
             for (int i = 0; i < m.FromSegments.Count; i++)
             {
                 PropertySegment seg = m.FromSegments[i];
-                sb.AppendLine($"        private {seg.TypeName} seg_{i};");
+                sb.AppendLine($"        private {seg.TypeName} seg_{i} = default!;");
             }
 
             sb.AppendLine(string.Empty);
@@ -2484,7 +2521,7 @@ internal sealed class CodeEmitter
             for (int i = 0; i < m.ToSegments.Count; i++)
             {
                 PropertySegment seg = m.ToSegments[i];
-                sb.AppendLine($"        private {seg.TypeName} seg_{i};");
+                sb.AppendLine($"        private {seg.TypeName} seg_{i} = default!;");
             }
 
             sb.AppendLine(string.Empty);
@@ -2662,7 +2699,7 @@ internal sealed class CodeEmitter
         for (int i = 0; i < m.FromSegments.Count; i++)
         {
             PropertySegment seg = m.FromSegments[i];
-            sb.AppendLine($"        private {seg.TypeName} seg_{i};");
+            sb.AppendLine($"        private {seg.TypeName} seg_{i} = default!;");
         }
 
         sb.AppendLine(string.Empty);
@@ -2694,15 +2731,17 @@ internal sealed class CodeEmitter
         sb.AppendLine(string.Empty);
         sb.AppendLine("        private void EmitValue()");
         sb.AppendLine("        {");
-        sb.AppendLine("            if (rewiring) return;");
-        string emitAccess = leafAccess.Replace("__seg_", "seg_");
-        sb.AppendLine("            try { observer.OnNext((" + m.WhenLeafTypeName + ")(object?)" + emitAccess + "!); } catch { observer.OnNext(default!); }");
+
+        // Emit current value using root-based access for stability across generators
+        string leafAccessRoot = BuildChainAccess("root", m.FromSegments);
+        sb.AppendLine("            try { observer.OnNext((" + m.WhenLeafTypeName + ")((object?)" + leafAccessRoot + ")!); } catch { observer.OnNext(default!); }");
         sb.AppendLine("        }");
 
         sb.AppendLine(string.Empty);
         sb.AppendLine("        private void Rewire(int fromIndex)");
         sb.AppendLine("        {");
-        sb.AppendLine("            if (rewiring) return;");
+
+        // Resubscription allowed during rewiring; calls are controlled by the caller.
         sb.AppendLine("            rewiring = true;");
         sb.AppendLine("            try");
         sb.AppendLine("            {");
@@ -2789,6 +2828,7 @@ internal sealed class CodeEmitter
         sb.AppendLine("        if (root is null) return Observable.Empty<" + m.WhenLeafTypeName + ">();");
 
         string leafAccess = BuildChainAccess("root", m.FromSegments);
+        string leafAccessSeg = BuildChainAccess("__seg_", m.FromSegments);
 
         // Single segment: simple observation - the leaf property should be an IObservable<TReturn>
         if (m.FromSegments.Count == 1)
@@ -2801,14 +2841,12 @@ internal sealed class CodeEmitter
                 // Root implements INPC - use ObservePropertyChanged then Switch
                 string propAccess = BuildObservePropertyAccess(seg, $"(({m.WhenRootTypeName})(object)x)");
                 sb.AppendLine($"        return root.ObservePropertyChanged(static x => {propAccess})");
-                sb.AppendLine("            .Select(static v => (Observable<" + m.WhenLeafTypeName + ">)(object?)v!)");
                 sb.AppendLine("            .Switch();");
             }
             else
             {
                 // Root doesn't implement INPC - use EveryValueChanged then Switch
                 sb.AppendLine($"        return Observable.EveryValueChanged(root, x => {leafAccess.Replace("root", "x")})");
-                sb.AppendLine("            .Select(static v => (Observable<" + m.WhenLeafTypeName + ">)(object?)v!)");
                 sb.AppendLine("            .Switch();");
             }
 
@@ -2832,7 +2870,8 @@ internal sealed class CodeEmitter
         sb.AppendLine($"        private readonly Observer<{m.WhenLeafTypeName}> observer;");
         sb.AppendLine($"        private readonly {m.WhenRootTypeName} root;");
 
-        // For WhenObserved, we only monitor intermediate segments (not the final Observable property)
+        // For WhenObserved, monitor only intermediates (not the final leaf observable property)
+        // The leaf is an Observable property that we subscribe to, not monitor for changes
         sb.AppendLine($"        private readonly IDisposable?[] subscriptions = new IDisposable?[{m.FromSegments.Count - 1}];");
         sb.AppendLine("        private IDisposable? innerSubscription;");
         sb.AppendLine("        private bool rewiring;");
@@ -2853,6 +2892,7 @@ internal sealed class CodeEmitter
         sb.AppendLine("        public void Initialize()");
         sb.AppendLine("        {");
         sb.AppendLine("            UpdateChain();");
+        sb.AppendLine("            // Attach monitors first, then subscribe to avoid transient nulls");
         sb.AppendLine("            Rewire(0);");
         sb.AppendLine("            SubscribeToObservable();");
         sb.AppendLine("        }");
@@ -2873,14 +2913,14 @@ internal sealed class CodeEmitter
         sb.AppendLine("        {");
         sb.AppendLine("            innerSubscription?.Dispose();");
         sb.AppendLine("            innerSubscription = null;");
-        sb.AppendLine("            if (rewiring) return;");
         sb.AppendLine("            try");
         sb.AppendLine("            {");
-        string emitAccess = leafAccess.Replace("__seg_", "seg_");
+        int leafIndex = m.FromSegments.Count - 1;
+        string emitAccess = $"seg_{leafIndex}";
         sb.AppendLine("                var obs = (Observable<" + m.WhenLeafTypeName + ">)(object?)" + emitAccess + "!;");
         sb.AppendLine("                if (obs != null)");
         sb.AppendLine("                {");
-        sb.AppendLine("                    innerSubscription = obs.Subscribe(observer);");
+        sb.AppendLine("                    innerSubscription = obs.Subscribe(observer.OnNext, observer.OnErrorResume, observer.OnCompleted);");
         sb.AppendLine("                }");
         sb.AppendLine("            }");
         sb.AppendLine("            catch { }");
@@ -2900,11 +2940,10 @@ internal sealed class CodeEmitter
         sb.AppendLine("                }");
         sb.AppendLine("                UpdateChain();");
 
-        // For WhenObserved, we only monitor changes to segments 0..N-2 (not the final Observable property)
-        // The final Observable is subscribed to directly in SubscribeToObservable()
-        int segmentCountToMonitor = m.FromSegments.Count - 1;
-
-        for (int i = 0; i < segmentCountToMonitor; i++)
+        // For WhenObserved, monitor changes to intermediate segments only (not the final observable property)
+        // The leaf segment is an Observable that we subscribe to via SubscribeToObservable, not monitor
+        int segmentsToMonitor = m.FromSegments.Count - 1;
+        for (int i = 0; i < segmentsToMonitor; i++)
         {
             PropertySegment seg = m.FromSegments[i];
             string parentRef = i == 0 ? "root" : $"seg_{i - 1}";
