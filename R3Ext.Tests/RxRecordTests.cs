@@ -12,6 +12,8 @@ namespace R3Ext.Tests;
 [Collection("FrameProvider")]
 public class RxRecordTests(FrameProviderFixture fp)
 {
+    private readonly FrameProviderFixture _frameProvider = fp;
+
     // Test record implementation
     private sealed record TestRecord : RxRecord
     {

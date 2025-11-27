@@ -10,6 +10,8 @@ namespace R3Ext.Tests;
 [Collection("FrameProvider")]
 public class CollectionExtensionsTests(FrameProviderFixture fp)
 {
+    private readonly FrameProviderFixture _frameProvider = fp;
+
     [Fact]
     public void ForEach_Generic_ThrowsOnNullSource()
     {

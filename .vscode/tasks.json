@@ -1,0 +1,35 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Test: Unit Projects Only",
+			"type": "shell",
+			"command": "dotnet",
+			"args": [
+				"test",
+				"R3Ext.Tests/R3Ext.Tests.csproj",
+				"--nologo",
+				"--blame-hang",
+				"--blame-hang-timeout",
+				"60s",
+				"--logger",
+				"trx;LogFileName=test-results.trx",
+				"&&",
+				"dotnet",
+				"test",
+				"R3.DynamicData.Tests/R3.DynamicData.Tests.csproj",
+				"--nologo",
+				"--blame-hang",
+				"--blame-hang-timeout",
+				"60s",
+				"--logger",
+				"trx;LogFileName=test-results.trx"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$msCompile"
+			],
+			"group": "build"
+		}
+	]
+}
