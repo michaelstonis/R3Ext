@@ -59,19 +59,43 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
 
     public virtual Observable<TOutput> Handle(TInput input)
     {
-        IOutputContext<TInput, TOutput> context = this.GenerateContext(input);
+        var context = (InteractionContext<TInput, TOutput>)this.GenerateContext(input);
 
-        return Enumerable.Reverse(this.GetHandlers())
-            .ToObservable()
-            .Select(handler => Observable.Defer(() => handler(context)))
-            .Concat()
-            .TakeWhile(_ => !context.IsHandled)
-            .IgnoreElements()
-            .Select(_ => default(TOutput)!)
-            .Concat(
-                Observable.Defer(() => context.IsHandled
-                    ? Observable.Return(context.GetOutput())
-                    : Observable.Throw<TOutput>(new UnhandledInteractionException<TInput, TOutput>(this, input))));
+        // Execute handlers in LIFO order. If already handled, skip remaining.
+        var handlers = Enumerable.Reverse(this.GetHandlers()).Select(handler => Observable.Defer(() =>
+        {
+            if (context.IsHandled)
+            {
+                return Observable.Empty<Unit>();
+            }
+
+            try
+            {
+                return handler(context);
+            }
+            catch (Exception ex)
+            {
+                return Observable.Throw<Unit>(ex);
+            }
+        }));
+
+        var handlerSequence = Observable.Concat(handlers)
+            .OnErrorResumeAsFailure()
+            .IgnoreElements();
+
+        Observable<TOutput> EmitResult()
+        {
+            if (context.IsHandled)
+            {
+                return Observable.Return(context.GetOutput());
+            }
+
+            return Observable.Throw<TOutput>(new UnhandledInteractionException<TInput, TOutput>(this, input));
+        }
+
+        return handlerSequence
+            .Concat(Observable.ReturnUnit())
+            .SelectMany(_ => Observable.Defer(EmitResult));
     }
 
     protected Func<IInteractionContext<TInput, TOutput>, Observable<Unit>>[] GetHandlers()

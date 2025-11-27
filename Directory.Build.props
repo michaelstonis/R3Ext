@@ -40,7 +40,7 @@
                           Version="9.0.0"
                           PrivateAssets="all" />
         <PackageReference Include="Roslynator.Analyzers"
-                          Version="4.14.0"
+                          Version="4.14.1"
                           PrivateAssets="All" />
     </ItemGroup>
     <ItemGroup>
