@@ -273,6 +273,7 @@ public class AsyncExtensionsTests
         var source = new Subject<int>();
         var completedValues = new List<int>();
         var cancelledTokens = new List<CancellationToken>();
+        var tcs = new TaskCompletionSource<bool>();
 
         source.SubscribeAsync(
             async (x, ct) =>
@@ -280,8 +281,12 @@ public class AsyncExtensionsTests
                 cancelledTokens.Add(ct);
                 try
                 {
-                    await Task.Delay(50, ct);
+                    await Task.Delay(100, ct);
                     completedValues.Add(x);
+                    if (x == 2)
+                    {
+                        tcs.TrySetResult(true);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -291,10 +296,11 @@ public class AsyncExtensionsTests
             AwaitOperation.Switch);
 
         source.OnNext(1);
-        await Task.Delay(10);
+        await Task.Delay(20);
         source.OnNext(2);
 
-        await Task.Delay(100);
+        // Wait for the second operation to complete
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Single(completedValues);
         Assert.Equal(2, completedValues[0]);
