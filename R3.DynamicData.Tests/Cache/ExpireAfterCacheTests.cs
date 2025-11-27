@@ -18,73 +18,102 @@ public class ExpireAfterCacheTests
     [Fact]
     public async Task ExpireAfter_RemovesItemsAfterDuration()
     {
+        var fakeTimeProvider = new FakeTimeProvider();
         var cache = new SourceCache<Item, int>(i => i.Id);
         var removed = new List<int>();
         var adds = 0;
 
         using var sub = cache.Connect()
-            .ExpireAfter<Item, int>(i => i.Name == "fast" ? TimeSpan.FromMilliseconds(50) : TimeSpan.FromMilliseconds(120))
+            .ExpireAfter<Item, int>(
+                i => i.Name == "fast" ? TimeSpan.FromMilliseconds(50) : TimeSpan.FromMilliseconds(120),
+                fakeTimeProvider)
             .Subscribe(changes =>
             {
                 foreach (var c in changes)
                 {
-                    if (c.Reason == Kernel.ChangeReason.Add) adds++;
-                    if (c.Reason == Kernel.ChangeReason.Remove) removed.Add(c.Key);
+                    if (c.Reason == Kernel.ChangeReason.Add)
+                    {
+                        adds++;
+                    }
+
+                    if (c.Reason == Kernel.ChangeReason.Remove)
+                    {
+                        removed.Add(c.Key);
+                    }
                 }
             });
 
         cache.AddOrUpdate(new Item(1, "fast"));
         cache.AddOrUpdate(new Item(2, "slow"));
 
-        await Task.Delay(80); // fast should expire
+        fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(51));
+        await Task.Delay(10);
         Assert.Contains(1, removed);
         Assert.DoesNotContain(2, removed);
 
-        await Task.Delay(70); // slow should now expire
+        fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(70));
+        await Task.Delay(10);
         Assert.Contains(2, removed);
     }
 
     [Fact]
     public async Task ExpireAfter_UpdateResetsTimer()
     {
+        var fakeTimeProvider = new FakeTimeProvider();
         var cache = new SourceCache<Item, int>(i => i.Id);
         var removed = new List<int>();
 
         using var sub = cache.Connect()
-            .ExpireAfter<Item, int>(i => i.Name == "expire" ? TimeSpan.FromMilliseconds(400) : TimeSpan.FromMilliseconds(1000))
+            .ExpireAfter<Item, int>(
+                i => i.Name == "expire" ? TimeSpan.FromMilliseconds(400) : TimeSpan.FromMilliseconds(1000),
+                fakeTimeProvider)
             .Subscribe(changes =>
             {
                 foreach (var c in changes)
                 {
-                    if (c.Reason == Kernel.ChangeReason.Remove) removed.Add(c.Key);
+                    if (c.Reason == Kernel.ChangeReason.Remove)
+                    {
+                        removed.Add(c.Key);
+                    }
                 }
             });
 
         cache.AddOrUpdate(new Item(1, "expire"));
-        await Task.Delay(200); // Advance to 200ms, well before 400ms expiry
-        // Update to extended expiry before original expiry fires
+        fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(200));
+        await Task.Delay(10);
+
         cache.AddOrUpdate(new Item(1, "extended"));
-        await Task.Delay(400); // Advance to 600ms total, past original 400ms expiry but within 1000ms from update (at 200ms)
+        fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(400));
+        await Task.Delay(10);
         Assert.DoesNotContain(1, removed);
-        await Task.Delay(700); // Advance to 1300ms total, well past 1000ms from update (200ms + 1000ms)
+
+        fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(700));
+        await Task.Delay(10);
         Assert.Contains(1, removed);
     }
 
     [Fact]
     public async Task ExpireAfter_NullSkipsExpiration()
     {
+        var fakeTimeProvider = new FakeTimeProvider();
         var cache = new SourceCache<Item, int>(i => i.Id);
         var removed = false;
 
         using var sub = cache.Connect()
-            .ExpireAfter<Item, int>(i => i.Name == "keep" ? null : TimeSpan.FromMilliseconds(30))
+            .ExpireAfter<Item, int>(
+                i => i.Name == "keep" ? null : TimeSpan.FromMilliseconds(30),
+                fakeTimeProvider)
             .Subscribe(changes =>
             {
-                if (changes.Any(c => c.Reason == Kernel.ChangeReason.Remove)) removed = true;
+                if (changes.Any(c => c.Reason == Kernel.ChangeReason.Remove))
+                {
+                    removed = true;
+                }
             });
 
         cache.AddOrUpdate(new Item(1, "keep"));
-        await Task.Delay(80);
+        fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(80));
+        await Task.Delay(10);
         Assert.False(removed);
     }
 }
