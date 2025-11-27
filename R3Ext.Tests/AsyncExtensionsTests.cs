@@ -351,12 +351,12 @@ public class AsyncExtensionsTests
     {
         var source = new Subject<int>();
         var results = new List<int>();
-        var tcs = new TaskCompletionSource<bool>();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var count = 0;
 
         source.SelectLatestAsync(async (x, ct) =>
         {
-            await Task.Delay(5, ct);
+            await Task.Delay(2, ct);
             return x * 10;
         }).Subscribe(value =>
         {
@@ -368,9 +368,9 @@ public class AsyncExtensionsTests
         });
 
         source.OnNext(1);
-        await Task.Delay(20);
+        await Task.Delay(50);
         source.OnNext(2);
-        await Task.Delay(20);
+        await Task.Delay(50);
         source.OnNext(3);
 
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
