@@ -232,21 +232,35 @@ public class RxCommandTests
         source.OnNext(1);
         source.OnNext(2);
         source.OnNext(3);
-        Thread.Sleep(100);
+
+        // Synchronous command body ensures immediate increments; no sleep needed
         Assert.Equal(3, count);
         sub.Dispose();
     }
 
     [Fact]
-    public void IObservable_Subscribe_ReceivesExecutionResults()
+    public async Task IObservable_Subscribe_ReceivesExecutionResults()
     {
         RxCommand<int, int> command = RxCommand<int, int>.Create(x => x * 2);
         List<int> list = new();
         TestObserver<int> observer = new(list);
         using IDisposable sub = ((IObservable<int>)command).Subscribe(observer);
-        command.Execute(21).Subscribe(_ => { });
-        command.Execute(42).Subscribe(_ => { });
-        Thread.Sleep(100);
+        var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        command.Execute(21).Subscribe(_ =>
+        {
+            if (list.Count >= 2)
+            {
+                done.TrySetResult(true);
+            }
+        });
+        command.Execute(42).Subscribe(_ =>
+        {
+            if (list.Count >= 2)
+            {
+                done.TrySetResult(true);
+            }
+        });
+        await done.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(2, list.Count);
         Assert.Contains(42, list);
         Assert.Contains(84, list);
@@ -275,20 +289,24 @@ public class RxCommandTests
         RxCommand<Unit, Unit> command = RxCommand.Create(() => executed = true);
         ICommand icmd = (ICommand)command;
         icmd.Execute(null);
-        Thread.Sleep(100);
         Assert.True(executed);
     }
 
     [Fact]
-    public void ICommand_CanExecuteChanged_FiresWhenCanExecuteChanges()
+    public async Task ICommand_CanExecuteChanged_FiresWhenCanExecuteChanges()
     {
         Subject<bool> subj = new();
         RxCommand<Unit, Unit> command = RxCommand.Create(() => { }, subj);
         ICommand icmd = (ICommand)command;
         bool fired = false;
-        icmd.CanExecuteChanged += (_, _) => fired = true;
+        var firedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        icmd.CanExecuteChanged += (_, _) =>
+        {
+            fired = true;
+            firedTcs.TrySetResult(true);
+        };
         subj.OnNext(false);
-        Thread.Sleep(50);
+        fired = await firedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(fired);
     }
 
@@ -321,21 +339,40 @@ public class RxCommandTests
     {
         RxCommand<int, int> command = RxCommand<int, int>.Create(x => x * 2);
         LiveList<int> list = command.Execute(21).ToLiveList();
-        await Task.Delay(100);
+        await command.Execute(21).FirstAsync();
         Assert.Single(list);
         Assert.Equal(42, list[0]);
         Assert.True(list.IsCompleted);
     }
 
     [Fact]
-    public void AsObservable_ReturnsObservableOfExecutionResults()
+    public async Task AsObservable_ReturnsObservableOfExecutionResults()
     {
         RxCommand<int, int> command = RxCommand<int, int>.Create(x => x * 2);
         LiveList<int> list = command.AsObservable().ToLiveList();
-        command.Execute(10).Subscribe(_ => { });
-        command.Execute(20).Subscribe(_ => { });
-        command.Execute(30).Subscribe(_ => { });
-        Thread.Sleep(100);
+        var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        command.Execute(10).Subscribe(_ =>
+        {
+            if (list.Count >= 3)
+            {
+                done.TrySetResult(true);
+            }
+        });
+        command.Execute(20).Subscribe(_ =>
+        {
+            if (list.Count >= 3)
+            {
+                done.TrySetResult(true);
+            }
+        });
+        command.Execute(30).Subscribe(_ =>
+        {
+            if (list.Count >= 3)
+            {
+                done.TrySetResult(true);
+            }
+        });
+        await done.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(3, list.Count);
         Assert.Equal(20, list[0]);
         Assert.Equal(40, list[1]);
