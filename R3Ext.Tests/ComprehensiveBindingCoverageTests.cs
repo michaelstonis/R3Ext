@@ -22,6 +22,7 @@ namespace R3Ext.Tests;
 [Collection("FrameProvider")]
 public class ComprehensiveBindingCoverageTests(FrameProviderFixture fp)
 {
+    private readonly FrameProviderFixture _frameProvider = fp;
     // ==================== Test Model Classes ====================
 
     /// <summary>Plain class that does NOT implement INotifyPropertyChanged.</summary>

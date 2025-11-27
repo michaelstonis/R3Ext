@@ -90,17 +90,38 @@ public class RxCommandTests
     [Fact]
     public async Task IsExecuting_ReflectsExecutionState()
     {
-        TaskCompletionSource<Unit> tcs = new();
-        RxCommand<Unit, Unit> command = RxCommand.CreateFromTask(() => tcs.Task);
+        TaskCompletionSource<Unit> op = new();
+        RxCommand<Unit, Unit> command = RxCommand.CreateFromTask(() => op.Task);
         LiveList<bool> isExec = command.IsExecuting.ToLiveList();
-        await Task.Delay(10);
-        Assert.False(isExec[^1]);
+
+        var sawTrue = new TaskCompletionSource<bool>();
+        var sawFalseAfterComplete = new TaskCompletionSource<bool>();
+
+        // Observe transitions deterministically
+        _ = command.IsExecuting.Subscribe(flag =>
+        {
+            if (flag)
+            {
+                sawTrue.TrySetResult(true);
+            }
+        });
+
         Task<Unit> task = command.Execute().FirstAsync();
-        await Task.Delay(100);
+        await sawTrue.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(isExec[^1]);
-        tcs.SetResult(Unit.Default);
+
+        op.SetResult(Unit.Default);
         await task;
-        await Task.Delay(50);
+
+        // Wait until IsExecuting reports false again
+        _ = command.IsExecuting.Subscribe(flag =>
+        {
+            if (!flag)
+            {
+                sawFalseAfterComplete.TrySetResult(true);
+            }
+        });
+        await sawFalseAfterComplete.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(isExec[^1]);
     }
 
@@ -160,17 +181,40 @@ public class RxCommandTests
         RxCommand<int, int> cmd2 = RxCommand<int, int>.Create(x => x * 3, can2);
         RxCommand<int, int[]> combined = RxCommand<int, int>.CreateCombined(cmd1, cmd2);
         LiveList<bool> vals = combined.CanExecute.ToLiveList();
+
+        var seenFalse1 = new TaskCompletionSource<bool>();
+        var seenTrue = new TaskCompletionSource<bool>();
+        var seenFalse2 = new TaskCompletionSource<bool>();
+
+        _ = combined.CanExecute.Subscribe(flag =>
+        {
+            if (!flag && !seenFalse1.Task.IsCompleted)
+            {
+                seenFalse1.TrySetResult(true);
+            }
+            else if (flag && !seenTrue.Task.IsCompleted)
+            {
+                seenTrue.TrySetResult(true);
+            }
+            else if (!flag && !seenFalse2.Task.IsCompleted && seenTrue.Task.IsCompleted)
+            {
+                seenFalse2.TrySetResult(true);
+            }
+        });
+
         can1.OnNext(true);
         can2.OnNext(false);
-        await Task.Delay(50);
+        await seenFalse1.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(vals[^1]);
+
         can1.OnNext(true);
         can2.OnNext(true);
-        await Task.Delay(50);
+        await seenTrue.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(vals[^1]);
+
         can1.OnNext(false);
         can2.OnNext(true);
-        await Task.Delay(50);
+        await seenFalse2.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(vals[^1]);
     }
 

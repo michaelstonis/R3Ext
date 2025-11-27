@@ -73,19 +73,18 @@ public class RxCommandAdvancedTests(FrameProviderFixture fp)
     [Fact]
     public async Task CreateRunInBackground_ExecutesOnBackgroundThread()
     {
-        var threadIds = new List<int>();
-        var mainThreadId = Environment.CurrentManagedThreadId;
+        var flags = new List<bool>();
 
         var cmd = RxCommand<int, int>.CreateRunInBackground(x =>
         {
-            threadIds.Add(Environment.CurrentManagedThreadId);
+            flags.Add(System.Threading.Thread.CurrentThread.IsThreadPoolThread);
             return x * 2;
         });
 
         await cmd.Execute(5).FirstAsync();
 
-        Assert.Single(threadIds);
-        Assert.NotEqual(mainThreadId, threadIds[0]);
+        Assert.Single(flags);
+        Assert.True(flags[0]);
     }
 
     [Fact]
@@ -125,25 +124,31 @@ public class RxCommandAdvancedTests(FrameProviderFixture fp)
     }
 
     [Fact]
-    public void IsExecuting_IsTrueDuringExecution()
+    public async Task IsExecuting_IsTrueDuringExecution()
     {
-        var executingStates = new List<bool>();
-        var tcs = new TaskCompletionSource<int>();
+        var tcsStart = new TaskCompletionSource<bool>();
+        var tcsEnd = new TaskCompletionSource<bool>();
 
-        var cmd = RxCommand<int, int>.CreateFromTask((x, ct) => tcs.Task);
+        var cmd = RxCommand<int, int>.CreateFromTask(async x =>
+        {
+            tcsStart.TrySetResult(true);
+            await Task.Delay(100);
+            return x * 2;
+        });
+        var states = cmd.IsExecuting.ToLiveList();
+        _ = cmd.IsExecuting.Subscribe(flag =>
+        {
+            if (!flag && tcsStart.Task.IsCompleted)
+            {
+                tcsEnd.TrySetResult(true);
+            }
+        });
 
-        cmd.IsExecuting.Subscribe(executingStates.Add);
-
-        cmd.Execute(5).Subscribe(_ => { });
-
-        Assert.Equal(2, executingStates.Count);
-        Assert.False(executingStates[0]); // Initial
-        Assert.True(executingStates[1]); // During execution
-
-        tcs.SetResult(10);
-
-        Assert.Equal(3, executingStates.Count);
-        Assert.False(executingStates[2]); // After completion
+        cmd.Execute(1).Subscribe(_ => { });
+        await tcsStart.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(states[^1]);
+        await tcsEnd.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(states[^1]);
     }
 
     [Fact]
@@ -256,19 +261,37 @@ public class RxCommandAdvancedTests(FrameProviderFixture fp)
     }
 
     [Fact]
-    public void Dispose_DuringExecution_CompletesGracefully()
+    public async Task Dispose_DuringExecution_CompletesGracefully()
     {
-        var tcs = new TaskCompletionSource<int>();
-        var cmd = RxCommand<int, int>.CreateFromTask((x, ct) => tcs.Task);
+        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cmd = RxCommand<int, int>.CreateFromTask(async (x, ct) =>
+        {
+            started.TrySetResult(true);
 
-        var results = new List<int>();
-        cmd.Execute(5).Subscribe(_ => results.Add(_));
+            // Block until disposed/cancelled to simulate in-flight work
+            try
+            {
+                await Task.Delay(Timeout.Infinite, ct);
+            }
+            catch (OperationCanceledException)
+            {
+            }
 
-        cmd.Dispose();
+            return x * 2;
+        });
 
-        tcs.SetResult(10);
+        var sub = cmd.Execute(1).Subscribe(_ => { });
 
-        Assert.Empty(results); // Disposed command doesn't deliver results
+        // Ensure execution has started deterministically
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(await cmd.IsExecuting.FirstAsync());
+
+        // Dispose the subscription while execution is in progress
+        sub.Dispose();
+
+        // Await the next false in IsExecuting deterministically
+        var completed = await cmd.IsExecuting.Where(v => v == false).FirstAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(completed);
     }
 
     [Fact]

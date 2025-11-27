@@ -15,6 +15,7 @@ public class TransformAsyncCacheTests
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
         var results = new List<string>();
+        var tcs = new TaskCompletionSource<bool>();
 
         using var sub = cache.Connect()
             .TransformAsync(async p =>
@@ -29,6 +30,10 @@ public class TransformAsyncCacheTests
                     if (change.Reason == R3.DynamicData.Kernel.ChangeReason.Add)
                     {
                         results.Add(change.Current);
+                        if (results.Count == 2)
+                        {
+                            tcs.TrySetResult(true);
+                        }
                     }
                 }
             });
@@ -36,7 +41,7 @@ public class TransformAsyncCacheTests
         cache.AddOrUpdate(new Person(1, "Alice"));
         cache.AddOrUpdate(new Person(2, "Bob"));
 
-        await Task.Delay(100);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(2, results.Count);
         Assert.Contains("ALICE", results);
@@ -50,6 +55,8 @@ public class TransformAsyncCacheTests
         var transformStarted = new List<int>();
         var transformCompleted = new List<int>();
         var results = new List<string>();
+        var startedTcs = new TaskCompletionSource<bool>();
+        var completedTcs = new TaskCompletionSource<bool>();
 
         using var sub = cache.Connect()
             .TransformAsync(async (p, ct) =>
@@ -71,12 +78,24 @@ public class TransformAsyncCacheTests
             });
 
         cache.AddOrUpdate(new Person(1, "Alice"));
-        await Task.Delay(10);
+        // Wait deterministically until the transform has started
+        var startDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (transformStarted.Count < 1)
+        {
+            if (DateTime.UtcNow > startDeadline)
+            {
+                throw new TimeoutException("Transform did not start in time");
+            }
+            await Task.Delay(10);
+        }
 
         // Remove before transformation completes
         cache.Remove(1);
 
-        await Task.Delay(100);
+        // Ensure no completion occurs
+        var delayTask = Task.Delay(100);
+        var ensureNoCompletion = Task.WhenAny(completedTcs.Task, delayTask);
+        await ensureNoCompletion;
 
         Assert.Single(transformStarted);
         Assert.Empty(transformCompleted); // Should be cancelled

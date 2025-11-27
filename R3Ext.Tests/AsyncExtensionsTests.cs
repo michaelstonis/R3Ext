@@ -72,19 +72,27 @@ public class AsyncExtensionsTests
         var source = new Subject<int>();
         var results = new List<int>();
         var processingOrder = new List<int>();
+        var tcs = new TaskCompletionSource<bool>();
 
         source.SelectAsyncSequential(async (x, ct) =>
         {
             processingOrder.Add(x);
             await Task.Delay(x * 10, ct);
             return x * 2;
-        }).Subscribe(results.Add);
+        }).Subscribe(value =>
+        {
+            results.Add(value);
+            if (results.Count == 3)
+            {
+                tcs.TrySetResult(true);
+            }
+        });
 
         source.OnNext(3);
         source.OnNext(1);
         source.OnNext(2);
 
-        await Task.Delay(200);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(3, results.Count);
         Assert.Equal(new[] { 6, 2, 4 }, results);
@@ -137,6 +145,7 @@ public class AsyncExtensionsTests
         var results = new List<int>();
         var concurrentCount = 0;
         var maxConcurrent = 0;
+        var tcs = new TaskCompletionSource<bool>();
 
         source.SelectAsyncConcurrent(
             async (x, ct) =>
@@ -147,7 +156,14 @@ public class AsyncExtensionsTests
                 Interlocked.Decrement(ref concurrentCount);
                 return x * 2;
             },
-            maxConcurrency: 3).Subscribe(results.Add);
+            maxConcurrency: 3).Subscribe(value =>
+        {
+            results.Add(value);
+            if (results.Count == 4)
+            {
+                tcs.TrySetResult(true);
+            }
+        });
 
         source.OnNext(1);
         source.OnNext(2);
@@ -155,7 +171,7 @@ public class AsyncExtensionsTests
         await Task.Delay(20);
         source.OnNext(4);
 
-        await Task.Delay(150);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(4, results.Count);
         Assert.True(maxConcurrent >= 2);
@@ -250,17 +266,22 @@ public class AsyncExtensionsTests
     {
         var source = new Subject<string>();
         var results = new List<string>();
+        var tcs = new TaskCompletionSource<bool>();
 
         source.SubscribeAsync(async x =>
         {
             await Task.Delay(5);
             results.Add(x.ToUpper());
+            if (results.Count == 2)
+            {
+                tcs.TrySetResult(true);
+            }
         });
 
         source.OnNext("hello");
         source.OnNext("world");
 
-        await Task.Delay(50);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(2, results.Count);
         Assert.Contains("HELLO", results);

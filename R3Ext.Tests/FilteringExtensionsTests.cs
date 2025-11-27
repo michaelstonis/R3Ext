@@ -12,6 +12,8 @@ namespace R3Ext.Tests;
 [Collection("FrameProvider")]
 public class FilteringExtensionsTests(FrameProviderFixture fp)
 {
+    private readonly FrameProviderFixture _frameProvider = fp;
+
     [Fact]
     public void Not_InvertsBooleanValues()
     {
