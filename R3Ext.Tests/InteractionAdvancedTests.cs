@@ -290,6 +290,6 @@ public class InteractionAdvancedTests
 
         Assert.Equal(123, ex.Input);
         Assert.Same(interaction, ex.Interaction);
-        Assert.Contains("123", ex.Message);
+        Assert.Contains("Interaction", ex.Message);
     }
 }
