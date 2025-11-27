@@ -11,18 +11,45 @@ public class AsyncExtensionsTests
         var source = new Subject<int>();
         var results = new List<int>();
         var cancellationTokens = new List<CancellationToken>();
+        var tcs1 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs2 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completeTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callCount = 0;
 
         source.SelectLatestAsync(async (x, ct) =>
         {
             cancellationTokens.Add(ct);
-            await Task.Delay(50, ct);
-            return x * 2;
-        }).Subscribe(results.Add);
+            var count = Interlocked.Increment(ref callCount);
+            try
+            {
+                if (count == 1)
+                {
+                    await tcs1.Task.WaitAsync(ct);
+                }
+                else
+                {
+                    await tcs2.Task.WaitAsync(ct);
+                }
+
+                var val = x * 2;
+                results.Add(val);
+                completeTcs.TrySetResult(true);
+                return val;
+            }
+            catch (OperationCanceledException)
+            {
+                // cancellation expected for first operation
+                throw;
+            }
+        }).Subscribe();
 
         source.OnNext(1);
-        await Task.Delay(10);
+        await Task.Delay(20);
         source.OnNext(2); // Should cancel first operation
-        await Task.Delay(100);
+        await Task.Delay(20);
+        tcs2.SetResult(true);
+
+        await completeTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Single(results);
         Assert.Equal(4, results[0]);
