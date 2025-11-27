@@ -219,12 +219,18 @@ public class AsyncExtensionsTests
     {
         var source = new Subject<int>();
         var processedValues = new List<int>();
+        var tcs = new TaskCompletionSource<bool>();
+        var expectedCount = 3;
 
         source.SubscribeAsync(
             async (x, ct) =>
             {
                 await Task.Delay(10, ct);
                 processedValues.Add(x);
+                if (processedValues.Count == expectedCount)
+                {
+                    tcs.TrySetResult(true);
+                }
             },
             AwaitOperation.Sequential);
 
@@ -232,7 +238,8 @@ public class AsyncExtensionsTests
         source.OnNext(2);
         source.OnNext(3);
 
-        await Task.Delay(100);
+        // Wait for all operations to complete
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(3, processedValues.Count);
         Assert.Equal(new[] { 1, 2, 3 }, processedValues);
