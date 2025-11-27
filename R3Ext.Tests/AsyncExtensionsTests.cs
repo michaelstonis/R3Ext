@@ -330,19 +330,29 @@ public class AsyncExtensionsTests
     {
         var source = new Subject<int>();
         var results = new List<int>();
+        var tcs = new TaskCompletionSource<bool>();
+        var count = 0;
 
         source.SelectLatestAsync(async (x, ct) =>
         {
             await Task.Delay(5, ct);
             return x * 10;
-        }).Subscribe(results.Add);
+        }).Subscribe(value =>
+        {
+            results.Add(value);
+            if (Interlocked.Increment(ref count) == 3)
+            {
+                tcs.TrySetResult(true);
+            }
+        });
 
         source.OnNext(1);
         await Task.Delay(20);
         source.OnNext(2);
         await Task.Delay(20);
         source.OnNext(3);
-        await Task.Delay(20);
+
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(3, results.Count);
         Assert.Equal(new[] { 10, 20, 30 }, results);

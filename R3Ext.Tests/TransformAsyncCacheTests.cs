@@ -88,6 +88,8 @@ public class TransformAsyncCacheTests
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
         var results = new List<R3.DynamicData.Cache.IChangeSet<string, int>>();
+        var tcs1 = new TaskCompletionSource<bool>();
+        var tcs2 = new TaskCompletionSource<bool>();
 
         using var sub = cache.Connect()
             .TransformAsync(async p =>
@@ -95,17 +97,28 @@ public class TransformAsyncCacheTests
                 await Task.Delay(10);
                 return p.Name.ToUpper();
             })
-            .Subscribe(results.Add);
+            .Subscribe(changeset =>
+            {
+                results.Add(changeset);
+                if (results.Count == 1)
+                {
+                    tcs1.TrySetResult(true);
+                }
+                else if (results.Count == 2)
+                {
+                    tcs2.TrySetResult(true);
+                }
+            });
 
         cache.AddOrUpdate(new Person(1, "Alice"));
-        await Task.Delay(50);
+        await tcs1.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Single(results);
         Assert.Equal(R3.DynamicData.Kernel.ChangeReason.Add, results[0].First().Reason);
 
         // Update the value
         cache.AddOrUpdate(new Person(1, "Alicia"));
-        await Task.Delay(50);
+        await tcs2.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(2, results.Count);
         Assert.Equal(R3.DynamicData.Kernel.ChangeReason.Update, results[1].First().Reason);
