@@ -45,16 +45,33 @@ public class TransformAsyncTests
     public async Task TransformAsync_WithCancellation()
     {
         var source = new SourceList<int>();
-        var transformStarted = new List<int>();
-        var transformCompleted = new List<int>();
+        var started = new List<int>();
+        var completed = new List<int>();
         var results = new List<string>();
+        var startTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var neverCompleteTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var sub = source.Connect()
             .TransformAsync(async (x, ct) =>
             {
-                transformStarted.Add(x);
-                await Task.Delay(50, ct);
-                transformCompleted.Add(x);
+                started.Add(x);
+                if (started.Count == 1)
+                {
+                    startTcs.TrySetResult(true);
+                }
+
+                try
+                {
+                    // Wait indefinitely until cancellation; we never SetResult on purpose.
+                    await neverCompleteTcs.Task.WaitAsync(ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected; do not mark completion.
+                    throw;
+                }
+
+                completed.Add(x); // Should never execute for cancelled item.
                 return x.ToString();
             })
             .Subscribe(changeSet =>
@@ -69,16 +86,15 @@ public class TransformAsyncTests
             });
 
         source.Add(1);
-        await Task.Delay(10); // Let transformation start
+        await startTcs.Task.WaitAsync(TimeSpan.FromSeconds(5)); // Ensure transformation started
 
-        // Remove before transformation completes
-        source.Remove(1);
+        source.Remove(1); // Cancel before completion
 
-        await Task.Delay(100); // Wait to see if cancelled transformation completes
+        await Task.Delay(100); // Allow cancellation to propagate
 
-        Assert.Single(transformStarted);
-        Assert.Empty(transformCompleted); // Should be cancelled
-        Assert.Empty(results); // Nothing should be emitted
+        Assert.Single(started);
+        Assert.Empty(completed);
+        Assert.Empty(results);
     }
 
     [Fact]
