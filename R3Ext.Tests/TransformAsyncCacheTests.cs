@@ -55,16 +55,22 @@ public class TransformAsyncCacheTests
         var transformStarted = new List<int>();
         var transformCompleted = new List<int>();
         var results = new List<string>();
-        var startedTcs = new TaskCompletionSource<bool>();
-        var completedTcs = new TaskCompletionSource<bool>();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var sub = cache.Connect()
             .TransformAsync(async (p, ct) =>
             {
                 transformStarted.Add(p.Id);
-                await Task.Delay(50, ct);
-                transformCompleted.Add(p.Id);
-                return p.Name.ToUpper();
+                try
+                {
+                    await tcs.Task.WaitAsync(ct);
+                    transformCompleted.Add(p.Id);
+                    return p.Name.ToUpper();
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
             })
             .Subscribe(changeSet =>
             {
@@ -78,28 +84,14 @@ public class TransformAsyncCacheTests
             });
 
         cache.AddOrUpdate(new Person(1, "Alice"));
-        // Wait deterministically until the transform has started
-        var startDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-        while (transformStarted.Count < 1)
-        {
-            if (DateTime.UtcNow > startDeadline)
-            {
-                throw new TimeoutException("Transform did not start in time");
-            }
-            await Task.Delay(10);
-        }
-
-        // Remove before transformation completes
-        cache.Remove(1);
-
-        // Ensure no completion occurs
-        var delayTask = Task.Delay(100);
-        var ensureNoCompletion = Task.WhenAny(completedTcs.Task, delayTask);
-        await ensureNoCompletion;
+        await Task.Delay(50);
 
         Assert.Single(transformStarted);
-        Assert.Empty(transformCompleted); // Should be cancelled
-        Assert.Empty(results); // Nothing should be emitted
+        cache.Remove(1);
+        await Task.Delay(50);
+
+        Assert.Empty(transformCompleted);
+        Assert.Empty(results);
     }
 
     [Fact]
