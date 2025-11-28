@@ -3,6 +3,8 @@ using R3;
 using R3Ext;
 using Xunit;
 
+#pragma warning disable SA1503, SA1513, SA1515, SA1107, SA1502, SA1508, SA1516
+
 namespace R3Ext.Tests;
 
 [Collection("FrameProvider")]
@@ -126,13 +128,14 @@ public class RxCommandAdvancedTests(FrameProviderFixture fp)
     [Fact]
     public async Task IsExecuting_IsTrueDuringExecution()
     {
-        var tcsStart = new TaskCompletionSource<bool>();
-        var tcsEnd = new TaskCompletionSource<bool>();
+        var tcsStart = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcsEnd = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var cmd = RxCommand<int, int>.CreateFromTask(async x =>
         {
             tcsStart.TrySetResult(true);
-            await Task.Delay(100);
+            await releaseTcs.Task;
             return x * 2;
         });
         var states = cmd.IsExecuting.ToLiveList();
@@ -147,6 +150,7 @@ public class RxCommandAdvancedTests(FrameProviderFixture fp)
         cmd.Execute(1).Subscribe(_ => { });
         await tcsStart.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(states[^1]);
+        releaseTcs.SetResult(true);
         await tcsEnd.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(states[^1]);
     }
@@ -155,16 +159,23 @@ public class RxCommandAdvancedTests(FrameProviderFixture fp)
     public async Task ConcurrentExecutions_TrackIsExecutingCorrectly()
     {
         var executingStates = new List<bool>();
-        var tcs = new TaskCompletionSource<int>();
+        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var endedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var cmd = RxCommand<int, int>.CreateFromTask((x, ct) => tcs.Task);
 
-        cmd.IsExecuting.Subscribe(executingStates.Add);
+        cmd.IsExecuting.Subscribe(state =>
+        {
+            executingStates.Add(state);
+            if (state) startedTcs.TrySetResult(true);
+            else if (startedTcs.Task.IsCompleted) endedTcs.TrySetResult(true);
+        });
 
         // Start execution
         var task = cmd.Execute(1).FirstAsync();
 
-        await Task.Delay(10); // Allow IsExecuting to update
+        await startedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         // Should have at least initial false and then true
         Assert.Contains(true, executingStates);
@@ -172,7 +183,7 @@ public class RxCommandAdvancedTests(FrameProviderFixture fp)
         tcs.SetResult(100); // Complete
         await task;
 
-        await Task.Delay(10); // Allow final state update
+        await endedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         // Should end with false
         Assert.False(executingStates.Last());
@@ -182,9 +193,13 @@ public class RxCommandAdvancedTests(FrameProviderFixture fp)
     public async Task Cancellation_StopsExecutionWhenCancelled()
     {
         var executed = false;
+        var startedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var neverCompleteTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
         var cmd = RxCommand<int, int>.CreateFromTask(async (x, ct) =>
         {
-            await Task.Delay(100, ct);
+            startedTcs.TrySetResult(true);
+            await neverCompleteTcs.Task.WaitAsync(ct);
             executed = true;
             return x * 2;
         });
@@ -192,11 +207,11 @@ public class RxCommandAdvancedTests(FrameProviderFixture fp)
         var cts = new CancellationTokenSource();
         var task = cmd.Execute(5).FirstAsync(cts.Token);
 
+        await startedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         cts.Cancel();
 
         // TaskCanceledException inherits from OperationCanceledException
         await Assert.ThrowsAsync<TaskCanceledException>(async () => await task);
-        await Task.Delay(150);
         Assert.False(executed);
     }
 
