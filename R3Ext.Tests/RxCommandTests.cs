@@ -2,6 +2,8 @@
 using R3;
 using R3.Collections;
 
+#pragma warning disable SA1503, SA1513, SA1515, SA1107, SA1502, SA1508, SA1516
+
 namespace R3Ext.Tests;
 
 public class RxCommandTests
@@ -31,13 +33,16 @@ public class RxCommandTests
     [Fact]
     public async Task CreateFromTask_ExecutesAsyncOperation()
     {
-        bool executed = false;
+        var executed = false;
+        var executedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         RxCommand<Unit, Unit> command = RxCommand.CreateFromTask(async () =>
         {
-            await Task.Delay(10);
+            await Task.Yield(); // Ensure async execution
             executed = true;
+            executedTcs.TrySetResult(true);
         });
         await command.Execute().FirstAsync();
+        await executedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(executed);
     }
 
@@ -45,15 +50,18 @@ public class RxCommandTests
     public async Task CreateFromTask_WithCancellationToken_PropagatesToken()
     {
         CancellationToken captured = default;
-        bool got = false;
+        var got = false;
+        var completeTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         RxCommand<Unit, Unit> command = RxCommand<Unit, Unit>.CreateFromTask(async (_, ct) =>
         {
             captured = ct;
             got = true;
-            await Task.Delay(10, ct);
+            completeTcs.TrySetResult(true);
+            await Task.Yield();
             return Unit.Default;
         });
         await command.Execute().FirstAsync();
+        await completeTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(got);
         Assert.NotEqual(default, captured);
     }

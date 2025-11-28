@@ -1,5 +1,7 @@
 using R3;
 
+#pragma warning disable SA1503, SA1513, SA1515, SA1107, SA1502, SA1508, SA1516
+
 namespace R3Ext.Tests;
 
 public class InteractionTests
@@ -22,7 +24,7 @@ public class InteractionTests
 
         using IDisposable _ = interaction.RegisterHandler(async ctx =>
         {
-            await Task.Delay(1);
+            await Task.Yield(); // Ensure async execution
             ctx.SetOutput(ctx.Input * 2);
         });
 

@@ -1,6 +1,8 @@
 using R3;
 using Xunit;
 
+#pragma warning disable SA1503, SA1513, SA1515, SA1107, SA1502, SA1508, SA1516
+
 namespace R3Ext.Tests;
 
 public class InteractionAdvancedTests
@@ -89,7 +91,7 @@ public class InteractionAdvancedTests
     }
 
     [Fact]
-    public async Task RegisterHandler_ThrowsOnNullObservable()
+    public void RegisterHandler_ThrowsOnNullObservable()
     {
         var interaction = new Interaction<int, string>();
         Assert.Throws<ArgumentNullException>(() => interaction.RegisterHandler((Func<IInteractionContext<int, string>, Observable<Unit>>)null!));
@@ -102,7 +104,7 @@ public class InteractionAdvancedTests
 
         interaction.RegisterHandler(async ctx =>
         {
-            await Task.Delay(1);
+            await Task.Yield(); // Ensure async execution
             throw new InvalidOperationException("Handler failed");
         });
 
@@ -123,7 +125,7 @@ public class InteractionAdvancedTests
                 var _ = Task.Run(async () =>
                 {
                     executionOrder.Add("handler1-start");
-                    await Task.Delay(10);
+                    await Task.Yield();
                     executionOrder.Add("handler1-end");
                     observer.OnCompleted();
                 });
@@ -168,17 +170,21 @@ public class InteractionAdvancedTests
     {
         var interaction = new Interaction<int, string>();
         var handlerCount = 0;
+        var releaseTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         interaction.RegisterHandler(async ctx =>
         {
             Interlocked.Increment(ref handlerCount);
-            await Task.Delay(10);
+            await releaseTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
             ctx.SetOutput($"result-{ctx.Input}");
         });
 
         var task1 = interaction.Handle(1).FirstAsync();
         var task2 = interaction.Handle(2).FirstAsync();
         var task3 = interaction.Handle(3).FirstAsync();
+
+        // Release all handlers
+        releaseTcs.SetResult(true);
 
         var results = await Task.WhenAll(task1, task2, task3);
 
