@@ -3,19 +3,21 @@ using R3;
 using R3.Collections;
 using Xunit;
 
+#pragma warning disable SA1503, SA1513, SA1515, SA1107, SA1502, SA1508, SA1516
+
 namespace R3Ext.Tests;
 
 public class ErrorHandlingAdvancedTests
 {
     [Fact]
-    public async Task CatchIgnore_NullSource_ThrowsArgumentNullException()
+    public void CatchIgnore_NullSource_ThrowsArgumentNullException()
     {
         Observable<int> nullSource = null!;
         Assert.Throws<ArgumentNullException>(() => nullSource.CatchIgnore());
     }
 
     [Fact]
-    public async Task CatchIgnore_EmitsValuesBeforeError()
+    public void CatchIgnore_EmitsValuesBeforeError()
     {
         var subject = new Subject<int>();
         var results = new List<int>();
@@ -27,13 +29,12 @@ public class ErrorHandlingAdvancedTests
         subject.OnNext(3);
         subject.OnErrorResume(new InvalidOperationException("Test error"));
 
-        await Task.Delay(10);
-
+        // Synchronous subject - no delay needed
         Assert.Equal(new[] { 1, 2, 3 }, results);
     }
 
     [Fact]
-    public async Task CatchIgnore_MultipleErrors_CompletesOnFirstError()
+    public void CatchIgnore_MultipleErrors_CompletesOnFirstError()
     {
         var subject = new Subject<int>();
         var completionCount = 0;
@@ -46,20 +47,19 @@ public class ErrorHandlingAdvancedTests
         subject.OnNext(1);
         subject.OnErrorResume(new Exception("First error"));
 
-        await Task.Delay(10);
-
+        // Synchronous subject - no delay needed
         Assert.Equal(1, completionCount);
     }
 
     [Fact]
-    public async Task CatchAndReturn_NullSource_ThrowsArgumentNullException()
+    public void CatchAndReturn_NullSource_ThrowsArgumentNullException()
     {
         Observable<int> nullSource = null!;
         Assert.Throws<ArgumentNullException>(() => nullSource.CatchAndReturn(42));
     }
 
     [Fact]
-    public async Task CatchAndReturn_EmitsValuesBeforeError()
+    public void CatchAndReturn_EmitsValuesBeforeError()
     {
         var subject = new Subject<int>();
         var results = new List<int>();
@@ -70,13 +70,12 @@ public class ErrorHandlingAdvancedTests
         subject.OnNext(2);
         subject.OnErrorResume(new Exception());
 
-        await Task.Delay(10);
-
+        // Synchronous subject - no delay needed
         Assert.Equal(new[] { 1, 2, 99 }, results);
     }
 
     [Fact]
-    public async Task CatchAndReturn_NoError_DoesNotEmitFallback()
+    public void CatchAndReturn_NoError_DoesNotEmitFallback()
     {
         var subject = new Subject<int>();
         var results = new List<int>();
@@ -87,20 +86,19 @@ public class ErrorHandlingAdvancedTests
         subject.OnNext(2);
         subject.OnCompleted();
 
-        await Task.Delay(10);
-
+        // Synchronous subject - no delay needed
         Assert.Equal(new[] { 1, 2 }, results);
     }
 
     [Fact]
-    public async Task OnErrorRetry_NullSource_ThrowsArgumentNullException()
+    public void OnErrorRetry_NullSource_ThrowsArgumentNullException()
     {
         Observable<int> nullSource = null!;
         Assert.Throws<ArgumentNullException>(() => nullSource.OnErrorRetry());
     }
 
     [Fact]
-    public async Task OnErrorRetry_SucceedsOnFirstTry_NoRetries()
+    public void OnErrorRetry_SucceedsOnFirstTry_NoRetries()
     {
         var attempts = 0;
         var source = Observable.Defer(() =>
@@ -112,15 +110,14 @@ public class ErrorHandlingAdvancedTests
         var results = new List<int>();
         source.OnErrorRetry(3).Subscribe(results.Add);
 
-        await Task.Delay(50);
-
+        // Observable.Return is synchronous - no delay needed
         Assert.Equal(1, attempts);
         Assert.Single(results);
         Assert.Equal(42, results[0]);
     }
 
     [Fact]
-    public async Task OnErrorRetry_InfiniteRetries_KeepsRetrying()
+    public void OnErrorRetry_InfiniteRetries_KeepsRetrying()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -147,7 +144,7 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task OnErrorRetry_WithDelay_WaitsBeforeRetrying()
+    public void OnErrorRetry_WithDelay_WaitsBeforeRetrying()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -176,7 +173,7 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task OnErrorRetry_ExceedsMaxRetries_CompletesWithFailure()
+    public void OnErrorRetry_ExceedsMaxRetries_CompletesWithFailure()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -191,8 +188,7 @@ public class ErrorHandlingAdvancedTests
         tp.Advance(TimeSpan.FromSeconds(1));
         tp.Advance(TimeSpan.FromSeconds(1));
 
-        await Task.Delay(10);
-
+        // FakeTimeProvider advances are synchronous - no delay needed
         Assert.True(list.IsCompleted);
         Assert.Empty(list.ToArray());
         Assert.Equal(3, attempts); // Initial + 2 retries
@@ -221,14 +217,14 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task RetryWithBackoff_NullSource_ThrowsArgumentNullException()
+    public void RetryWithBackoff_NullSource_ThrowsArgumentNullException()
     {
         Observable<int> nullSource = null!;
         Assert.Throws<ArgumentNullException>(() => nullSource.RetryWithBackoff(3, TimeSpan.FromSeconds(1)));
     }
 
     [Fact]
-    public async Task RetryWithBackoff_NegativeMaxRetries_ThrowsArgumentOutOfRangeException()
+    public void RetryWithBackoff_NegativeMaxRetries_ThrowsArgumentOutOfRangeException()
     {
         var source = Observable.Return(1);
         Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -236,7 +232,7 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task RetryWithBackoff_NegativeInitialDelay_ThrowsArgumentOutOfRangeException()
+    public void RetryWithBackoff_NegativeInitialDelay_ThrowsArgumentOutOfRangeException()
     {
         var source = Observable.Return(1);
         Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -244,7 +240,7 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task RetryWithBackoff_ZeroOrNegativeFactor_ThrowsArgumentOutOfRangeException()
+    public void RetryWithBackoff_ZeroOrNegativeFactor_ThrowsArgumentOutOfRangeException()
     {
         var source = Observable.Return(1);
         Assert.Throws<ArgumentOutOfRangeException>(() =>
@@ -252,7 +248,7 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task RetryWithBackoff_SucceedsOnFirstTry_NoRetries()
+    public void RetryWithBackoff_SucceedsOnFirstTry_NoRetries()
     {
         var attempts = 0;
         var source = Observable.Defer(() =>
@@ -264,15 +260,14 @@ public class ErrorHandlingAdvancedTests
         var results = new List<int>();
         source.RetryWithBackoff(3, TimeSpan.FromSeconds(1)).Subscribe(results.Add);
 
-        await Task.Delay(50);
-
+        // Observable.Defer with Return is synchronous - no delay needed
         Assert.Equal(1, attempts);
         Assert.Single(results);
         Assert.Equal(42, results[0]);
     }
 
     [Fact]
-    public async Task RetryWithBackoff_ExponentialDelays()
+    public void RetryWithBackoff_ExponentialDelays()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -302,7 +297,7 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task RetryWithBackoff_MaxDelayLimit()
+    public void RetryWithBackoff_MaxDelayLimit()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -336,7 +331,7 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task RetryWithBackoff_OnErrorCallback_InvokedForEachError()
+    public void RetryWithBackoff_OnErrorCallback_InvokedForEachError()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -369,7 +364,7 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task RetryWithBackoff_ExceedsMaxRetries_CompletesWithFailure()
+    public void RetryWithBackoff_ExceedsMaxRetries_CompletesWithFailure()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -384,15 +379,14 @@ public class ErrorHandlingAdvancedTests
         tp.Advance(TimeSpan.FromSeconds(1));
         tp.Advance(TimeSpan.FromSeconds(2));
 
-        await Task.Delay(10);
-
+        // FakeTimeProvider advances are synchronous - no delay needed
         Assert.True(list.IsCompleted);
         Assert.Empty(list.ToArray());
         Assert.Equal(3, attempts); // Initial + 2 retries
     }
 
     [Fact]
-    public async Task RetryWithBackoff_DisposedDuringRetry_StopsRetrying()
+    public void RetryWithBackoff_DisposedDuringRetry_StopsRetrying()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -414,7 +408,7 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task RetryWithBackoff_CustomFactor_AffectsDelays()
+    public void RetryWithBackoff_CustomFactor_AffectsDelays()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -442,7 +436,7 @@ public class ErrorHandlingAdvancedTests
     }
 
     [Fact]
-    public async Task OnErrorRetry_ZeroRetries_NoRetries()
+    public void OnErrorRetry_ZeroRetries_NoRetries()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -454,14 +448,13 @@ public class ErrorHandlingAdvancedTests
 
         var list = source.OnErrorRetry(0, TimeSpan.FromSeconds(1), tp).ToLiveList();
 
-        await Task.Delay(10);
-
+        // Synchronous execution - no delay needed
         Assert.Equal(1, attempts); // Only initial attempt
         Assert.Empty(list.ToArray());
     }
 
     [Fact]
-    public async Task RetryWithBackoff_ZeroRetries_NoRetries()
+    public void RetryWithBackoff_ZeroRetries_NoRetries()
     {
         var tp = new FakeTimeProvider();
         var attempts = 0;
@@ -473,8 +466,7 @@ public class ErrorHandlingAdvancedTests
 
         var list = source.RetryWithBackoff(0, TimeSpan.FromSeconds(1), timeProvider: tp).ToLiveList();
 
-        await Task.Delay(10);
-
+        // Synchronous execution - no delay needed
         Assert.Equal(1, attempts); // Only initial attempt
         Assert.Empty(list.ToArray());
     }
