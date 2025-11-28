@@ -16,6 +16,8 @@ public class AsyncExtensionsTests
         var tcs1 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var tcs2 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var completeTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var call1Started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var call2Started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var callCount = 0;
 
         source.SelectLatestAsync(async (x, ct) =>
@@ -26,10 +28,12 @@ public class AsyncExtensionsTests
             {
                 if (count == 1)
                 {
+                    call1Started.TrySetResult(true);
                     await tcs1.Task.WaitAsync(ct);
                 }
                 else
                 {
+                    call2Started.TrySetResult(true);
                     await tcs2.Task.WaitAsync(ct);
                 }
 
@@ -46,9 +50,9 @@ public class AsyncExtensionsTests
         }).Subscribe();
 
         source.OnNext(1);
-        await Task.Delay(20);
+        await call1Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         source.OnNext(2); // Should cancel first operation
-        await Task.Delay(20);
+        await call2Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         tcs2.SetResult(true);
 
         await completeTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -104,27 +108,49 @@ public class AsyncExtensionsTests
         var source = new Subject<int>();
         var results = new List<int>();
         var processingOrder = new List<int>();
-        var tcs = new TaskCompletionSource<bool>();
+        var completionTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Per-item TCS for controlled completion
+        var itemTcs = new Dictionary<int, TaskCompletionSource<bool>>
+        {
+            [1] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            [2] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            [3] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
+        var itemStarted = new Dictionary<int, TaskCompletionSource<bool>>
+        {
+            [1] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            [2] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            [3] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
 
         source.SelectAsyncSequential(async (x, ct) =>
         {
             processingOrder.Add(x);
-            await Task.Delay(x * 10, ct);
+            itemStarted[x].TrySetResult(true);
+            await itemTcs[x].Task.WaitAsync(ct);
             return x * 2;
         }).Subscribe(value =>
         {
             results.Add(value);
-            if (results.Count == 3)
-            {
-                tcs.TrySetResult(true);
-            }
+            if (results.Count == 3) completionTcs.TrySetResult(true);
         });
 
         source.OnNext(3);
         source.OnNext(1);
         source.OnNext(2);
 
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // 3 should start first (sequential), then 1, then 2
+        await itemStarted[3].Task.WaitAsync(TimeSpan.FromSeconds(5));
+        itemTcs[3].SetResult(true);
+
+        await itemStarted[1].Task.WaitAsync(TimeSpan.FromSeconds(5));
+        itemTcs[1].SetResult(true);
+
+        await itemStarted[2].Task.WaitAsync(TimeSpan.FromSeconds(5));
+        itemTcs[2].SetResult(true);
+
+        await completionTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(3, results.Count);
         Assert.Equal(new[] { 6, 2, 4 }, results);
@@ -184,9 +210,10 @@ public class AsyncExtensionsTests
         var results = new List<int>();
         var concurrentCount = 0;
         var maxConcurrent = 0;
-        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completionTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var startedCount = 0;
         var allStartedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         source.SelectAsyncConcurrent(
             async (x, ct) =>
@@ -198,17 +225,14 @@ public class AsyncExtensionsTests
                 }
 
                 maxConcurrent = Math.Max(maxConcurrent, current);
-                await Task.Delay(50, ct);
+                await releaseTcs.Task.WaitAsync(ct);
                 Interlocked.Decrement(ref concurrentCount);
                 return x * 2;
             },
             maxConcurrency: 3).Subscribe(value =>
         {
             results.Add(value);
-            if (results.Count == 4)
-            {
-                tcs.TrySetResult(true);
-            }
+            if (results.Count == 4) completionTcs.TrySetResult(true);
         });
 
         source.OnNext(1);
@@ -217,7 +241,10 @@ public class AsyncExtensionsTests
         await allStartedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5)); // Wait until first 3 started
         source.OnNext(4);
 
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // Release all blocked operations
+        releaseTcs.SetResult(true);
+
+        await completionTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(4, results.Count);
         Assert.True(maxConcurrent >= 2);
@@ -288,18 +315,30 @@ public class AsyncExtensionsTests
     {
         var source = new Subject<int>();
         var processedValues = new List<int>();
-        var tcs = new TaskCompletionSource<bool>();
+        var completionTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var expectedCount = 3;
+
+        // Per-item TCS for controlled completion
+        var itemTcs = new Dictionary<int, TaskCompletionSource<bool>>
+        {
+            [1] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            [2] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            [3] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
+        var itemStarted = new Dictionary<int, TaskCompletionSource<bool>>
+        {
+            [1] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            [2] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            [3] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
 
         source.SubscribeAsync(
             async (x, ct) =>
             {
-                await Task.Delay(10, ct);
+                itemStarted[x].TrySetResult(true);
+                await itemTcs[x].Task.WaitAsync(ct);
                 processedValues.Add(x);
-                if (processedValues.Count == expectedCount)
-                {
-                    tcs.TrySetResult(true);
-                }
+                if (processedValues.Count == expectedCount) completionTcs.TrySetResult(true);
             },
             AwaitOperation.Sequential);
 
@@ -307,8 +346,17 @@ public class AsyncExtensionsTests
         source.OnNext(2);
         source.OnNext(3);
 
-        // Wait for all operations to complete
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // Complete items sequentially to prove order is maintained
+        await itemStarted[1].Task.WaitAsync(TimeSpan.FromSeconds(5));
+        itemTcs[1].SetResult(true);
+
+        await itemStarted[2].Task.WaitAsync(TimeSpan.FromSeconds(5));
+        itemTcs[2].SetResult(true);
+
+        await itemStarted[3].Task.WaitAsync(TimeSpan.FromSeconds(5));
+        itemTcs[3].SetResult(true);
+
+        await completionTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(3, processedValues.Count);
         Assert.Equal(new[] { 1, 2, 3 }, processedValues);
