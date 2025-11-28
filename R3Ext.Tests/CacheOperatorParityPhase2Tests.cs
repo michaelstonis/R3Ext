@@ -1,3 +1,5 @@
+#pragma warning disable SA1503, SA1513, SA1515, SA1107, SA1502, SA1508, SA1516
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,21 +31,41 @@ public class CacheOperatorParityPhase2Tests
         var filtered = cache.Connect().Filter(i => i.Value % 2 == 0);
 
         var results = new List<IReadOnlyCollection<Item>>();
-        using var sub = filtered.ToCollection().Subscribe(x => results.Add(x));
+        var emitCount = 0;
+        var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var expectedCount = 1;
 
-        await Task.Delay(10);
+        using var sub = filtered.ToCollection().Subscribe(x =>
+        {
+            results.Add(x);
+            if (++emitCount >= expectedCount) emitTcs.TrySetResult(true);
+        });
+
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Empty(results[0]);
 
+        // Reset for next emission
+        expectedCount = 2;
+        emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
         cache.AddOrUpdate(new Item { Id = 1, Value = 2 });
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Single(results.Last());
+
+        // Reset for next emission
+        expectedCount = 3;
+        emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         cache.AddOrUpdate(new Item { Id = 2, Value = 3 });
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Single(results.Last());
 
+        // Reset for next emission
+        expectedCount = 4;
+        emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
         cache.Remove(1);
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Empty(results.Last());
     }
 
@@ -55,19 +77,33 @@ public class CacheOperatorParityPhase2Tests
         var observable = cache.Connect().Filter(predicateSubject.AsObservable());
 
         var counts = new List<int>();
-        using var sub = observable.QueryWhenChanged(q => q.Count).Subscribe(x => counts.Add(x));
+        var emitCount = 0;
+        var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var expectedCount = 1;
+
+        using var sub = observable.QueryWhenChanged(q => q.Count).Subscribe(x =>
+        {
+            counts.Add(x);
+            if (++emitCount >= expectedCount) emitTcs.TrySetResult(true);
+        });
 
         predicateSubject.OnNext(i => i.Value > 5);
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        expectedCount = 2;
+        emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         cache.AddOrUpdate(new Item { Id = 1, Value = 1 });
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        expectedCount = 3;
+        emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         cache.AddOrUpdate(new Item { Id = 2, Value = 10 });
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        expectedCount = 4;
+        emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         predicateSubject.OnNext(i => i.Value >= 1);
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.True(counts.Last() >= 2);
     }
@@ -77,15 +113,19 @@ public class CacheOperatorParityPhase2Tests
     {
         var list = new SourceList<Item>();
         var results = new List<IQuery<Item, int>>();
+        var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         Observable<R3.DynamicData.Cache.IChangeSet<Item, int>> keyed = list.Connect().AddKey<Item, int>(i => i.Id);
-        using var sub = keyed.QueryWhenChanged().Subscribe(x => results.Add(x));
+        using var sub = keyed.QueryWhenChanged().Subscribe(x =>
+        {
+            results.Add(x);
+            emitTcs.TrySetResult(true);
+        });
 
         list.Add(new Item { Id = 10, Value = 5 });
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(10, results.Last().Items.First().Id);
-        await Task.CompletedTask;
     }
 
     [Fact]
@@ -96,9 +136,15 @@ public class CacheOperatorParityPhase2Tests
 
         var casted = cache.Connect().Cast<Item, int, string>(i => i.Value.ToString());
         var results = new List<IQuery<string, int>>();
-        using var sub = casted.QueryWhenChanged().Subscribe(x => results.Add(x));
+        var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        await Task.Delay(10);
+        using var sub = casted.QueryWhenChanged().Subscribe(x =>
+        {
+            results.Add(x);
+            emitTcs.TrySetResult(true);
+        });
+
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal("11", results.Last().Items.First());
     }
 
@@ -109,14 +155,24 @@ public class CacheOperatorParityPhase2Tests
         var optional = cache.Connect().ToObservableOptional(5);
 
         var results = new List<Optional<Item>>();
-        using var sub = optional.Subscribe(x => results.Add(x));
+        var emitCount = 0;
+        var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var expectedCount = 1;
+
+        using var sub = optional.Subscribe(x =>
+        {
+            results.Add(x);
+            if (++emitCount >= expectedCount) emitTcs.TrySetResult(true);
+        });
 
         cache.AddOrUpdate(new Item { Id = 5, Value = 3 });
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(results.Last().HasValue);
 
+        expectedCount = 2;
+        emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         cache.Remove(5);
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(results.Last().HasValue);
     }
 
@@ -131,9 +187,15 @@ public class CacheOperatorParityPhase2Tests
 
         var union = c1.Connect().Or(c2.Connect());
         var results = new List<IQuery<Item, int>>();
-        using var sub = union.QueryWhenChanged().Subscribe(x => results.Add(x));
+        var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        await Task.Delay(10);
+        using var sub = union.QueryWhenChanged().Subscribe(x =>
+        {
+            results.Add(x);
+            emitTcs.TrySetResult(true);
+        });
+
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(2, results.Last().Count);
     }
 
@@ -146,14 +208,24 @@ public class CacheOperatorParityPhase2Tests
             (item, val) => val > 10);
 
         var results = new List<bool>();
-        using var sub = boolStream.Subscribe(x => results.Add(x));
+        var emitCount = 0;
+        var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var expectedCount = 1;
+
+        using var sub = boolStream.Subscribe(x =>
+        {
+            results.Add(x);
+            if (++emitCount >= expectedCount) emitTcs.TrySetResult(true);
+        });
 
         cache.AddOrUpdate(new Item { Id = 1, Value = 5 });
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(results.Last());
 
+        expectedCount = 2;
+        emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         cache.AddOrUpdate(new Item { Id = 2, Value = 15 });
-        await Task.Delay(10);
+        await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(results.Last());
     }
 }
