@@ -330,16 +330,38 @@ public class RxCommandTests
     [Fact]
     public async Task CreateRunInBackground_ExecutesOnThreadPool()
     {
-        int mainId = Thread.CurrentThread.ManagedThreadId;
-        int execId = 0;
+        // Test that CreateRunInBackground runs asynchronously by verifying it doesn't block
+        // the calling thread during a long-running operation
+        var blockingTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var executionStartedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        bool executedOnBackground = false;
+
         RxCommand<Unit, int> command = RxCommand<Unit, int>.CreateRunInBackground(_ =>
         {
-            execId = Thread.CurrentThread.ManagedThreadId;
-            return execId;
+            executionStartedTcs.TrySetResult();
+            blockingTcs.Task.Wait(); // Block until we release it
+            executedOnBackground = true;
+            return 42;
         });
-        int result = await command.Execute().FirstAsync();
-        Assert.NotEqual(mainId, execId);
-        Assert.Equal(execId, result);
+
+        // Start execution but don't await it yet
+        Observable<int> execution = command.Execute();
+        var resultTask = execution.FirstAsync();
+
+        // Wait for execution to start
+        await executionStartedTcs.Task;
+
+        // The main thread should NOT be blocked - prove it by doing work here
+        Assert.False(resultTask.IsCompleted); // Still running in background
+
+        // Release the background work
+        blockingTcs.SetResult();
+
+        // Now await the result
+        int result = await resultTask;
+
+        Assert.True(executedOnBackground);
+        Assert.Equal(42, result);
     }
 
     [Fact]

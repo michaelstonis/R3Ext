@@ -26,9 +26,8 @@ public class TransformManyDedupTests
     {
         var cache = new SourceCache<Item, int>(i => i.Id);
         var changesReceived = new List<IChangeSet<int>>();
-        var emitCount = 0;
         var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var expectedCount = 1;
+        var targetCount = 1;
 
         using var sub = cache
             .Connect()
@@ -36,7 +35,7 @@ public class TransformManyDedupTests
             .Subscribe(cs =>
             {
                 changesReceived.Add(cs);
-                if (++emitCount >= expectedCount) emitTcs.TrySetResult(true);
+                if (changesReceived.Count >= targetCount) emitTcs.TrySetResult(true);
             });
 
         cache.AddOrUpdate(new Item { Id = 1, Values = new List<int> { 1, 2 } });
@@ -45,8 +44,9 @@ public class TransformManyDedupTests
         Assert.Equal(new[] { 1, 2 }, changesReceived[0].Select(c => c.Current).ToArray());
         Assert.All(changesReceived[0], c => Assert.Equal(ListChangeReason.Add, c.Reason));
 
-        expectedCount = 2;
+        targetCount = 2;
         emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (changesReceived.Count >= targetCount) emitTcs.TrySetResult(true);
         cache.AddOrUpdate(new Item { Id = 2, Values = new List<int> { 1, 2, 3 } });
         await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(2, changesReceived.Count); // Only new value 3 added
@@ -58,8 +58,9 @@ public class TransformManyDedupTests
         // No new changeset expected - stay at count 2
         Assert.Equal(2, changesReceived.Count);
 
-        expectedCount = 3;
+        targetCount = 3;
         emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (changesReceived.Count >= targetCount) emitTcs.TrySetResult(true);
         cache.Remove(2); // Final removal of 1,2,3
         await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(3, changesReceived.Count);
@@ -74,9 +75,8 @@ public class TransformManyDedupTests
     {
         var cache = new SourceCache<Item, int>(i => i.Id);
         var changesReceived = new List<IChangeSet<int>>();
-        var emitCount = 0;
         var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var expectedCount = 2;
+        var targetCount = 2;
 
         using var sub = cache
             .Connect()
@@ -84,7 +84,7 @@ public class TransformManyDedupTests
             .Subscribe(cs =>
             {
                 changesReceived.Add(cs);
-                if (++emitCount >= expectedCount) emitTcs.TrySetResult(true);
+                if (changesReceived.Count >= targetCount) emitTcs.TrySetResult(true);
             });
 
         cache.AddOrUpdate(new Item { Id = 1, Values = new List<int> { 1, 2 } });
@@ -92,8 +92,9 @@ public class TransformManyDedupTests
         await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(2, changesReceived.Count); // Adds for [1,2] then [3]
 
-        expectedCount = 3;
+        targetCount = 3;
         emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (changesReceived.Count >= targetCount) emitTcs.TrySetResult(true);
         cache.AddOrUpdate(new Item { Id = 1, Values = new List<int> { 2, 4 } }); // Update introducing 4
         await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(3, changesReceived.Count);
@@ -108,9 +109,8 @@ public class TransformManyDedupTests
     {
         var cache = new SourceCache<Item, int>(i => i.Id);
         var changesReceived = new List<IChangeSet<int>>();
-        var emitCount = 0;
         var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var expectedCount = 2;
+        var targetCount = 2;
 
         using var sub = cache
             .Connect()
@@ -118,7 +118,7 @@ public class TransformManyDedupTests
             .Subscribe(cs =>
             {
                 changesReceived.Add(cs);
-                if (++emitCount >= expectedCount) emitTcs.TrySetResult(true);
+                if (changesReceived.Count >= targetCount) emitTcs.TrySetResult(true);
             });
 
         // Setup so that value 1 only exists in item with Id=2, ensuring update removes last occurrence.
@@ -129,8 +129,9 @@ public class TransformManyDedupTests
         Assert.Single(changesReceived[0]);
         Assert.Equal(new[] { 1, 3 }, changesReceived[1].Select(c => c.Current).OrderBy(x => x).ToArray());
 
-        expectedCount = 3;
+        targetCount = 3;
         emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (changesReceived.Count >= targetCount) emitTcs.TrySetResult(true);
         cache.AddOrUpdate(new Item { Id = 2, Values = new List<int> { 3 } }); // Remove last occurrence of 1
         await emitTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(3, changesReceived.Count);

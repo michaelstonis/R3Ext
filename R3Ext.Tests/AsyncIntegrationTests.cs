@@ -12,7 +12,6 @@ public class AsyncIntegrationTests
     {
         Subject<int> subject = new();
         int completed = 0;
-        var completedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var blockTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         Observable<int> obs = subject.SelectLatestAsync(async (x, ct) =>

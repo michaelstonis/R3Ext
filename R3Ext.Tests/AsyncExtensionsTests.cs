@@ -455,15 +455,24 @@ public class AsyncExtensionsTests
     [Fact]
     public async Task SelectLatestAsync_CompletesSuccessfulOperations()
     {
+        // SelectLatestAsync uses Switch semantics - if we complete each operation
+        // before sending the next value, all operations should complete
         var source = new Subject<int>();
         var results = new List<int>();
-        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var count = 0;
+        var resultTcs1 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resultTcs2 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resultTcs3 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var itemTcs = new Dictionary<int, TaskCompletionSource<bool>>
         {
             { 1, new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously) },
             { 2, new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously) },
             { 3, new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously) },
+        };
+        var resultTcsMap = new Dictionary<int, TaskCompletionSource<bool>>
+        {
+            { 10, resultTcs1 },
+            { 20, resultTcs2 },
+            { 30, resultTcs3 },
         };
 
         source.SelectLatestAsync(async (x, ct) =>
@@ -473,22 +482,23 @@ public class AsyncExtensionsTests
         }).Subscribe(value =>
         {
             results.Add(value);
-            if (Interlocked.Increment(ref count) == 3)
-            {
-                tcs.TrySetResult(true);
-            }
+            resultTcsMap[value].TrySetResult(true);
         });
 
+        // Send value 1, complete it, and wait for the result
         source.OnNext(1);
         itemTcs[1].SetResult(true);
-        await Task.Yield();
+        await resultTcs1.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Send value 2, complete it, and wait for the result
         source.OnNext(2);
         itemTcs[2].SetResult(true);
-        await Task.Yield();
+        await resultTcs2.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Send value 3, complete it, and wait for the result
         source.OnNext(3);
         itemTcs[3].SetResult(true);
-
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await resultTcs3.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(3, results.Count);
         Assert.Equal(new[] { 10, 20, 30 }, results);
