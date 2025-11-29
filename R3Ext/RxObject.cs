@@ -89,7 +89,7 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
     public IDisposable SuppressChangeNotifications()
     {
         Interlocked.Increment(ref _suppressCount);
-        return new ActionDisposable(() => Interlocked.Decrement(ref _suppressCount));
+        return new SuppressDisposable(this);
     }
 
     /// <summary>
@@ -98,20 +98,7 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
     public IDisposable DelayChangeNotifications()
     {
         Interlocked.Increment(ref _delayCount);
-        return new ActionDisposable(() =>
-        {
-            if (Interlocked.Decrement(ref _delayCount) == 0 && _delayedProperties is { Count: > 0, })
-            {
-                foreach (string prop in _delayedProperties)
-                {
-                    PropertyChangedEventArgs args = new(prop);
-                    this.PropertyChanged?.Invoke(this, args);
-                    _changed.OnNext(args);
-                }
-
-                _delayedProperties.Clear();
-            }
-        });
+        return new DelayDisposable(this);
     }
 
     /// <summary>
@@ -122,7 +109,7 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
         return NotificationsEnabled && _delayCount == 0;
     }
 
-    private sealed class ActionDisposable(Action onDispose) : IDisposable
+    private sealed class SuppressDisposable(RxObject owner) : IDisposable
     {
         private int _disposed;
 
@@ -133,7 +120,32 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
                 return;
             }
 
-            onDispose();
+            Interlocked.Decrement(ref owner._suppressCount);
+        }
+    }
+
+    private sealed class DelayDisposable(RxObject owner) : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            {
+                return;
+            }
+
+            if (Interlocked.Decrement(ref owner._delayCount) == 0 && owner._delayedProperties is { Count: > 0, })
+            {
+                foreach (string prop in owner._delayedProperties)
+                {
+                    PropertyChangedEventArgs args = new(prop);
+                    owner.PropertyChanged?.Invoke(owner, args);
+                    owner._changed.OnNext(args);
+                }
+
+                owner._delayedProperties.Clear();
+            }
         }
     }
 }
