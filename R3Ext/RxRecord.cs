@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using R3;
+using R3Ext.Utilities;
 
 namespace R3Ext;
 
@@ -52,7 +53,7 @@ public abstract record RxRecord : INotifyPropertyChanged, INotifyPropertyChangin
             return;
         }
 
-        PropertyChangingEventArgs args = new(propertyName);
+        var args = PropertyEventArgsCache.GetPropertyChanging(propertyName);
         this.PropertyChanging?.Invoke(this, args);
         _changing.OnNext(args);
     }
@@ -71,7 +72,7 @@ public abstract record RxRecord : INotifyPropertyChanged, INotifyPropertyChangin
             return;
         }
 
-        PropertyChangedEventArgs args = new(propertyName);
+        var args = PropertyEventArgsCache.GetPropertyChanged(propertyName);
         this.PropertyChanged?.Invoke(this, args);
         _changed.OnNext(args);
     }
@@ -79,26 +80,13 @@ public abstract record RxRecord : INotifyPropertyChanged, INotifyPropertyChangin
     public IDisposable SuppressChangeNotifications()
     {
         Interlocked.Increment(ref _suppressCount);
-        return new ActionDisposable(() => Interlocked.Decrement(ref _suppressCount));
+        return new SuppressDisposable(this);
     }
 
     public IDisposable DelayChangeNotifications()
     {
         Interlocked.Increment(ref _delayCount);
-        return new ActionDisposable(() =>
-        {
-            if (Interlocked.Decrement(ref _delayCount) == 0 && _delayedProperties is { Count: > 0, })
-            {
-                foreach (string prop in _delayedProperties)
-                {
-                    PropertyChangedEventArgs args = new(prop);
-                    this.PropertyChanged?.Invoke(this, args);
-                    _changed.OnNext(args);
-                }
-
-                _delayedProperties.Clear();
-            }
-        });
+        return new DelayDisposable(this);
     }
 
     public bool AreChangeNotificationsEnabled()
@@ -106,7 +94,7 @@ public abstract record RxRecord : INotifyPropertyChanged, INotifyPropertyChangin
         return NotificationsEnabled && _delayCount == 0;
     }
 
-    private sealed class ActionDisposable(Action onDispose) : IDisposable
+    private sealed class SuppressDisposable(RxRecord owner) : IDisposable
     {
         private int _disposed;
 
@@ -117,7 +105,32 @@ public abstract record RxRecord : INotifyPropertyChanged, INotifyPropertyChangin
                 return;
             }
 
-            onDispose();
+            Interlocked.Decrement(ref owner._suppressCount);
+        }
+    }
+
+    private sealed class DelayDisposable(RxRecord owner) : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 1)
+            {
+                return;
+            }
+
+            if (Interlocked.Decrement(ref owner._delayCount) == 0 && owner._delayedProperties is { Count: > 0, })
+            {
+                foreach (string prop in owner._delayedProperties)
+                {
+                    var args = PropertyEventArgsCache.GetPropertyChanged(prop);
+                    owner.PropertyChanged?.Invoke(owner, args);
+                    owner._changed.OnNext(args);
+                }
+
+                owner._delayedProperties.Clear();
+            }
         }
     }
 }

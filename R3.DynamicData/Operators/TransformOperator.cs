@@ -33,60 +33,63 @@ public static class TransformOperator
             throw new ArgumentNullException(nameof(transformFactory));
         }
 
-        return Observable.Create<IChangeSet<TDestination, TKey>>(observer =>
-        {
-            return source.Subscribe(
-                changes =>
-                {
-                    var transformed = new ChangeSet<TDestination, TKey>(changes.Count);
-
-                    foreach (var change in changes)
+        return Observable.Create<IChangeSet<TDestination, TKey>, (Observable<IChangeSet<TSource, TKey>> source, Func<TSource, TDestination> transformFactory)>(
+            (source, transformFactory),
+            static (observer, state) =>
+            {
+                return state.source.Subscribe(
+                    (observer, state.transformFactory),
+                    static (changes, tuple) =>
                     {
-                        switch (change.Reason)
+                        var transformed = new ChangeSet<TDestination, TKey>(changes.Count);
+
+                        foreach (var change in changes)
                         {
-                            case Kernel.ChangeReason.Add:
-                                transformed.Add(new Change<TDestination, TKey>(
-                                    Kernel.ChangeReason.Add,
-                                    change.Key,
-                                    transformFactory(change.Current)));
-                                break;
+                            switch (change.Reason)
+                            {
+                                case Kernel.ChangeReason.Add:
+                                    transformed.Add(new Change<TDestination, TKey>(
+                                        Kernel.ChangeReason.Add,
+                                        change.Key,
+                                        tuple.transformFactory(change.Current)));
+                                    break;
 
-                            case Kernel.ChangeReason.Update:
-                                var transformedCurrent = transformFactory(change.Current);
-                                var transformedPrevious = change.Previous.HasValue
-                                    ? transformFactory(change.Previous.Value)
-                                    : default(TDestination)!;
+                                case Kernel.ChangeReason.Update:
+                                    var transformedCurrent = tuple.transformFactory(change.Current);
+                                    var transformedPrevious = change.Previous.HasValue
+                                        ? tuple.transformFactory(change.Previous.Value)
+                                        : default(TDestination)!;
 
-                                transformed.Add(new Change<TDestination, TKey>(
-                                    Kernel.ChangeReason.Update,
-                                    change.Key,
-                                    transformedCurrent,
-                                    transformedPrevious));
-                                break;
+                                    transformed.Add(new Change<TDestination, TKey>(
+                                        Kernel.ChangeReason.Update,
+                                        change.Key,
+                                        transformedCurrent,
+                                        transformedPrevious));
+                                    break;
 
-                            case Kernel.ChangeReason.Remove:
-                                var removedItem = transformFactory(change.Current);
-                                transformed.Add(new Change<TDestination, TKey>(
-                                    Kernel.ChangeReason.Remove,
-                                    change.Key,
-                                    removedItem,
-                                    removedItem));
-                                break;
+                                case Kernel.ChangeReason.Remove:
+                                    var removedItem = tuple.transformFactory(change.Current);
+                                    transformed.Add(new Change<TDestination, TKey>(
+                                        Kernel.ChangeReason.Remove,
+                                        change.Key,
+                                        removedItem,
+                                        removedItem));
+                                    break;
 
-                            case Kernel.ChangeReason.Refresh:
-                                transformed.Add(new Change<TDestination, TKey>(
-                                    Kernel.ChangeReason.Refresh,
-                                    change.Key,
-                                    transformFactory(change.Current)));
-                                break;
+                                case Kernel.ChangeReason.Refresh:
+                                    transformed.Add(new Change<TDestination, TKey>(
+                                        Kernel.ChangeReason.Refresh,
+                                        change.Key,
+                                        tuple.transformFactory(change.Current)));
+                                    break;
+                            }
                         }
-                    }
 
-                    observer.OnNext(transformed);
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted);
-        });
+                        tuple.observer.OnNext(transformed);
+                    },
+                    static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                    static (result, tuple) => tuple.observer.OnCompleted(result));
+            });
     }
 
     /// <summary>
@@ -113,60 +116,63 @@ public static class TransformOperator
             throw new ArgumentNullException(nameof(transformFactory));
         }
 
-        return Observable.Create<IChangeSet<TDestination, TKey>>(observer =>
-        {
-            return source.Subscribe(
-                changes =>
-                {
-                    var transformed = new ChangeSet<TDestination, TKey>(changes.Count);
-
-                    foreach (var change in changes)
+        return Observable.Create<IChangeSet<TDestination, TKey>, (Observable<IChangeSet<TSource, TKey>> source, Func<TSource, TKey, TDestination> transformFactory)>(
+            (source, transformFactory),
+            static (observer, state) =>
+            {
+                return state.source.Subscribe(
+                    (observer, state.transformFactory),
+                    static (changes, tuple) =>
                     {
-                        switch (change.Reason)
+                        var transformed = new ChangeSet<TDestination, TKey>(changes.Count);
+
+                        foreach (var change in changes)
                         {
-                            case Kernel.ChangeReason.Add:
-                                transformed.Add(new Change<TDestination, TKey>(
-                                    Kernel.ChangeReason.Add,
-                                    change.Key,
-                                    transformFactory(change.Current, change.Key)));
-                                break;
+                            switch (change.Reason)
+                            {
+                                case Kernel.ChangeReason.Add:
+                                    transformed.Add(new Change<TDestination, TKey>(
+                                        Kernel.ChangeReason.Add,
+                                        change.Key,
+                                        tuple.transformFactory(change.Current, change.Key)));
+                                    break;
 
-                            case Kernel.ChangeReason.Update:
-                                var transformedCurrent = transformFactory(change.Current, change.Key);
-                                var transformedPrevious = change.Previous.HasValue
-                                    ? transformFactory(change.Previous.Value, change.Key)
-                                    : default(TDestination)!;
+                                case Kernel.ChangeReason.Update:
+                                    var transformedCurrent = tuple.transformFactory(change.Current, change.Key);
+                                    var transformedPrevious = change.Previous.HasValue
+                                        ? tuple.transformFactory(change.Previous.Value, change.Key)
+                                        : default(TDestination)!;
 
-                                transformed.Add(new Change<TDestination, TKey>(
-                                    Kernel.ChangeReason.Update,
-                                    change.Key,
-                                    transformedCurrent,
-                                    transformedPrevious));
-                                break;
+                                    transformed.Add(new Change<TDestination, TKey>(
+                                        Kernel.ChangeReason.Update,
+                                        change.Key,
+                                        transformedCurrent,
+                                        transformedPrevious));
+                                    break;
 
-                            case Kernel.ChangeReason.Remove:
-                                var removedItem = transformFactory(change.Current, change.Key);
-                                transformed.Add(new Change<TDestination, TKey>(
-                                    Kernel.ChangeReason.Remove,
-                                    change.Key,
-                                    removedItem,
-                                    removedItem));
-                                break;
+                                case Kernel.ChangeReason.Remove:
+                                    var removedItem = tuple.transformFactory(change.Current, change.Key);
+                                    transformed.Add(new Change<TDestination, TKey>(
+                                        Kernel.ChangeReason.Remove,
+                                        change.Key,
+                                        removedItem,
+                                        removedItem));
+                                    break;
 
-                            case Kernel.ChangeReason.Refresh:
-                                transformed.Add(new Change<TDestination, TKey>(
-                                    Kernel.ChangeReason.Refresh,
-                                    change.Key,
-                                    transformFactory(change.Current, change.Key)));
-                                break;
+                                case Kernel.ChangeReason.Refresh:
+                                    transformed.Add(new Change<TDestination, TKey>(
+                                        Kernel.ChangeReason.Refresh,
+                                        change.Key,
+                                        tuple.transformFactory(change.Current, change.Key)));
+                                    break;
+                            }
                         }
-                    }
 
-                    observer.OnNext(transformed);
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted);
-        });
+                        tuple.observer.OnNext(transformed);
+                    },
+                    static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                    static (result, tuple) => tuple.observer.OnCompleted(result));
+            });
     }
 
     /// <summary>
@@ -198,40 +204,43 @@ public static class TransformOperator
             throw new ArgumentNullException(nameof(transformFactory));
         }
 
-        return Observable.Create<IChangeSet<TDestination, TKey>>(observer =>
-        {
-            return source.Subscribe(
-                onNext: upstreamChanges =>
-                {
-                    var downstreamChanges = new ChangeSet<TDestination, TKey>(upstreamChanges.Count);
-
-                    try
+        return Observable.Create<IChangeSet<TDestination, TKey>, (Observable<IChangeSet<TSource, TKey>> source, Func<TSource, TDestination> transformFactory)>(
+            (source, transformFactory),
+            static (observer, state) =>
+            {
+                return state.source.Subscribe(
+                    (observer, state.transformFactory),
+                    static (upstreamChanges, tuple) =>
                     {
-                        foreach (var change in upstreamChanges)
+                        var downstreamChanges = new ChangeSet<TDestination, TKey>(upstreamChanges.Count);
+
+                        try
                         {
-                            var previous = change.Previous.HasValue
-                                ? Kernel.Optional<TDestination>.Some(transformFactory(change.Previous.Value))
-                                : Kernel.Optional<TDestination>.None;
+                            foreach (var change in upstreamChanges)
+                            {
+                                var previous = change.Previous.HasValue
+                                    ? Kernel.Optional<TDestination>.Some(tuple.transformFactory(change.Previous.Value))
+                                    : Kernel.Optional<TDestination>.None;
 
-                            downstreamChanges.Add(new Change<TDestination, TKey>(
-                                reason: change.Reason,
-                                key: change.Key,
-                                current: transformFactory(change.Current),
-                                previous: previous,
-                                currentIndex: change.CurrentIndex,
-                                previousIndex: change.PreviousIndex));
+                                downstreamChanges.Add(new Change<TDestination, TKey>(
+                                    reason: change.Reason,
+                                    key: change.Key,
+                                    current: tuple.transformFactory(change.Current),
+                                    previous: previous,
+                                    currentIndex: change.CurrentIndex,
+                                    previousIndex: change.PreviousIndex));
+                            }
+
+                            tuple.observer.OnNext(downstreamChanges);
                         }
-
-                        observer.OnNext(downstreamChanges);
-                    }
-                    catch (Exception error)
-                    {
-                        // Propagate transformation errors
-                        observer.OnErrorResume(error);
-                    }
-                },
-                observer.OnErrorResume,
-                observer.OnCompleted);
-        });
+                        catch (Exception error)
+                        {
+                            // Propagate transformation errors
+                            tuple.observer.OnErrorResume(error);
+                        }
+                    },
+                    static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                    static (result, tuple) => tuple.observer.OnCompleted(result));
+            });
     }
 }

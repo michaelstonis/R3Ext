@@ -145,211 +145,218 @@ public static class ObservableListAggregates
             throw new ArgumentNullException(nameof(selector));
         }
 
-        return Observable.Create<TProperty>(observer =>
+        return Observable.Create<TProperty, MaxState<TSource, TProperty>>(
+            new MaxState<TSource, TProperty>(source, selector),
+            static (observer, state) => state.Subscribe(observer));
+    }
+
+    private sealed class MaxState<TSource, TProperty>
+        where TSource : notnull
+        where TProperty : struct, IComparable<TProperty>
+    {
+        private readonly Observable<IChangeSet<TSource>> _source;
+        private readonly Func<TSource, TProperty> _selector;
+        private readonly Dictionary<TSource, TProperty> _itemValues = new();
+        private readonly Dictionary<TProperty, int> _valueCounts = new();
+        private bool _hasValue;
+        private TProperty _currentMax;
+
+        public MaxState(Observable<IChangeSet<TSource>> source, Func<TSource, TProperty> selector)
         {
-            // Track per-item value to support Refresh.
-            var itemValues = new Dictionary<TSource, TProperty>();
-            var valueCounts = new Dictionary<TProperty, int>();
-            bool hasValue = false;
-            TProperty currentMax = default;
+            _source = source;
+            _selector = selector;
+        }
 
-            void Increment(TSource item)
+        public IDisposable Subscribe(Observer<TProperty> observer)
+        {
+            return _source.Subscribe(
+                (this, observer),
+                static (changes, tuple) => tuple.Item1.OnNext(changes, tuple.observer),
+                static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                static (result, tuple) => tuple.observer.OnCompleted(result));
+        }
+
+        private void OnNext(IChangeSet<TSource> changes, Observer<TProperty> observer)
+        {
+            foreach (var change in changes)
             {
-                var value = selector(item);
-                itemValues[item] = value;
-                if (valueCounts.TryGetValue(value, out var count))
+                switch (change.Reason)
                 {
-                    valueCounts[value] = count + 1;
-                }
-                else
-                {
-                    valueCounts[value] = 1;
-                }
-
-                if (!hasValue || value.CompareTo(currentMax) > 0)
-                {
-                    currentMax = value;
-                    hasValue = true;
-                }
-            }
-
-            void Decrement(TSource item, TProperty value)
-            {
-                if (!valueCounts.TryGetValue(value, out var count))
-                {
-                    return;
-                }
-
-                if (count == 1)
-                {
-                    valueCounts.Remove(value);
-
-                    // If we removed the current max, recalc.
-                    if (hasValue && value.CompareTo(currentMax) == 0)
-                    {
-                        RecalculateMax();
-                    }
-                }
-                else
-                {
-                    valueCounts[value] = count - 1;
-                }
-
-                itemValues.Remove(item);
-                if (valueCounts.Count == 0)
-                {
-                    hasValue = false;
-                    currentMax = default;
-                }
-            }
-
-            void RecalculateMax()
-            {
-                if (valueCounts.Count == 0)
-                {
-                    hasValue = false;
-                    currentMax = default;
-                    return;
-                }
-
-                // Linear scan of distinct values.
-                var max = default(TProperty);
-                bool first = true;
-                foreach (var kvp in valueCounts.Keys)
-                {
-                    if (first)
-                    {
-                        max = kvp;
-                        first = false;
-                    }
-                    else if (kvp.CompareTo(max) > 0)
-                    {
-                        max = kvp;
-                    }
-                }
-
-                currentMax = max;
-                hasValue = true;
-            }
-
-            void Publish()
-            {
-                try
-                {
-                    observer.OnNext(hasValue ? currentMax : default);
-                }
-                catch (Exception ex)
-                {
-                    observer.OnErrorResume(ex);
-                }
-            }
-
-            return source.Subscribe(
-                changes =>
-            {
-                foreach (var change in changes)
-                {
-                    switch (change.Reason)
-                    {
-                        case ListChangeReason.Add:
+                    case ListChangeReason.Add:
+                        Increment(change.Item);
+                        break;
+                    case ListChangeReason.AddRange:
+                        if (change.Range.Count > 0)
+                        {
+                            foreach (var i in change.Range)
+                            {
+                                Increment(i);
+                            }
+                        }
+                        else
+                        {
                             Increment(change.Item);
-                            break;
-                        case ListChangeReason.AddRange:
-                            if (change.Range.Count > 0)
+                        }
+
+                        break;
+
+                    case ListChangeReason.Remove:
+                        if (_itemValues.TryGetValue(change.Item, out var vRemove))
+                        {
+                            Decrement(change.Item, vRemove);
+                        }
+
+                        break;
+
+                    case ListChangeReason.RemoveRange:
+                        if (change.Range.Count > 0)
+                        {
+                            foreach (var i in change.Range)
                             {
-                                foreach (var i in change.Range)
+                                if (_itemValues.TryGetValue(i, out var vR))
                                 {
-                                    Increment(i);
+                                    Decrement(i, vR);
                                 }
                             }
-                            else
+                        }
+                        else if (_itemValues.TryGetValue(change.Item, out var vR2))
+                        {
+                            Decrement(change.Item, vR2);
+                        }
+
+                        break;
+
+                    case ListChangeReason.Replace:
+                        if (change.PreviousItem != null && _itemValues.TryGetValue(change.PreviousItem, out var vPrev))
+                        {
+                            Decrement(change.PreviousItem, vPrev);
+                        }
+
+                        Increment(change.Item);
+
+                        break;
+
+                    case ListChangeReason.Refresh:
+                        // Refresh generated by AutoRefresh does not carry an item.
+                        // Re-evaluate all items to reflect potential value changes.
+                        if (_itemValues.Count > 0)
+                        {
+                            _valueCounts.Clear();
+                            _hasValue = false;
+                            _currentMax = default;
+                            var keys = _itemValues.Keys.ToList();
+                            foreach (var it in keys)
                             {
-                                Increment(change.Item);
-                            }
+                                var newVal2 = _selector(it);
+                                _itemValues[it] = newVal2;
+                                _valueCounts[newVal2] = _valueCounts.TryGetValue(newVal2, out var c) ? c + 1 : 1;
 
-                            break;
-
-                        case ListChangeReason.Remove:
-                            if (itemValues.TryGetValue(change.Item, out var vRemove))
-                            {
-                                Decrement(change.Item, vRemove);
-                            }
-
-                            break;
-
-                        case ListChangeReason.RemoveRange:
-                            if (change.Range.Count > 0)
-                            {
-                                foreach (var i in change.Range)
+                                if (!_hasValue || newVal2.CompareTo(_currentMax) > 0)
                                 {
-                                    if (itemValues.TryGetValue(i, out var vR))
-                                    {
-                                        Decrement(i, vR);
-                                    }
+                                    _currentMax = newVal2;
+                                    _hasValue = true;
                                 }
                             }
-                            else if (itemValues.TryGetValue(change.Item, out var vR2))
-                            {
-                                Decrement(change.Item, vR2);
-                            }
+                        }
 
-                            break;
+                        break;
 
-                        case ListChangeReason.Replace:
-                            if (change.PreviousItem != null && itemValues.TryGetValue(change.PreviousItem, out var vPrev))
-                            {
-                                Decrement(change.PreviousItem, vPrev);
-                            }
+                    case ListChangeReason.Clear:
+                        _itemValues.Clear();
+                        _valueCounts.Clear();
+                        _hasValue = false;
+                        _currentMax = default;
 
-                            Increment(change.Item);
-
-                            break;
-
-                        case ListChangeReason.Refresh:
-                            // Refresh generated by AutoRefresh does not carry an item.
-                            // Re-evaluate all items to reflect potential value changes.
-                            if (itemValues.Count > 0)
-                            {
-                                valueCounts.Clear();
-                                hasValue = false;
-                                currentMax = default;
-                                var keys = itemValues.Keys.ToList();
-                                foreach (var it in keys)
-                                {
-                                    var newVal2 = selector(it);
-                                    itemValues[it] = newVal2;
-                                    if (valueCounts.TryGetValue(newVal2, out var c))
-                                    {
-                                        valueCounts[newVal2] = c + 1;
-                                    }
-                                    else
-                                    {
-                                        valueCounts[newVal2] = 1;
-                                    }
-
-                                    if (!hasValue || newVal2.CompareTo(currentMax) > 0)
-                                    {
-                                        currentMax = newVal2;
-                                        hasValue = true;
-                                    }
-                                }
-                            }
-
-                            break;
-
-                        case ListChangeReason.Clear:
-                            itemValues.Clear();
-                            valueCounts.Clear();
-                            hasValue = false;
-                            currentMax = default;
-
-                            break;
-                    }
+                        break;
                 }
+            }
 
-                Publish();
-            }, observer.OnErrorResume, observer.OnCompleted);
-        });
+            Publish(observer);
+        }
+
+        private void Increment(TSource item)
+        {
+            var value = _selector(item);
+            _itemValues[item] = value;
+            _valueCounts[value] = _valueCounts.TryGetValue(value, out var count) ? count + 1 : 1;
+
+            if (!_hasValue || value.CompareTo(_currentMax) > 0)
+            {
+                _currentMax = value;
+                _hasValue = true;
+            }
+        }
+
+        private void Decrement(TSource item, TProperty value)
+        {
+            if (!_valueCounts.TryGetValue(value, out var count))
+            {
+                return;
+            }
+
+            if (count == 1)
+            {
+                _valueCounts.Remove(value);
+
+                // If we removed the current max, recalc.
+                if (_hasValue && value.CompareTo(_currentMax) == 0)
+                {
+                    RecalculateMax();
+                }
+            }
+            else
+            {
+                _valueCounts[value] = count - 1;
+            }
+
+            _itemValues.Remove(item);
+            if (_valueCounts.Count == 0)
+            {
+                _hasValue = false;
+                _currentMax = default;
+            }
+        }
+
+        private void RecalculateMax()
+        {
+            if (_valueCounts.Count == 0)
+            {
+                _hasValue = false;
+                _currentMax = default;
+                return;
+            }
+
+            // Linear scan of distinct values.
+            var max = default(TProperty);
+            bool first = true;
+            foreach (var kvp in _valueCounts.Keys)
+            {
+                if (first)
+                {
+                    max = kvp;
+                    first = false;
+                }
+                else if (kvp.CompareTo(max) > 0)
+                {
+                    max = kvp;
+                }
+            }
+
+            _currentMax = max;
+            _hasValue = true;
+        }
+
+        private void Publish(Observer<TProperty> observer)
+        {
+            try
+            {
+                observer.OnNext(_hasValue ? _currentMax : default);
+            }
+            catch (Exception ex)
+            {
+                observer.OnErrorResume(ex);
+            }
+        }
     }
 
     /// <summary>
@@ -369,207 +376,215 @@ public static class ObservableListAggregates
             throw new ArgumentNullException(nameof(selector));
         }
 
-        return Observable.Create<TProperty>(observer =>
+        return Observable.Create<TProperty, MinState<TSource, TProperty>>(
+            new MinState<TSource, TProperty>(source, selector),
+            static (observer, state) => state.Subscribe(observer));
+    }
+
+    private sealed class MinState<TSource, TProperty>
+        where TSource : notnull
+        where TProperty : struct, IComparable<TProperty>
+    {
+        private readonly Observable<IChangeSet<TSource>> _source;
+        private readonly Func<TSource, TProperty> _selector;
+        private readonly Dictionary<TSource, TProperty> _itemValues = new();
+        private readonly Dictionary<TProperty, int> _valueCounts = new();
+        private bool _hasValue;
+        private TProperty _currentMin;
+
+        public MinState(Observable<IChangeSet<TSource>> source, Func<TSource, TProperty> selector)
         {
-            var itemValues = new Dictionary<TSource, TProperty>();
-            var valueCounts = new Dictionary<TProperty, int>();
-            bool hasValue = false;
-            TProperty currentMin = default;
+            _source = source;
+            _selector = selector;
+        }
 
-            void Increment(TSource item)
+        public IDisposable Subscribe(Observer<TProperty> observer)
+        {
+            return _source.Subscribe(
+                (this, observer),
+                static (changes, tuple) => tuple.Item1.OnNext(changes, tuple.observer),
+                static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                static (result, tuple) => tuple.observer.OnCompleted(result));
+        }
+
+        private void OnNext(IChangeSet<TSource> changes, Observer<TProperty> observer)
+        {
+            foreach (var change in changes)
             {
-                var value = selector(item);
-                itemValues[item] = value;
-                if (valueCounts.TryGetValue(value, out var count))
+                switch (change.Reason)
                 {
-                    valueCounts[value] = count + 1;
-                }
-                else
-                {
-                    valueCounts[value] = 1;
-                }
+                    case ListChangeReason.Add:
+                        Increment(change.Item);
+                        break;
 
-                if (!hasValue || value.CompareTo(currentMin) < 0)
-                {
-                    currentMin = value;
-                    hasValue = true;
-                }
-            }
-
-            void Decrement(TSource item, TProperty value)
-            {
-                if (!valueCounts.TryGetValue(value, out var count))
-                {
-                    return;
-                }
-
-                if (count == 1)
-                {
-                    valueCounts.Remove(value);
-                    if (hasValue && value.CompareTo(currentMin) == 0)
-                    {
-                        RecalculateMin();
-                    }
-                }
-                else
-                {
-                    valueCounts[value] = count - 1;
-                }
-
-                itemValues.Remove(item);
-                if (valueCounts.Count == 0)
-                {
-                    hasValue = false;
-                    currentMin = default;
-                }
-            }
-
-            void RecalculateMin()
-            {
-                if (valueCounts.Count == 0)
-                {
-                    hasValue = false;
-                    currentMin = default;
-                    return;
-                }
-
-                var min = default(TProperty);
-                bool first = true;
-                foreach (var kvp in valueCounts.Keys)
-                {
-                    if (first)
-                    {
-                        min = kvp;
-                        first = false;
-                    }
-                    else if (kvp.CompareTo(min) < 0)
-                    {
-                        min = kvp;
-                    }
-                }
-
-                currentMin = min;
-                hasValue = true;
-            }
-
-            void Publish()
-            {
-                try
-                {
-                    observer.OnNext(hasValue ? currentMin : default);
-                }
-                catch (Exception ex)
-                {
-                    observer.OnErrorResume(ex);
-                }
-            }
-
-            return source.Subscribe(
-                changes =>
-            {
-                foreach (var change in changes)
-                {
-                    switch (change.Reason)
-                    {
-                        case ListChangeReason.Add:
+                    case ListChangeReason.AddRange:
+                        if (change.Range.Count > 0)
+                        {
+                            foreach (var i in change.Range)
+                            {
+                                Increment(i);
+                            }
+                        }
+                        else
+                        {
                             Increment(change.Item);
-                            break;
+                        }
 
-                        case ListChangeReason.AddRange:
-                            if (change.Range.Count > 0)
+                        break;
+
+                    case ListChangeReason.Remove:
+                        if (_itemValues.TryGetValue(change.Item, out var vRemove))
+                        {
+                            Decrement(change.Item, vRemove);
+                        }
+
+                        break;
+
+                    case ListChangeReason.RemoveRange:
+                        if (change.Range.Count > 0)
+                        {
+                            foreach (var i in change.Range)
                             {
-                                foreach (var i in change.Range)
+                                if (_itemValues.TryGetValue(i, out var vR))
                                 {
-                                    Increment(i);
+                                    Decrement(i, vR);
                                 }
                             }
-                            else
+                        }
+                        else if (_itemValues.TryGetValue(change.Item, out var vR2))
+                        {
+                            Decrement(change.Item, vR2);
+                        }
+
+                        break;
+
+                    case ListChangeReason.Replace:
+                        if (change.PreviousItem != null && _itemValues.TryGetValue(change.PreviousItem, out var vPrev))
+                        {
+                            Decrement(change.PreviousItem, vPrev);
+                        }
+
+                        Increment(change.Item);
+
+                        break;
+
+                    case ListChangeReason.Refresh:
+                        // AutoRefresh-generated refresh does not carry an item; recompute all.
+                        if (_itemValues.Count > 0)
+                        {
+                            _valueCounts.Clear();
+                            _hasValue = false;
+                            _currentMin = default;
+                            var keys = _itemValues.Keys.ToList();
+                            foreach (var it in keys)
                             {
-                                Increment(change.Item);
-                            }
+                                var newVal2 = _selector(it);
+                                _itemValues[it] = newVal2;
+                                _valueCounts[newVal2] = _valueCounts.TryGetValue(newVal2, out var c) ? c + 1 : 1;
 
-                            break;
-
-                        case ListChangeReason.Remove:
-                            if (itemValues.TryGetValue(change.Item, out var vRemove))
-                            {
-                                Decrement(change.Item, vRemove);
-                            }
-
-                            break;
-
-                        case ListChangeReason.RemoveRange:
-                            if (change.Range.Count > 0)
-                            {
-                                foreach (var i in change.Range)
+                                if (!_hasValue || newVal2.CompareTo(_currentMin) < 0)
                                 {
-                                    if (itemValues.TryGetValue(i, out var vR))
-                                    {
-                                        Decrement(i, vR);
-                                    }
+                                    _currentMin = newVal2;
+                                    _hasValue = true;
                                 }
                             }
-                            else if (itemValues.TryGetValue(change.Item, out var vR2))
-                            {
-                                Decrement(change.Item, vR2);
-                            }
+                        }
 
-                            break;
+                        break;
 
-                        case ListChangeReason.Replace:
-                            if (change.PreviousItem != null && itemValues.TryGetValue(change.PreviousItem, out var vPrev))
-                            {
-                                Decrement(change.PreviousItem, vPrev);
-                            }
+                    case ListChangeReason.Clear:
+                        _itemValues.Clear();
+                        _valueCounts.Clear();
+                        _hasValue = false;
+                        _currentMin = default;
 
-                            Increment(change.Item);
-
-                            break;
-
-                        case ListChangeReason.Refresh:
-                            // AutoRefresh-generated refresh does not carry an item; recompute all.
-                            if (itemValues.Count > 0)
-                            {
-                                valueCounts.Clear();
-                                hasValue = false;
-                                currentMin = default;
-                                var keys = itemValues.Keys.ToList();
-                                foreach (var it in keys)
-                                {
-                                    var newVal2 = selector(it);
-                                    itemValues[it] = newVal2;
-                                    if (valueCounts.TryGetValue(newVal2, out var c))
-                                    {
-                                        valueCounts[newVal2] = c + 1;
-                                    }
-                                    else
-                                    {
-                                        valueCounts[newVal2] = 1;
-                                    }
-
-                                    if (!hasValue || newVal2.CompareTo(currentMin) < 0)
-                                    {
-                                        currentMin = newVal2;
-                                        hasValue = true;
-                                    }
-                                }
-                            }
-
-                            break;
-
-                        case ListChangeReason.Clear:
-                            itemValues.Clear();
-                            valueCounts.Clear();
-                            hasValue = false;
-                            currentMin = default;
-
-                            break;
-                    }
+                        break;
                 }
+            }
 
-                Publish();
-            }, observer.OnErrorResume, observer.OnCompleted);
-        });
+            Publish(observer);
+        }
+
+        private void Increment(TSource item)
+        {
+            var value = _selector(item);
+            _itemValues[item] = value;
+            _valueCounts[value] = _valueCounts.TryGetValue(value, out var count) ? count + 1 : 1;
+
+            if (!_hasValue || value.CompareTo(_currentMin) < 0)
+            {
+                _currentMin = value;
+                _hasValue = true;
+            }
+        }
+
+        private void Decrement(TSource item, TProperty value)
+        {
+            if (!_valueCounts.TryGetValue(value, out var count))
+            {
+                return;
+            }
+
+            if (count == 1)
+            {
+                _valueCounts.Remove(value);
+                if (_hasValue && value.CompareTo(_currentMin) == 0)
+                {
+                    RecalculateMin();
+                }
+            }
+            else
+            {
+                _valueCounts[value] = count - 1;
+            }
+
+            _itemValues.Remove(item);
+            if (_valueCounts.Count == 0)
+            {
+                _hasValue = false;
+                _currentMin = default;
+            }
+        }
+
+        private void RecalculateMin()
+        {
+            if (_valueCounts.Count == 0)
+            {
+                _hasValue = false;
+                _currentMin = default;
+                return;
+            }
+
+            var min = default(TProperty);
+            bool first = true;
+            foreach (var kvp in _valueCounts.Keys)
+            {
+                if (first)
+                {
+                    min = kvp;
+                    first = false;
+                }
+                else if (kvp.CompareTo(min) < 0)
+                {
+                    min = kvp;
+                }
+            }
+
+            _currentMin = min;
+            _hasValue = true;
+        }
+
+        private void Publish(Observer<TProperty> observer)
+        {
+            try
+            {
+                observer.OnNext(_hasValue ? _currentMin : default);
+            }
+            catch (Exception ex)
+            {
+                observer.OnErrorResume(ex);
+            }
+        }
     }
 
     /// <summary>
@@ -589,122 +604,144 @@ public static class ObservableListAggregates
             throw new ArgumentNullException(nameof(selector));
         }
 
-        return Observable.Create<double>(observer =>
+        return Observable.Create<double, AvgState<TSource, TProperty>>(
+            new AvgState<TSource, TProperty>(source, selector),
+            static (observer, state) => state.Subscribe(observer));
+    }
+
+    private sealed class AvgState<TSource, TProperty>
+        where TSource : notnull
+        where TProperty : struct, IConvertible
+    {
+        private readonly Observable<IChangeSet<TSource>> _source;
+        private readonly Func<TSource, TProperty> _selector;
+        private readonly Dictionary<TSource, double> _itemValues = new();
+        private double _sum;
+        private int _count;
+
+        public AvgState(Observable<IChangeSet<TSource>> source, Func<TSource, TProperty> selector)
         {
-            var itemValues = new Dictionary<TSource, double>();
-            double sum = 0.0;
-            int count = 0;
+            _source = source;
+            _selector = selector;
+        }
 
-            void AddValue(TSource item)
-            {
-                var v = Convert.ToDouble(selector(item));
-                itemValues[item] = v;
-                sum += v;
-                count += 1;
-            }
+        public IDisposable Subscribe(Observer<double> observer)
+        {
+            return _source.Subscribe(
+                (this, observer),
+                static (changes, tuple) => tuple.Item1.OnNext(changes, tuple.observer),
+                static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                static (result, tuple) => tuple.observer.OnCompleted(result));
+        }
 
-            void RemoveValue(TSource item)
+        private void OnNext(IChangeSet<TSource> changes, Observer<double> observer)
+        {
+            foreach (var change in changes)
             {
-                if (itemValues.TryGetValue(item, out var v))
+                switch (change.Reason)
                 {
-                    sum -= v;
-                    count -= 1;
-                    itemValues.Remove(item);
-                }
-            }
+                    case ListChangeReason.Add:
+                        AddValue(change.Item);
+                        break;
 
-            void Publish()
-            {
-                try
-                {
-                    observer.OnNext(count == 0 ? 0.0 : sum / count);
-                }
-                catch (Exception ex)
-                {
-                    observer.OnErrorResume(ex);
-                }
-            }
-
-            return source.Subscribe(
-                changes =>
-            {
-                foreach (var change in changes)
-                {
-                    switch (change.Reason)
-                    {
-                        case ListChangeReason.Add:
+                    case ListChangeReason.AddRange:
+                        if (change.Range.Count > 0)
+                        {
+                            foreach (var i in change.Range)
+                            {
+                                AddValue(i);
+                            }
+                        }
+                        else
+                        {
                             AddValue(change.Item);
-                            break;
+                        }
 
-                        case ListChangeReason.AddRange:
-                            if (change.Range.Count > 0)
+                        break;
+
+                    case ListChangeReason.Remove:
+                        RemoveValue(change.Item);
+                        break;
+
+                    case ListChangeReason.RemoveRange:
+                        if (change.Range.Count > 0)
+                        {
+                            foreach (var i in change.Range)
                             {
-                                foreach (var i in change.Range)
-                                {
-                                    AddValue(i);
-                                }
+                                RemoveValue(i);
                             }
-                            else
-                            {
-                                AddValue(change.Item);
-                            }
-
-                            break;
-
-                        case ListChangeReason.Remove:
+                        }
+                        else
+                        {
                             RemoveValue(change.Item);
-                            break;
+                        }
 
-                        case ListChangeReason.RemoveRange:
-                            if (change.Range.Count > 0)
+                        break;
+
+                    case ListChangeReason.Replace:
+                        if (change.PreviousItem != null)
+                        {
+                            RemoveValue(change.PreviousItem);
+                        }
+
+                        AddValue(change.Item);
+
+                        break;
+
+                    case ListChangeReason.Refresh:
+                        if (_itemValues.TryGetValue(change.Item, out var oldVal))
+                        {
+                            var newVal = Convert.ToDouble(_selector(change.Item));
+                            if (Math.Abs(newVal - oldVal) > double.Epsilon)
                             {
-                                foreach (var i in change.Range)
-                                {
-                                    RemoveValue(i);
-                                }
+                                _sum += newVal - oldVal;
+                                _itemValues[change.Item] = newVal;
                             }
-                            else
-                            {
-                                RemoveValue(change.Item);
-                            }
+                        }
 
-                            break;
+                        break;
 
-                        case ListChangeReason.Replace:
-                            if (change.PreviousItem != null)
-                            {
-                                RemoveValue(change.PreviousItem);
-                            }
+                    case ListChangeReason.Clear:
+                        _itemValues.Clear();
+                        _sum = 0.0;
+                        _count = 0;
 
-                            AddValue(change.Item);
-
-                            break;
-
-                        case ListChangeReason.Refresh:
-                            if (itemValues.TryGetValue(change.Item, out var oldVal))
-                            {
-                                var newVal = Convert.ToDouble(selector(change.Item));
-                                if (Math.Abs(newVal - oldVal) > double.Epsilon)
-                                {
-                                    sum += newVal - oldVal;
-                                    itemValues[change.Item] = newVal;
-                                }
-                            }
-
-                            break;
-
-                        case ListChangeReason.Clear:
-                            itemValues.Clear();
-                            sum = 0.0;
-                            count = 0;
-
-                            break;
-                    }
+                        break;
                 }
+            }
 
-                Publish();
-            }, observer.OnErrorResume, observer.OnCompleted);
-        });
+            Publish(observer);
+        }
+
+        private void AddValue(TSource item)
+        {
+            var v = Convert.ToDouble(_selector(item));
+            _itemValues[item] = v;
+            _sum += v;
+            _count += 1;
+        }
+
+        private void RemoveValue(TSource item)
+        {
+            if (_itemValues.TryGetValue(item, out var v))
+            {
+                _sum -= v;
+                _count -= 1;
+                _itemValues.Remove(item);
+            }
+        }
+
+        private void Publish(Observer<double> observer)
+        {
+            try
+            {
+                observer.OnNext(_count == 0 ? 0.0 : _sum / _count);
+            }
+            catch (Exception ex)
+            {
+                observer.OnErrorResume(ex);
+            }
+        }
     }
 
     /// <summary>
@@ -724,139 +761,161 @@ public static class ObservableListAggregates
             throw new ArgumentNullException(nameof(selector));
         }
 
-        return Observable.Create<double>(observer =>
+        return Observable.Create<double, StdDevState<TSource, TProperty>>(
+            new StdDevState<TSource, TProperty>(source, selector),
+            static (observer, state) => state.Subscribe(observer));
+    }
+
+    private sealed class StdDevState<TSource, TProperty>
+        where TSource : notnull
+        where TProperty : struct, IConvertible
+    {
+        private readonly Observable<IChangeSet<TSource>> _source;
+        private readonly Func<TSource, TProperty> _selector;
+        private readonly Dictionary<TSource, double> _itemValues = new();
+        private double _sum;
+        private double _sumSquares;
+        private int _count;
+
+        public StdDevState(Observable<IChangeSet<TSource>> source, Func<TSource, TProperty> selector)
         {
-            var itemValues = new Dictionary<TSource, double>();
-            double sum = 0.0;
-            double sumSquares = 0.0;
-            int count = 0;
+            _source = source;
+            _selector = selector;
+        }
 
-            void AddValue(TSource item)
+        public IDisposable Subscribe(Observer<double> observer)
+        {
+            return _source.Subscribe(
+                (this, observer),
+                static (changes, tuple) => tuple.Item1.OnNext(changes, tuple.observer),
+                static (ex, tuple) => tuple.observer.OnErrorResume(ex),
+                static (result, tuple) => tuple.observer.OnCompleted(result));
+        }
+
+        private void OnNext(IChangeSet<TSource> changes, Observer<double> observer)
+        {
+            foreach (var change in changes)
             {
-                var v = Convert.ToDouble(selector(item));
-                itemValues[item] = v;
-                sum += v;
-                sumSquares += v * v;
-                count += 1;
-            }
-
-            void RemoveValue(TSource item)
-            {
-                if (itemValues.TryGetValue(item, out var v))
+                switch (change.Reason)
                 {
-                    sum -= v;
-                    sumSquares -= v * v;
-                    count -= 1;
-                    itemValues.Remove(item);
-                }
-            }
+                    case ListChangeReason.Add:
+                        AddValue(change.Item);
+                        break;
 
-            void Publish()
-            {
-                try
-                {
-                    if (count == 0)
-                    {
-                        observer.OnNext(0.0);
-                        return;
-                    }
-
-                    double mean = sum / count;
-                    double variance = (sumSquares / count) - (mean * mean); // population variance
-                    if (variance < 0)
-                    {
-                        variance = 0; // guard against negative due to precision
-                    }
-
-                    observer.OnNext(Math.Sqrt(variance));
-                }
-                catch (Exception ex)
-                {
-                    observer.OnErrorResume(ex);
-                }
-            }
-
-            return source.Subscribe(
-                changes =>
-            {
-                foreach (var change in changes)
-                {
-                    switch (change.Reason)
-                    {
-                        case ListChangeReason.Add:
+                    case ListChangeReason.AddRange:
+                        if (change.Range.Count > 0)
+                        {
+                            foreach (var i in change.Range)
+                            {
+                                AddValue(i);
+                            }
+                        }
+                        else
+                        {
                             AddValue(change.Item);
-                            break;
+                        }
 
-                        case ListChangeReason.AddRange:
-                            if (change.Range.Count > 0)
+                        break;
+
+                    case ListChangeReason.Remove:
+                        RemoveValue(change.Item);
+                        break;
+
+                    case ListChangeReason.RemoveRange:
+                        if (change.Range.Count > 0)
+                        {
+                            foreach (var i in change.Range)
                             {
-                                foreach (var i in change.Range)
-                                {
-                                    AddValue(i);
-                                }
+                                RemoveValue(i);
                             }
-                            else
-                            {
-                                AddValue(change.Item);
-                            }
-
-                            break;
-
-                        case ListChangeReason.Remove:
+                        }
+                        else
+                        {
                             RemoveValue(change.Item);
-                            break;
+                        }
 
-                        case ListChangeReason.RemoveRange:
-                            if (change.Range.Count > 0)
+                        break;
+
+                    case ListChangeReason.Replace:
+                        if (change.PreviousItem != null)
+                        {
+                            RemoveValue(change.PreviousItem);
+                        }
+
+                        AddValue(change.Item);
+
+                        break;
+
+                    case ListChangeReason.Refresh:
+                        if (_itemValues.TryGetValue(change.Item, out var oldVal))
+                        {
+                            var newVal = Convert.ToDouble(_selector(change.Item));
+                            if (Math.Abs(newVal - oldVal) > double.Epsilon)
                             {
-                                foreach (var i in change.Range)
-                                {
-                                    RemoveValue(i);
-                                }
+                                _sum += newVal - oldVal;
+                                _sumSquares += (newVal * newVal) - (oldVal * oldVal);
+                                _itemValues[change.Item] = newVal;
                             }
-                            else
-                            {
-                                RemoveValue(change.Item);
-                            }
+                        }
 
-                            break;
+                        break;
 
-                        case ListChangeReason.Replace:
-                            if (change.PreviousItem != null)
-                            {
-                                RemoveValue(change.PreviousItem);
-                            }
+                    case ListChangeReason.Clear:
+                        _itemValues.Clear();
+                        _sum = 0.0;
+                        _sumSquares = 0.0;
+                        _count = 0;
 
-                            AddValue(change.Item);
+                        break;
+                }
+            }
 
-                            break;
+            Publish(observer);
+        }
 
-                        case ListChangeReason.Refresh:
-                            if (itemValues.TryGetValue(change.Item, out var oldVal))
-                            {
-                                var newVal = Convert.ToDouble(selector(change.Item));
-                                if (Math.Abs(newVal - oldVal) > double.Epsilon)
-                                {
-                                    sum += newVal - oldVal;
-                                    sumSquares += (newVal * newVal) - (oldVal * oldVal);
-                                    itemValues[change.Item] = newVal;
-                                }
-                            }
+        private void AddValue(TSource item)
+        {
+            var v = Convert.ToDouble(_selector(item));
+            _itemValues[item] = v;
+            _sum += v;
+            _sumSquares += v * v;
+            _count += 1;
+        }
 
-                            break;
+        private void RemoveValue(TSource item)
+        {
+            if (_itemValues.TryGetValue(item, out var v))
+            {
+                _sum -= v;
+                _sumSquares -= v * v;
+                _count -= 1;
+                _itemValues.Remove(item);
+            }
+        }
 
-                        case ListChangeReason.Clear:
-                            itemValues.Clear();
-                            sum = 0.0;
-                            sumSquares = 0.0;
-                            count = 0;
-
-                            break;
-                    }
+        private void Publish(Observer<double> observer)
+        {
+            try
+            {
+                if (_count == 0)
+                {
+                    observer.OnNext(0.0);
+                    return;
                 }
 
-                Publish();
-            }, observer.OnErrorResume, observer.OnCompleted);
-        });
+                double mean = _sum / _count;
+                double variance = (_sumSquares / _count) - (mean * mean); // population variance
+                if (variance < 0)
+                {
+                    variance = 0; // guard against negative due to precision
+                }
+
+                observer.OnNext(Math.Sqrt(variance));
+            }
+            catch (Exception ex)
+            {
+                observer.OnErrorResume(ex);
+            }
+        }
     }
 }
