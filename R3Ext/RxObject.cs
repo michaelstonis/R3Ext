@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using R3;
+using R3Ext.Utilities;
 
 namespace R3Ext;
 
@@ -59,7 +60,7 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
             return; // delay skips changing events
         }
 
-        PropertyChangingEventArgs args = new(propertyName);
+        var args = PropertyEventArgsCache.GetPropertyChanging(propertyName);
         this.PropertyChanging?.Invoke(this, args);
         _changing.OnNext(args);
     }
@@ -78,7 +79,7 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
             return;
         }
 
-        PropertyChangedEventArgs args = new(propertyName);
+        var args = PropertyEventArgsCache.GetPropertyChanged(propertyName);
         this.PropertyChanged?.Invoke(this, args);
         _changed.OnNext(args);
     }
@@ -139,7 +140,7 @@ public abstract class RxObject : INotifyPropertyChanged, INotifyPropertyChanging
             {
                 foreach (string prop in owner._delayedProperties)
                 {
-                    PropertyChangedEventArgs args = new(prop);
+                    var args = PropertyEventArgsCache.GetPropertyChanged(prop);
                     owner.PropertyChanged?.Invoke(owner, args);
                     owner._changed.OnNext(args);
                 }
