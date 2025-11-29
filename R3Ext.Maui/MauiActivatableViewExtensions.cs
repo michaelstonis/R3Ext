@@ -1,6 +1,7 @@
 using Microsoft.Maui.Controls;
 using R3;
 using R3Ext.Activation;
+using R3Ext.Maui.Internal;
 
 namespace R3Ext.Maui;
 
@@ -122,65 +123,5 @@ public static class MauiActivatableViewExtensions
         }
 
         return (view.ViewModel as IActivatableViewModel)?.Activator;
-    }
-}
-
-/// <summary>
-/// State object for MAUI activation, avoiding closure allocations.
-/// </summary>
-file sealed class MauiActivationState
-{
-    public MauiActivationState(ActivationBlock block, ViewModelActivator? vmActivator)
-    {
-        Block = block;
-        ViewModelActivator = vmActivator;
-    }
-
-    public ActivationBlock Block { get; }
-
-    public ViewModelActivator? ViewModelActivator { get; }
-
-    public DisposableBag CurrentBag;
-
-    public IDisposable? VmActivationHandle;
-}
-
-/// <summary>
-/// Observer that handles MAUI activation state changes.
-/// </summary>
-file sealed class MauiActivationObserver(MauiActivationState state) : Observer<ActivationState>
-{
-    protected override void OnNextCore(ActivationState activationState)
-    {
-        if (activationState == ActivationState.Activated)
-        {
-            // Activate view model if applicable
-            state.VmActivationHandle = state.ViewModelActivator?.Activate();
-
-            // Execute the block with a new disposable bag
-            state.CurrentBag = default;
-            state.Block(ref state.CurrentBag);
-        }
-        else
-        {
-            // Deactivate: dispose the bag and view model handle
-            state.CurrentBag.Dispose();
-            state.CurrentBag = default;
-
-            state.VmActivationHandle?.Dispose();
-            state.VmActivationHandle = null;
-        }
-    }
-
-    protected override void OnErrorResumeCore(Exception error)
-    {
-        // Log error but don't propagate - activation should be resilient
-    }
-
-    protected override void OnCompletedCore(Result result)
-    {
-        // Ensure cleanup on completion
-        state.CurrentBag.Dispose();
-        state.VmActivationHandle?.Dispose();
     }
 }

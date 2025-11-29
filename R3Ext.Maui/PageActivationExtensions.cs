@@ -1,6 +1,7 @@
 using Microsoft.Maui.Controls;
 using R3;
 using R3Ext.Activation;
+using R3Ext.Maui.Internal;
 
 namespace R3Ext.Maui;
 
@@ -40,131 +41,5 @@ public static class PageActivationExtensions
     {
         ArgumentNullException.ThrowIfNull(page);
         return new LoadedActivationObservable(page);
-    }
-}
-
-/// <summary>
-/// Observable that emits activation states based on Page Appearing/Disappearing events.
-/// </summary>
-file sealed class PageActivationObservable(Page page) : Observable<ActivationState>
-{
-    protected override IDisposable SubscribeCore(Observer<ActivationState> observer)
-    {
-        return new PageActivationSubscription(page, observer);
-    }
-}
-
-/// <summary>
-/// Subscription that manages Page Appearing/Disappearing event handlers.
-/// Uses weak reference pattern for AOT compatibility.
-/// </summary>
-file sealed class PageActivationSubscription : IDisposable
-{
-    private readonly Page _page;
-    private readonly Observer<ActivationState> _observer;
-    private bool _disposed;
-
-    public PageActivationSubscription(Page page, Observer<ActivationState> observer)
-    {
-        _page = page;
-        _observer = observer;
-
-        page.Appearing += OnAppearing;
-        page.Disappearing += OnDisappearing;
-
-        // Emit initial state if page is already visible
-        // Note: There's no direct "IsAppearing" property, so we rely on events
-    }
-
-    private void OnAppearing(object? sender, EventArgs e)
-    {
-        if (!_disposed)
-        {
-            _observer.OnNext(ActivationState.Activated);
-        }
-    }
-
-    private void OnDisappearing(object? sender, EventArgs e)
-    {
-        if (!_disposed)
-        {
-            _observer.OnNext(ActivationState.Deactivated);
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        _page.Appearing -= OnAppearing;
-        _page.Disappearing -= OnDisappearing;
-    }
-}
-
-/// <summary>
-/// Observable that emits activation states based on Loaded/Unloaded events.
-/// </summary>
-file sealed class LoadedActivationObservable(VisualElement element) : Observable<ActivationState>
-{
-    protected override IDisposable SubscribeCore(Observer<ActivationState> observer)
-    {
-        return new LoadedActivationSubscription(element, observer);
-    }
-}
-
-/// <summary>
-/// Subscription that manages Loaded/Unloaded event handlers.
-/// </summary>
-file sealed class LoadedActivationSubscription : IDisposable
-{
-    private readonly VisualElement _element;
-    private readonly Observer<ActivationState> _observer;
-    private bool _disposed;
-
-    public LoadedActivationSubscription(VisualElement element, Observer<ActivationState> observer)
-    {
-        _element = element;
-        _observer = observer;
-
-        element.Loaded += OnLoaded;
-        element.Unloaded += OnUnloaded;
-
-        // Emit initial state if element is already loaded
-        if (element.IsLoaded)
-        {
-            observer.OnNext(ActivationState.Activated);
-        }
-    }
-
-    private void OnLoaded(object? sender, EventArgs e)
-    {
-        if (!_disposed)
-        {
-            _observer.OnNext(ActivationState.Activated);
-        }
-    }
-
-    private void OnUnloaded(object? sender, EventArgs e)
-    {
-        if (!_disposed)
-        {
-            _observer.OnNext(ActivationState.Deactivated);
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        _element.Loaded -= OnLoaded;
-        _element.Unloaded -= OnUnloaded;
     }
 }
