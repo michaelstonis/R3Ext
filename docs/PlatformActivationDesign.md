@@ -272,42 +272,250 @@ partial class MyPage : IActivatableView
 |--------|-----------|----------------|
 | View-VM Association | `IViewFor<T>` interface | `IViewFor<T>` interface (same) |
 | Activation Discovery | Reflection + Service Locator | Source Generation |
+| Dependency Injection | Splat (custom DI) | `Microsoft.Extensions.DependencyInjection` |
 | AOT Support | Limited | Full |
-| Activation Strategies | One per view type | Multiple, user-selectable |
-| Platform Extension | Implement `IActivationForViewFetcher` | Implement source generator |
-| ViewModel Activation | `ViewModelActivator` class | `IActivatableViewModel` + extensions |
+| Activation Strategies | One per view type | Multiple via `WhenActivated()` / `WhenLoaded()` |
+| Platform Extension | Implement `IActivationForViewFetcher` | Separate NuGet packages |
+| ViewModel Activation | `ViewModelActivator` class | Auto-activation with opt-out |
 | WhenActivated API | Extension method | Extension method (similar API) |
+| Package Structure | Monolithic + platform packages | Separate packages per platform |
 
 ---
 
-## Open Questions
+## Design Decisions
 
-1. **Should activation be opt-in or automatic?**
-   - Option A: Require explicit interface implementation (`IViewFor<T>`)
-   - Option B: Auto-generate for all pages/views in project
-   - **Recommendation**: Opt-in via interface for explicit control
+### 1. Opt-in Activation via Explicit Interface Implementation
 
-2. **How to handle activation strategy selection?**
-   - Option A: Attribute on class `[ActivationStrategy(Strategy.Loaded)]`
-   - Option B: Method parameter `WhenActivated(strategy: ActivationStrategy.Loaded, ...)`
-   - Option C: Separate methods `WhenLoaded()`, `WhenActivated()`
-   - **Recommendation**: Option C for clarity and simplicity
+**Decision**: Require explicit `IViewFor<T>` interface implementation for activation support.
 
-3. **Should ViewModelActivator be automatic?**
-   - When view activates, should we auto-activate the ViewModel?
-   - **Recommendation**: Yes, with opt-out capability
+**Rationale**:
+- Explicit opt-in gives developers full control over which views participate in activation
+- Reduces magic and unexpected behavior
+- Better for AOT scenarios where implicit discovery is problematic
+- Aligns with modern .NET patterns (explicit > implicit)
 
-4. **Package structure?**
-   - Option A: Single `R3Ext` package with conditional compilation
-   - Option B: Separate packages (`R3Ext.Maui`, `R3Ext.Blazor`, etc.)
-   - **Recommendation**: Option B for tree-shaking and smaller dependencies
+**Usage**:
+```csharp
+// Explicit opt-in - only views implementing IViewFor<T> get activation support
+public partial class MyPage : ContentPage, IViewFor<MyViewModel>
+{
+    public MyViewModel? ViewModel { get; set; }
+}
+```
+
+### 2. Separate Methods for Activation Strategies
+
+**Decision**: Use distinct methods `WhenActivated()` and `WhenLoaded()` for different lifecycle strategies.
+
+**Rationale**:
+- Clear, self-documenting API
+- No magic strings or enums to remember
+- IntelliSense-friendly discovery
+- Each method has clear semantics
+
+**API**:
+```csharp
+public static class ActivatableExtensions
+{
+    /// <summary>
+    /// Executes block when view becomes visible (Appearing/Disappearing).
+    /// Ideal for: pausing/resuming subscriptions, analytics, visibility-based logic.
+    /// </summary>
+    public static IDisposable WhenActivated(
+        this IActivatableView view,
+        Action<CompositeDisposable> block);
+    
+    /// <summary>
+    /// Executes block when view is loaded into visual tree (Loaded/Unloaded).
+    /// Ideal for: one-time setup, resource allocation, element measurement.
+    /// </summary>
+    public static IDisposable WhenLoaded(
+        this IActivatableView view,
+        Action<CompositeDisposable> block);
+}
+```
+
+### 3. Automatic ViewModel Activation with Opt-out
+
+**Decision**: When a view activates, automatically activate its ViewModel. Provide opt-out mechanism.
+
+**Rationale**:
+- Most common use case is synchronized view/viewmodel activation
+- Reduces boilerplate for the 90% case
+- Opt-out available for advanced scenarios
+
+**Implementation**:
+```csharp
+public interface IViewFor<TViewModel> : IActivatableView
+    where TViewModel : class
+{
+    TViewModel? ViewModel { get; set; }
+    
+    /// <summary>
+    /// When true (default), ViewModel is automatically activated/deactivated with view.
+    /// Set to false to manage ViewModel activation manually.
+    /// </summary>
+    bool AutoActivateViewModel => true;
+}
+```
+
+### 4. Dependency Injection Integration
+
+**Decision**: Design for modern .NET DI (`Microsoft.Extensions.DependencyInjection`) compatibility.
+
+**Rationale**:
+- Standard .NET pattern, not a custom service locator
+- Works with MAUI's built-in DI container
+- Supports scoped services and lifetime management
+- Easy testing with mock services
+
+**DI Integration**:
+```csharp
+// Service registration in MauiProgram.cs
+public static class MauiActivationExtensions
+{
+    public static MauiAppBuilder UseR3Activation(this MauiAppBuilder builder)
+    {
+        // Register activation services
+        builder.Services.AddSingleton<IActivationService, MauiActivationService>();
+        
+        // Optional: auto-register ViewModels
+        builder.Services.AddTransient<MyViewModel>();
+        
+        return builder;
+    }
+}
+
+// ViewModel injection in views
+public partial class MyPage : ContentPage, IViewFor<MyViewModel>
+{
+    public MyPage(MyViewModel viewModel)
+    {
+        InitializeComponent();
+        ViewModel = viewModel;
+    }
+    
+    public MyViewModel? ViewModel { get; set; }
+}
+```
+
+### 5. Separate Platform Packages
+
+**Decision**: Create separate NuGet packages per platform.
+
+**Packages**:
+- `R3Ext` - Core abstractions (interfaces, base extensions)
+- `R3Ext.Maui` - MAUI-specific activation providers
+- `R3Ext.Blazor` - Blazor-specific activation providers  
+- `R3Ext.Avalonia` - Avalonia-specific activation providers
+- `R3Ext.Uno` - Uno Platform-specific activation providers
+
+**Rationale**:
+- Tree-shaking: only include what you need
+- Smaller package sizes
+- Platform-specific dependencies don't pollute other platforms
+- Independent versioning and release cycles
+- Clear separation of concerns
+
+**Project Structure**:
+```
+R3Ext/                          # Core abstractions
+├── Activation/
+│   ├── IActivatable.cs
+│   ├── IActivatableView.cs
+│   ├── IViewFor.cs
+│   └── ActivatableExtensions.cs
+
+R3Ext.Maui/                     # MAUI platform package
+├── R3Ext.Maui.csproj          # References R3Ext, Microsoft.Maui.*
+├── MauiActivationService.cs
+├── PageActivationProvider.cs
+├── ViewActivationProvider.cs
+└── ServiceCollectionExtensions.cs
+
+R3Ext.Blazor/                   # Blazor platform package
+├── R3Ext.Blazor.csproj
+├── BlazorActivationService.cs
+├── RxComponentBase.cs
+└── ServiceCollectionExtensions.cs
+```
+
+---
+
+## Updated Architecture
+
+### Core Package (`R3Ext`)
+
+The core package contains only platform-agnostic interfaces and extensions:
+
+```csharp
+// No platform dependencies - pure abstractions
+namespace R3Ext.Activation;
+
+public interface IActivatable
+{
+    Observable<ActivationState> Activation { get; }
+}
+
+public interface IActivatableView : IActivatable
+{
+}
+
+public interface IActivatableViewModel : IActivatable
+{
+    ViewModelActivator Activator { get; }
+}
+
+public interface IViewFor<TViewModel> : IActivatableView
+    where TViewModel : class
+{
+    TViewModel? ViewModel { get; set; }
+    bool AutoActivateViewModel => true;
+}
+
+public interface IActivationService
+{
+    IDisposable RegisterView(IActivatableView view);
+}
+```
+
+### Platform Package (`R3Ext.Maui`)
+
+```csharp
+namespace R3Ext.Maui;
+
+public static class MauiActivationExtensions
+{
+    public static MauiAppBuilder UseR3Activation(this MauiAppBuilder builder)
+    {
+        builder.Services.AddSingleton<IActivationService, MauiActivationService>();
+        return builder;
+    }
+}
+
+public class MauiActivationService : IActivationService
+{
+    public IDisposable RegisterView(IActivatableView view)
+    {
+        return view switch
+        {
+            Page page => RegisterPageActivation(page),
+            View v => RegisterViewActivation(v),
+            _ => Disposable.Empty
+        };
+    }
+}
+```
 
 ---
 
 ## Next Steps
 
-1. Review and approve this design document
-2. Create feature branch `feature/platform-activation`
+1. ✅ Design decisions finalized
+2. ✅ Feature branch created (`feature/platform-activation`)
+3. Implement Phase 1 (Core Abstractions in `R3Ext`)
+4. Create `R3Ext.Maui` project for Phase 2
+5. Integrate with SampleApp for validation
 3. Implement Phase 1 (Core Abstractions)
 4. Implement Phase 2 (MAUI Support) as proof-of-concept
 5. Gather feedback and iterate
