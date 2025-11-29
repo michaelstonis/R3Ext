@@ -1,6 +1,8 @@
 using R3;
 using R3.Collections;
 
+#pragma warning disable SA1503, SA1513, SA1515, SA1107, SA1502, SA1508, SA1516
+
 namespace R3Ext.Tests;
 
 public class AsyncIntegrationTests
@@ -10,14 +12,17 @@ public class AsyncIntegrationTests
     {
         Subject<int> subject = new();
         int completed = 0;
+        var blockTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
         Observable<int> obs = subject.SelectLatestAsync(async (x, ct) =>
         {
             try
             {
-                await Task.Delay(1000, ct);
+                await blockTcs.Task.WaitAsync(ct);
             }
             catch (OperationCanceledException)
             {
+                // Expected for cancelled items
             }
 
             Interlocked.Increment(ref completed);
@@ -28,7 +33,10 @@ public class AsyncIntegrationTests
         subject.OnNext(1);
         subject.OnNext(2); // cancel 1
         subject.OnNext(3); // cancel 2
-        await Task.Delay(10);
+
+        // Release the blocking TCS
+        blockTcs.SetResult(true);
+
         subject.OnCompleted();
         Assert.True(list.IsCompleted);
     }
@@ -40,7 +48,7 @@ public class AsyncIntegrationTests
         Observable<int> obs = subject.SelectAsyncSequential(
             async (x, ct) =>
             {
-                await Task.Delay(1, ct);
+                await Task.Yield();
                 return x * 2;
             }, cancelOnCompleted: false);
         Task<int[]> arrTask = obs.ToArrayAsync();
@@ -53,11 +61,10 @@ public class AsyncIntegrationTests
     }
 
     [Fact]
-    public async Task SelectAsyncConcurrent_LimitsZero_Throws()
+    public void SelectAsyncConcurrent_LimitsZero_Throws()
     {
         Observable<int> src = Observable.Return(1);
         Assert.Throws<ArgumentOutOfRangeException>(() => src.SelectAsyncConcurrent(async (x, ct) => x, 0));
-        await Task.CompletedTask;
     }
 
     [Fact]
@@ -65,12 +72,15 @@ public class AsyncIntegrationTests
     {
         Observable<int> src = CreationExtensions.FromArray(1, 2, 3);
         int sum = 0;
-        using IDisposable d = src.SubscribeAsync(x =>
-        {
-            sum += x;
-            return Task.CompletedTask;
-        });
-        await Task.Delay(1);
+        var completedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using IDisposable d = src.SubscribeAsync(
+            x =>
+            {
+                sum += x;
+                if (sum == 6) completedTcs.TrySetResult(true);
+                return Task.CompletedTask;
+            });
+        await completedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(6, sum);
     }
 }

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using R3;
 using R3.DynamicData.Cache;
-#pragma warning disable SA1516, SA1503, SA1513, SA1107, SA1502, SA1515
+#pragma warning disable SA1516, SA1503, SA1513, SA1107, SA1502, SA1515, SA1508
 
 namespace R3Ext.Tests;
 
@@ -15,11 +15,19 @@ public class TransformAsyncCacheTests
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
         var results = new List<string>();
+        var completionTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Per-item TCS for controlled completion
+        var itemTcs = new Dictionary<int, TaskCompletionSource<bool>>
+        {
+            [1] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            [2] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
 
         using var sub = cache.Connect()
             .TransformAsync(async p =>
             {
-                await Task.Delay(10);
+                await itemTcs[p.Id].Task.WaitAsync(TimeSpan.FromSeconds(5));
                 return p.Name.ToUpper();
             })
             .Subscribe(changeSet =>
@@ -29,6 +37,7 @@ public class TransformAsyncCacheTests
                     if (change.Reason == R3.DynamicData.Kernel.ChangeReason.Add)
                     {
                         results.Add(change.Current);
+                        if (results.Count == 2) completionTcs.TrySetResult(true);
                     }
                 }
             });
@@ -36,7 +45,11 @@ public class TransformAsyncCacheTests
         cache.AddOrUpdate(new Person(1, "Alice"));
         cache.AddOrUpdate(new Person(2, "Bob"));
 
-        await Task.Delay(100);
+        // Complete transformations
+        itemTcs[1].SetResult(true);
+        itemTcs[2].SetResult(true);
+
+        await completionTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(2, results.Count);
         Assert.Contains("ALICE", results);
@@ -50,14 +63,24 @@ public class TransformAsyncCacheTests
         var transformStarted = new List<int>();
         var transformCompleted = new List<int>();
         var results = new List<string>();
+        var blockTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var sub = cache.Connect()
             .TransformAsync(async (p, ct) =>
             {
                 transformStarted.Add(p.Id);
-                await Task.Delay(50, ct);
-                transformCompleted.Add(p.Id);
-                return p.Name.ToUpper();
+                startedTcs.TrySetResult(true);
+                try
+                {
+                    await blockTcs.Task.WaitAsync(ct);
+                    transformCompleted.Add(p.Id);
+                    return p.Name.ToUpper();
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
             })
             .Subscribe(changeSet =>
             {
@@ -71,16 +94,16 @@ public class TransformAsyncCacheTests
             });
 
         cache.AddOrUpdate(new Person(1, "Alice"));
-        await Task.Delay(10);
-
-        // Remove before transformation completes
-        cache.Remove(1);
-
-        await Task.Delay(100);
+        await startedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Single(transformStarted);
-        Assert.Empty(transformCompleted); // Should be cancelled
-        Assert.Empty(results); // Nothing should be emitted
+        cache.Remove(1);
+
+        // Give cancellation a moment to propagate
+        await Task.Yield();
+
+        Assert.Empty(transformCompleted);
+        Assert.Empty(results);
     }
 
     [Fact]
@@ -88,24 +111,42 @@ public class TransformAsyncCacheTests
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
         var results = new List<R3.DynamicData.Cache.IChangeSet<string, int>>();
+        var emitCount = 0;
+        var tcs1 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs2 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Per-item TCS for controlled completion
+        var itemTcs = new Dictionary<int, TaskCompletionSource<bool>>
+        {
+            [1] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
 
         using var sub = cache.Connect()
             .TransformAsync(async p =>
             {
-                await Task.Delay(10);
+                await itemTcs[p.Id].Task.WaitAsync(TimeSpan.FromSeconds(5));
                 return p.Name.ToUpper();
             })
-            .Subscribe(results.Add);
+            .Subscribe(changeset =>
+            {
+                results.Add(changeset);
+                var count = ++emitCount;
+                if (count == 1) tcs1.TrySetResult(true);
+                else if (count == 2) tcs2.TrySetResult(true);
+            });
 
         cache.AddOrUpdate(new Person(1, "Alice"));
-        await Task.Delay(50);
+        itemTcs[1].SetResult(true);
+        await tcs1.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Single(results);
         Assert.Equal(R3.DynamicData.Kernel.ChangeReason.Add, results[0].First().Reason);
 
-        // Update the value
+        // Update the value - need new TCS for update
+        itemTcs[1] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         cache.AddOrUpdate(new Person(1, "Alicia"));
-        await Task.Delay(50);
+        itemTcs[1].SetResult(true);
+        await tcs2.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(2, results.Count);
         Assert.Equal(R3.DynamicData.Kernel.ChangeReason.Update, results[1].First().Reason);

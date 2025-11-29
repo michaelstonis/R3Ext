@@ -25,7 +25,7 @@ public class AsSignalAndBoolTests
     public async Task Not_Inverts(bool input, bool expected)
     {
         Observable<bool> obs = Observable.Return(input).Not();
-        bool val = await obs.FirstAsync();
+        bool val = await obs.FirstAsync().WaitAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(expected, val);
     }
 

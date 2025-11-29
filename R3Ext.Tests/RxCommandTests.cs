@@ -2,6 +2,8 @@
 using R3;
 using R3.Collections;
 
+#pragma warning disable SA1503, SA1513, SA1515, SA1107, SA1502, SA1508, SA1516
+
 namespace R3Ext.Tests;
 
 public class RxCommandTests
@@ -31,13 +33,16 @@ public class RxCommandTests
     [Fact]
     public async Task CreateFromTask_ExecutesAsyncOperation()
     {
-        bool executed = false;
+        var executed = false;
+        var executedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         RxCommand<Unit, Unit> command = RxCommand.CreateFromTask(async () =>
         {
-            await Task.Delay(10);
+            await Task.Yield(); // Ensure async execution
             executed = true;
+            executedTcs.TrySetResult(true);
         });
         await command.Execute().FirstAsync();
+        await executedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(executed);
     }
 
@@ -45,15 +50,18 @@ public class RxCommandTests
     public async Task CreateFromTask_WithCancellationToken_PropagatesToken()
     {
         CancellationToken captured = default;
-        bool got = false;
+        var got = false;
+        var completeTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         RxCommand<Unit, Unit> command = RxCommand<Unit, Unit>.CreateFromTask(async (_, ct) =>
         {
             captured = ct;
             got = true;
-            await Task.Delay(10, ct);
+            completeTcs.TrySetResult(true);
+            await Task.Yield();
             return Unit.Default;
         });
         await command.Execute().FirstAsync();
+        await completeTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(got);
         Assert.NotEqual(default, captured);
     }
@@ -90,17 +98,38 @@ public class RxCommandTests
     [Fact]
     public async Task IsExecuting_ReflectsExecutionState()
     {
-        TaskCompletionSource<Unit> tcs = new();
-        RxCommand<Unit, Unit> command = RxCommand.CreateFromTask(() => tcs.Task);
+        TaskCompletionSource<Unit> op = new();
+        RxCommand<Unit, Unit> command = RxCommand.CreateFromTask(() => op.Task);
         LiveList<bool> isExec = command.IsExecuting.ToLiveList();
-        await Task.Delay(10);
-        Assert.False(isExec[^1]);
+
+        var sawTrue = new TaskCompletionSource<bool>();
+        var sawFalseAfterComplete = new TaskCompletionSource<bool>();
+
+        // Observe transitions deterministically
+        _ = command.IsExecuting.Subscribe(flag =>
+        {
+            if (flag)
+            {
+                sawTrue.TrySetResult(true);
+            }
+        });
+
         Task<Unit> task = command.Execute().FirstAsync();
-        await Task.Delay(100);
+        await sawTrue.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(isExec[^1]);
-        tcs.SetResult(Unit.Default);
+
+        op.SetResult(Unit.Default);
         await task;
-        await Task.Delay(50);
+
+        // Wait until IsExecuting reports false again
+        _ = command.IsExecuting.Subscribe(flag =>
+        {
+            if (!flag)
+            {
+                sawFalseAfterComplete.TrySetResult(true);
+            }
+        });
+        await sawFalseAfterComplete.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(isExec[^1]);
     }
 
@@ -160,17 +189,40 @@ public class RxCommandTests
         RxCommand<int, int> cmd2 = RxCommand<int, int>.Create(x => x * 3, can2);
         RxCommand<int, int[]> combined = RxCommand<int, int>.CreateCombined(cmd1, cmd2);
         LiveList<bool> vals = combined.CanExecute.ToLiveList();
+
+        var seenFalse1 = new TaskCompletionSource<bool>();
+        var seenTrue = new TaskCompletionSource<bool>();
+        var seenFalse2 = new TaskCompletionSource<bool>();
+
+        _ = combined.CanExecute.Subscribe(flag =>
+        {
+            if (!flag && !seenFalse1.Task.IsCompleted)
+            {
+                seenFalse1.TrySetResult(true);
+            }
+            else if (flag && !seenTrue.Task.IsCompleted)
+            {
+                seenTrue.TrySetResult(true);
+            }
+            else if (!flag && !seenFalse2.Task.IsCompleted && seenTrue.Task.IsCompleted)
+            {
+                seenFalse2.TrySetResult(true);
+            }
+        });
+
         can1.OnNext(true);
         can2.OnNext(false);
-        await Task.Delay(50);
+        await seenFalse1.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(vals[^1]);
+
         can1.OnNext(true);
         can2.OnNext(true);
-        await Task.Delay(50);
+        await seenTrue.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(vals[^1]);
+
         can1.OnNext(false);
         can2.OnNext(true);
-        await Task.Delay(50);
+        await seenFalse2.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(vals[^1]);
     }
 
@@ -188,21 +240,35 @@ public class RxCommandTests
         source.OnNext(1);
         source.OnNext(2);
         source.OnNext(3);
-        Thread.Sleep(100);
+
+        // Synchronous command body ensures immediate increments; no sleep needed
         Assert.Equal(3, count);
         sub.Dispose();
     }
 
     [Fact]
-    public void IObservable_Subscribe_ReceivesExecutionResults()
+    public async Task IObservable_Subscribe_ReceivesExecutionResults()
     {
         RxCommand<int, int> command = RxCommand<int, int>.Create(x => x * 2);
         List<int> list = new();
         TestObserver<int> observer = new(list);
         using IDisposable sub = ((IObservable<int>)command).Subscribe(observer);
-        command.Execute(21).Subscribe(_ => { });
-        command.Execute(42).Subscribe(_ => { });
-        Thread.Sleep(100);
+        var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        command.Execute(21).Subscribe(_ =>
+        {
+            if (list.Count >= 2)
+            {
+                done.TrySetResult(true);
+            }
+        });
+        command.Execute(42).Subscribe(_ =>
+        {
+            if (list.Count >= 2)
+            {
+                done.TrySetResult(true);
+            }
+        });
+        await done.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(2, list.Count);
         Assert.Contains(42, list);
         Assert.Contains(84, list);
@@ -231,20 +297,24 @@ public class RxCommandTests
         RxCommand<Unit, Unit> command = RxCommand.Create(() => executed = true);
         ICommand icmd = (ICommand)command;
         icmd.Execute(null);
-        Thread.Sleep(100);
         Assert.True(executed);
     }
 
     [Fact]
-    public void ICommand_CanExecuteChanged_FiresWhenCanExecuteChanges()
+    public async Task ICommand_CanExecuteChanged_FiresWhenCanExecuteChanges()
     {
         Subject<bool> subj = new();
         RxCommand<Unit, Unit> command = RxCommand.Create(() => { }, subj);
         ICommand icmd = (ICommand)command;
         bool fired = false;
-        icmd.CanExecuteChanged += (_, _) => fired = true;
+        var firedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        icmd.CanExecuteChanged += (_, _) =>
+        {
+            fired = true;
+            firedTcs.TrySetResult(true);
+        };
         subj.OnNext(false);
-        Thread.Sleep(50);
+        fired = await firedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.True(fired);
     }
 
@@ -260,16 +330,38 @@ public class RxCommandTests
     [Fact]
     public async Task CreateRunInBackground_ExecutesOnThreadPool()
     {
-        int mainId = Thread.CurrentThread.ManagedThreadId;
-        int execId = 0;
+        // Test that CreateRunInBackground runs asynchronously by verifying it doesn't block
+        // the calling thread during a long-running operation
+        var blockingTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var executionStartedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        bool executedOnBackground = false;
+
         RxCommand<Unit, int> command = RxCommand<Unit, int>.CreateRunInBackground(_ =>
         {
-            execId = Thread.CurrentThread.ManagedThreadId;
-            return execId;
+            executionStartedTcs.TrySetResult();
+            blockingTcs.Task.Wait(); // Block until we release it
+            executedOnBackground = true;
+            return 42;
         });
-        int result = await command.Execute().FirstAsync();
-        Assert.NotEqual(mainId, execId);
-        Assert.Equal(execId, result);
+
+        // Start execution but don't await it yet
+        Observable<int> execution = command.Execute();
+        var resultTask = execution.FirstAsync();
+
+        // Wait for execution to start
+        await executionStartedTcs.Task;
+
+        // The main thread should NOT be blocked - prove it by doing work here
+        Assert.False(resultTask.IsCompleted); // Still running in background
+
+        // Release the background work
+        blockingTcs.SetResult();
+
+        // Now await the result
+        int result = await resultTask;
+
+        Assert.True(executedOnBackground);
+        Assert.Equal(42, result);
     }
 
     [Fact]
@@ -277,21 +369,40 @@ public class RxCommandTests
     {
         RxCommand<int, int> command = RxCommand<int, int>.Create(x => x * 2);
         LiveList<int> list = command.Execute(21).ToLiveList();
-        await Task.Delay(100);
+        await command.Execute(21).FirstAsync();
         Assert.Single(list);
         Assert.Equal(42, list[0]);
         Assert.True(list.IsCompleted);
     }
 
     [Fact]
-    public void AsObservable_ReturnsObservableOfExecutionResults()
+    public async Task AsObservable_ReturnsObservableOfExecutionResults()
     {
         RxCommand<int, int> command = RxCommand<int, int>.Create(x => x * 2);
         LiveList<int> list = command.AsObservable().ToLiveList();
-        command.Execute(10).Subscribe(_ => { });
-        command.Execute(20).Subscribe(_ => { });
-        command.Execute(30).Subscribe(_ => { });
-        Thread.Sleep(100);
+        var done = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        command.Execute(10).Subscribe(_ =>
+        {
+            if (list.Count >= 3)
+            {
+                done.TrySetResult(true);
+            }
+        });
+        command.Execute(20).Subscribe(_ =>
+        {
+            if (list.Count >= 3)
+            {
+                done.TrySetResult(true);
+            }
+        });
+        command.Execute(30).Subscribe(_ =>
+        {
+            if (list.Count >= 3)
+            {
+                done.TrySetResult(true);
+            }
+        });
+        await done.Task.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(3, list.Count);
         Assert.Equal(20, list[0]);
         Assert.Equal(40, list[1]);

@@ -56,21 +56,21 @@ public class JoinTests
 
         // Add right -> pair emitted
         right.AddOrUpdate(new RightItem(1, 10));
-        Assert.True(captured.Last().Any(c => c.Reason == ChangeReason.Add && c.Key == 1));
+        Assert.Contains(captured.Last(), c => c.Reason == ChangeReason.Add && c.Key == 1);
 
         // Update left -> update emitted
         var l1 = left.Lookup(1).Value!;
         l1.Name = "A1"; left.AddOrUpdate(l1); // SourceCache will emit update
-        Assert.True(captured.Last().Any(c => c.Reason == ChangeReason.Update && c.Key == 1));
+        Assert.Contains(captured.Last(), c => c.Reason == ChangeReason.Update && c.Key == 1);
 
         // Update right -> update emitted
         var r1 = right.Lookup(1).Value!;
         r1.Value = 11; right.AddOrUpdate(r1);
-        Assert.True(captured.Last().Any(c => c.Reason == ChangeReason.Update && c.Key == 1));
+        Assert.Contains(captured.Last(), c => c.Reason == ChangeReason.Update && c.Key == 1);
 
         // Remove left -> remove emitted
         left.Remove(1);
-        Assert.True(captured.Last().Any(c => c.Reason == ChangeReason.Remove && c.Key == 1));
+        Assert.Contains(captured.Last(), c => c.Reason == ChangeReason.Remove && c.Key == 1);
 
         sub.Dispose();
     }

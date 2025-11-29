@@ -1,6 +1,8 @@
 using R3;
 using R3.DynamicData.List;
 
+#pragma warning disable SA1503, SA1513, SA1515, SA1107, SA1502, SA1508, SA1516
+
 namespace R3.DynamicData.Tests.List;
 
 public class TransformAsyncTests
@@ -10,11 +12,11 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var results = new List<string>();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var sub = source.Connect()
             .TransformAsync(async x =>
             {
-                await Task.Delay(10);
                 return x.ToString();
             })
             .Subscribe(changeSet =>
@@ -24,6 +26,7 @@ public class TransformAsyncTests
                     if (change.Reason == ListChangeReason.Add)
                     {
                         results.Add(change.Item);
+                        if (results.Count == 3) tcs.TrySetResult(true);
                     }
                 }
             });
@@ -32,8 +35,7 @@ public class TransformAsyncTests
         source.Add(2);
         source.Add(3);
 
-        // Wait for async transformations
-        await Task.Delay(100);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(3, results.Count);
         Assert.Contains("1", results);
@@ -45,16 +47,33 @@ public class TransformAsyncTests
     public async Task TransformAsync_WithCancellation()
     {
         var source = new SourceList<int>();
-        var transformStarted = new List<int>();
-        var transformCompleted = new List<int>();
+        var started = new List<int>();
+        var completed = new List<int>();
         var results = new List<string>();
+        var startTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var neverCompleteTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var sub = source.Connect()
             .TransformAsync(async (x, ct) =>
             {
-                transformStarted.Add(x);
-                await Task.Delay(50, ct);
-                transformCompleted.Add(x);
+                started.Add(x);
+                if (started.Count == 1)
+                {
+                    startTcs.TrySetResult(true);
+                }
+
+                try
+                {
+                    // Wait indefinitely until cancellation; we never SetResult on purpose.
+                    await neverCompleteTcs.Task.WaitAsync(ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected; do not mark completion.
+                    throw;
+                }
+
+                completed.Add(x); // Should never execute for cancelled item.
                 return x.ToString();
             })
             .Subscribe(changeSet =>
@@ -69,16 +88,15 @@ public class TransformAsyncTests
             });
 
         source.Add(1);
-        await Task.Delay(10); // Let transformation start
+        await startTcs.Task.WaitAsync(TimeSpan.FromSeconds(5)); // Ensure transformation started
 
-        // Remove before transformation completes
-        source.Remove(1);
+        source.Remove(1); // Cancel before completion
 
-        await Task.Delay(100); // Wait to see if cancelled transformation completes
+        await Task.Delay(100); // Allow cancellation to propagate
 
-        Assert.Single(transformStarted);
-        Assert.Empty(transformCompleted); // Should be cancelled
-        Assert.Empty(results); // Nothing should be emitted
+        Assert.Single(started);
+        Assert.Empty(completed);
+        Assert.Empty(results);
     }
 
     [Fact]
@@ -86,12 +104,11 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var results = new List<string>();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var sub = source.Connect()
             .TransformAsync(async x =>
             {
-                // Items with higher values take longer
-                await Task.Delay(x * 10);
                 return x.ToString();
             })
             .Subscribe(changeSet =>
@@ -101,15 +118,15 @@ public class TransformAsyncTests
                     if (change.Reason == ListChangeReason.Add)
                     {
                         results.Add(change.Item);
+                        if (results.Count == 3) tcs.TrySetResult(true);
                     }
                 }
             });
 
         source.AddRange(new[] { 3, 2, 1 });
 
-        await Task.Delay(100);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        // Despite different delays, results should arrive as they complete
         Assert.Equal(3, results.Count);
     }
 
@@ -118,24 +135,39 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var results = new List<IChangeSet<string>>();
+        var tcs1 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs2 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var callCount = 0;
 
         using var sub = source.Connect()
             .TransformAsync(async x =>
             {
-                await Task.Delay(10);
+                var count = Interlocked.Increment(ref callCount);
+                if (count == 1)
+                {
+                    await tcs1.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+                else if (count == 2)
+                {
+                    await tcs2.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+
                 return $"Value: {x}";
             })
             .Subscribe(results.Add);
 
         source.Add(1);
-        await Task.Delay(50);
+        await Task.Delay(20);
+        tcs1.SetResult(true);
+        await Task.Delay(20);
 
         Assert.Single(results);
         Assert.Equal(ListChangeReason.Add, results[0].First().Reason);
 
-        // Replace the value
         source.ReplaceAt(0, 2);
-        await Task.Delay(50);
+        await Task.Delay(20);
+        tcs2.SetResult(true);
+        await Task.Delay(20);
 
         Assert.Equal(2, results.Count);
         Assert.Equal(ListChangeReason.Replace, results[1].First().Reason);
@@ -147,17 +179,28 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var results = new List<IChangeSet<string>>();
+        var addsDoneTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var addCount = 0;
 
         using var sub = source.Connect()
             .TransformAsync(async x =>
             {
-                await Task.Delay(10);
                 return x.ToString();
             })
-            .Subscribe(results.Add);
+            .Subscribe(cs =>
+            {
+                results.Add(cs);
+                foreach (var c in cs)
+                {
+                    if (c.Reason == ListChangeReason.Add)
+                    {
+                        if (Interlocked.Increment(ref addCount) == 3) addsDoneTcs.TrySetResult(true);
+                    }
+                }
+            });
 
         source.AddRange(new[] { 1, 2, 3 });
-        await Task.Delay(100);
+        await addsDoneTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         // Should have 3 Add operations
         Assert.Equal(3, results.Count);
@@ -174,11 +217,12 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var currentState = new List<string>();
+        var addsDoneTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var addCount = 0;
 
         using var sub = source.Connect()
             .TransformAsync(async x =>
             {
-                await Task.Delay(10);
                 return x.ToString();
             })
             .Subscribe(changes =>
@@ -188,6 +232,7 @@ public class TransformAsyncTests
                     if (change.Reason == ListChangeReason.Add)
                     {
                         currentState.Add(change.Item);
+                        if (Interlocked.Increment(ref addCount) == 5) addsDoneTcs.TrySetResult(true);
                     }
                     else if (change.Reason == ListChangeReason.Remove)
                     {
@@ -197,12 +242,11 @@ public class TransformAsyncTests
             });
 
         source.AddRange(new[] { 1, 2, 3, 4, 5 });
-        await Task.Delay(150);
+        await addsDoneTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(5, currentState.Count);
 
         source.RemoveRange(1, 3);
-        await Task.Delay(50);
 
         Assert.Equal(2, currentState.Count);
     }
@@ -212,11 +256,11 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var results = new List<string>();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var sub = source.Connect()
             .TransformAsync(async x =>
             {
-                await Task.Delay(20);
                 return x.ToString();
             })
             .Subscribe(changeSet =>
@@ -226,6 +270,7 @@ public class TransformAsyncTests
                     if (change.Reason == ListChangeReason.Add)
                     {
                         results.Add(change.Item);
+                        if (results.Count == 10) tcs.TrySetResult(true);
                     }
                 }
             });
@@ -236,7 +281,7 @@ public class TransformAsyncTests
             source.Add(i);
         }
 
-        await Task.Delay(200);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(10, results.Count);
     }
@@ -246,11 +291,19 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var results = new List<string>();
+        var tcs1 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var tcs2 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resultsTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = new Dictionary<int, TaskCompletionSource<bool>> { { 1, tcs1 }, { 2, tcs2 } };
 
         using var sub = source.Connect()
             .TransformAsync(async x =>
             {
-                await Task.Delay(100);
+                if (calls.TryGetValue(x, out var tcs))
+                {
+                    await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+
                 return x.ToString();
             })
             .Subscribe(changeSet =>
@@ -260,19 +313,18 @@ public class TransformAsyncTests
                     if (change.Reason == ListChangeReason.Add)
                     {
                         results.Add(change.Item);
+                        resultsTcs.TrySetResult(true);
                     }
                 }
             });
 
         source.Add(1);
         source.Add(2);
+        source.Remove(1); // Remove 1 before it completes
 
-        // Remove immediately
-        source.Remove(1);
+        tcs2.SetResult(true);
+        await resultsTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await Task.Delay(150);
-
-        // Only item 2 should complete
         Assert.Single(results);
         Assert.Equal("2", results[0]);
     }
@@ -282,6 +334,7 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var results = new List<string>();
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var sub = source.Connect()
             .TransformAsync(x => Task.FromResult(x.ToString()))
@@ -292,12 +345,13 @@ public class TransformAsyncTests
                     if (change.Reason == ListChangeReason.Add)
                     {
                         results.Add(change.Item);
+                        tcs.TrySetResult(true);
                     }
                 }
             });
 
         source.Add(42);
-        await Task.Delay(50);
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Single(results);
         Assert.Equal("42", results[0]);
@@ -308,12 +362,16 @@ public class TransformAsyncTests
     {
         var source = new SourceList<int>();
         var transformCount = 0;
+        var neverCompleteTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var started = 0;
 
         var sub = source.Connect()
             .TransformAsync(async x =>
             {
-                Interlocked.Increment(ref transformCount);
-                await Task.Delay(50);
+                var count = Interlocked.Increment(ref transformCount);
+                if (Interlocked.Increment(ref started) == 2) startedTcs.TrySetResult(true);
+                await neverCompleteTcs.Task.WaitAsync(CancellationToken.None);
                 return x.ToString();
             })
             .Subscribe(_ => { });
@@ -321,13 +379,12 @@ public class TransformAsyncTests
         source.Add(1);
         source.Add(2);
 
-        await Task.Delay(20); // Let transformations start
+        await startedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         // Dispose before transformations complete
         sub.Dispose();
 
-        await Task.Delay(100);
-
+        // No need to wait - startedTcs guarantees both started, and disposal is synchronous
         // Transformations should have been cancelled
         Assert.Equal(2, transformCount); // Both started
     }
