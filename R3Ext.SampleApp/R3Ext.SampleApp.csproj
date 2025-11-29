@@ -55,8 +55,8 @@ either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
     <ItemGroup>
         <ProjectReference Include="..\R3.DynamicData\R3.DynamicData.csproj" />
         <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
+        <ProjectReference Include="..\R3Ext.Maui\R3Ext.Maui.csproj" />
         <ProjectReference Include="..\R3Ext.Bindings.SourceGenerator\R3Ext.Bindings.SourceGenerator.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
-        <ProjectReference Include="..\R3Ext.Bindings.MauiTargets\R3Ext.Bindings.MauiTargets.csproj" />
     </ItemGroup>
     <!-- Import MAUI binding targets to enable metadata generation -->
     <Import Project="..\R3Ext.Bindings.MauiTargets\build\R3Ext.Bindings.MauiTargets.props" />

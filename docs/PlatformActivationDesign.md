@@ -20,27 +20,29 @@ This document outlines a modern, extensible architecture for cross-platform view
 ### ReactiveUI's Current Approach
 
 **Strengths:**
-- `IViewFor<TViewModel>` pattern for view-viewmodel association
-- `IActivatableView` / `IActivatableViewModel` separation
-- `WhenActivated` extension method for lifecycle-scoped disposables
-- Platform-specific `IActivationForViewFetcher` implementations
+
+-   `IViewFor<TViewModel>` pattern for view-viewmodel association
+-   `IActivatableView` / `IActivatableViewModel` separation
+-   `WhenActivated` extension method for lifecycle-scoped disposables
+-   Platform-specific `IActivationForViewFetcher` implementations
 
 **Weaknesses:**
-- Heavy use of reflection (`GetAffinityForView`, service locator pattern)
-- Not AOT-compatible without workarounds
-- Single activation strategy per view type (no flexibility)
-- Service locator anti-pattern (`Locator.Current.GetServices`)
+
+-   Heavy use of reflection (`GetAffinityForView`, service locator pattern)
+-   Not AOT-compatible without workarounds
+-   Single activation strategy per view type (no flexibility)
+-   Service locator anti-pattern (`Locator.Current.GetServices`)
 
 ### Platform Lifecycle Events
 
-| Platform | Activation Events | Deactivation Events | Notes |
-|----------|------------------|---------------------|-------|
-| **MAUI Page** | `Appearing` | `Disappearing` | Navigation-based lifecycle |
-| **MAUI View** | `IsVisible` changes | `IsVisible` changes | Property-based activation |
-| **MAUI (alternative)** | `Loaded` | `Unloaded` | DOM-like lifecycle |
-| **Blazor** | `OnAfterRender(firstRender: true)` | `Dispose()` | Component lifecycle |
-| **Avalonia** | `AttachedToVisualTree` | `DetachedFromVisualTree` | Visual tree lifecycle |
-| **Uno/WinUI** | `Loading`, `Loaded` | `Unloaded` | XAML element lifecycle |
+| Platform               | Activation Events                  | Deactivation Events      | Notes                      |
+| ---------------------- | ---------------------------------- | ------------------------ | -------------------------- |
+| **MAUI Page**          | `Appearing`                        | `Disappearing`           | Navigation-based lifecycle |
+| **MAUI View**          | `IsVisible` changes                | `IsVisible` changes      | Property-based activation  |
+| **MAUI (alternative)** | `Loaded`                           | `Unloaded`               | DOM-like lifecycle         |
+| **Blazor**             | `OnAfterRender(firstRender: true)` | `Dispose()`              | Component lifecycle        |
+| **Avalonia**           | `AttachedToVisualTree`             | `DetachedFromVisualTree` | Visual tree lifecycle      |
+| **Uno/WinUI**          | `Loading`, `Loaded`                | `Unloaded`               | XAML element lifecycle     |
 
 ### Modern Patterns to Adopt
 
@@ -136,7 +138,7 @@ public enum ActivationState
 {
     /// <summary>View/ViewModel has become active.</summary>
     Activated,
-    
+
     /// <summary>View/ViewModel has become inactive.</summary>
     Deactivated
 }
@@ -152,13 +154,13 @@ public enum ActivationTrigger
     /// Maps to: MAUI Page.Appearing/Disappearing, Avalonia IsVisible, Blazor render state.
     /// </summary>
     Visibility,
-    
+
     /// <summary>
     /// Triggered when the view is attached/detached from the UI hierarchy.
     /// Maps to: MAUI Loaded/Unloaded, Avalonia AttachedToVisualTree, Blazor OnAfterRender/Dispose.
     /// </summary>
     Attached,
-    
+
     /// <summary>
     /// Triggered based on focus/interaction state.
     /// Maps to: MAUI Window.Activated, Avalonia Window.Activated, Blazor focus events.
@@ -181,11 +183,11 @@ public static class ActivatableExtensions
         Action<DisposableBag> block)
     {
         var serial = new SerialDisposableCore();
-        
+
         return view.Activation
             .Subscribe(new ActivationObserver(serial, block));
     }
-    
+
     /// <summary>
     /// Alternative using Attached/Detached lifecycle (Loaded/Unloaded events).
     /// </summary>
@@ -212,7 +214,7 @@ file sealed class ActivationObserver(
             serial.Disposable = null;
         }
     }
-    
+
     protected override void OnErrorResumeCore(Exception error) { }
     protected override void OnCompletedCore(Result result) { }
 }
@@ -233,22 +235,22 @@ public partial class MyPage : ContentPage, IViewFor<MyViewModel>
 partial class MyPage : IActivatableView
 {
     private Observable<ActivationState>? _activation;
-    
-    public Observable<ActivationState> Activation => 
+
+    public Observable<ActivationState> Activation =>
         _activation ??= CreateActivation();
-    
+
     private Observable<ActivationState> CreateActivation()
     {
         var appearing = Observable.FromEvent<EventHandler, ActivationState>(
             h => { void Handler(object? s, EventArgs e) => h(ActivationState.Activated); return Handler; },
             x => this.Appearing += x,
             x => this.Appearing -= x);
-            
+
         var disappearing = Observable.FromEvent<EventHandler, ActivationState>(
             h => { void Handler(object? s, EventArgs e) => h(ActivationState.Deactivated); return Handler; },
             x => this.Disappearing += x,
             x => this.Disappearing -= x);
-            
+
         return appearing.Merge(disappearing).DistinctUntilChanged();
     }
 }
@@ -259,55 +261,60 @@ partial class MyPage : IActivatableView
 ## Implementation Phases
 
 ### Phase 1: Core Abstractions
-- [ ] Create `R3Ext/Activation/` directory structure
-- [ ] Define `IActivatable`, `IActivatableView`, `IViewFor<T>` interfaces
-- [ ] Define `ActivationState` enum and `ActivationStrategy` enum
-- [ ] Implement `WhenActivated` and `WhenLoaded` extension methods
-- [ ] Add `ViewModelActivator` for ViewModel-side activation
+
+-   [ ] Create `R3Ext/Activation/` directory structure
+-   [ ] Define `IActivatable`, `IActivatableView`, `IViewFor<T>` interfaces
+-   [ ] Define `ActivationState` enum and `ActivationStrategy` enum
+-   [ ] Implement `WhenActivated` and `WhenLoaded` extension methods
+-   [ ] Add `ViewModelActivator` for ViewModel-side activation
 
 ### Phase 2: MAUI Platform Support
-- [ ] Create `R3Ext.Maui` project (or add to existing SampleApp temporarily)
-- [ ] Implement `MauiPageActivation` using Appearing/Disappearing
-- [ ] Implement `MauiViewActivation` using IsVisible property changes  
-- [ ] Implement `MauiLoadedActivation` using Loaded/Unloaded events
-- [ ] Create source generator for `IViewFor<T>` on MAUI types
-- [ ] Add integration tests with SampleApp
+
+-   [ ] Create `R3Ext.Maui` project (or add to existing SampleApp temporarily)
+-   [ ] Implement `MauiPageActivation` using Appearing/Disappearing
+-   [ ] Implement `MauiViewActivation` using IsVisible property changes
+-   [ ] Implement `MauiLoadedActivation` using Loaded/Unloaded events
+-   [ ] Create source generator for `IViewFor<T>` on MAUI types
+-   [ ] Add integration tests with SampleApp
 
 ### Phase 3: Blazor Platform Support
-- [ ] Create `R3Ext.Blazor` project structure
-- [ ] Implement `BlazorComponentActivation` using lifecycle methods
-- [ ] Create source generator for `IViewFor<T>` on Blazor components
-- [ ] Add extension methods for component activation
+
+-   [ ] Create `R3Ext.Blazor` project structure
+-   [ ] Implement `BlazorComponentActivation` using lifecycle methods
+-   [ ] Create source generator for `IViewFor<T>` on Blazor components
+-   [ ] Add extension methods for component activation
 
 ### Phase 4: Avalonia Platform Support
-- [ ] Create `R3Ext.Avalonia` project structure
-- [ ] Implement `AvaloniaVisualActivation` using visual tree events
-- [ ] Create source generator for Avalonia controls
+
+-   [ ] Create `R3Ext.Avalonia` project structure
+-   [ ] Implement `AvaloniaVisualActivation` using visual tree events
+-   [ ] Create source generator for Avalonia controls
 
 ### Phase 5: Extensibility & Documentation
-- [ ] Document how to add new platform support
-- [ ] Create platform registration pattern
-- [ ] Add comprehensive samples for each platform
-- [ ] Performance benchmarks
+
+-   [ ] Document how to add new platform support
+-   [ ] Create platform registration pattern
+-   [ ] Add comprehensive samples for each platform
+-   [ ] Performance benchmarks
 
 ---
 
 ## Comparison: ReactiveUI vs Proposed
 
-| Aspect | ReactiveUI | Proposed R3Ext |
-|--------|-----------|----------------|
-| View-VM Association | `IViewFor<T>` interface | `IViewFor<T>` interface (same) |
-| Activation Discovery | Reflection + Service Locator | Source Generation |
-| Dependency Injection | Splat (custom DI) | `Microsoft.Extensions.DependencyInjection` |
-| Service Locator | Yes (Splat) | **None** - DI only |
-| AOT Support | Limited | Full |
-| Activation Triggers | One per view type | Multiple via `WhenActivated()` / `WhenAttached()` |
-| Platform Extension | Implement `IActivationForViewFetcher` | Separate NuGet packages |
-| ViewModel Activation | `ViewModelActivator` class | Auto-activation with opt-out |
-| WhenActivated API | Extension method | Extension method (similar API) |
-| Package Structure | Monolithic + platform packages | Separate packages per platform |
-| Base Classes | `ReactiveContentPage`, etc. | **None** - extensions + source gen |
-| Target Framework | .NET 6+ | .NET 9+ |
+| Aspect               | ReactiveUI                            | Proposed R3Ext                                    |
+| -------------------- | ------------------------------------- | ------------------------------------------------- |
+| View-VM Association  | `IViewFor<T>` interface               | `IViewFor<T>` interface (same)                    |
+| Activation Discovery | Reflection + Service Locator          | Source Generation                                 |
+| Dependency Injection | Splat (custom DI)                     | `Microsoft.Extensions.DependencyInjection`        |
+| Service Locator      | Yes (Splat)                           | **None** - DI only                                |
+| AOT Support          | Limited                               | Full                                              |
+| Activation Triggers  | One per view type                     | Multiple via `WhenActivated()` / `WhenAttached()` |
+| Platform Extension   | Implement `IActivationForViewFetcher` | Separate NuGet packages                           |
+| ViewModel Activation | `ViewModelActivator` class            | Auto-activation with opt-out                      |
+| WhenActivated API    | Extension method                      | Extension method (similar API)                    |
+| Package Structure    | Monolithic + platform packages        | Separate packages per platform                    |
+| Base Classes         | `ReactiveContentPage`, etc.           | **None** - extensions + source gen                |
+| Target Framework     | .NET 6+                               | .NET 9+                                           |
 
 ---
 
@@ -318,12 +325,14 @@ partial class MyPage : IActivatableView
 **Decision**: Require explicit `IViewFor<T>` interface implementation for activation support.
 
 **Rationale**:
-- Explicit opt-in gives developers full control over which views participate in activation
-- Reduces magic and unexpected behavior
-- Better for AOT scenarios where implicit discovery is problematic
-- Aligns with modern .NET patterns (explicit > implicit)
+
+-   Explicit opt-in gives developers full control over which views participate in activation
+-   Reduces magic and unexpected behavior
+-   Better for AOT scenarios where implicit discovery is problematic
+-   Aligns with modern .NET patterns (explicit > implicit)
 
 **Usage**:
+
 ```csharp
 // Explicit opt-in - only views implementing IViewFor<T> get activation support
 public partial class MyPage : ContentPage, IViewFor<MyViewModel>
@@ -337,12 +346,14 @@ public partial class MyPage : ContentPage, IViewFor<MyViewModel>
 **Decision**: Use distinct methods `WhenActivated()` and `WhenLoaded()` for different lifecycle strategies.
 
 **Rationale**:
-- Clear, self-documenting API
-- No magic strings or enums to remember
-- IntelliSense-friendly discovery
-- Each method has clear semantics
+
+-   Clear, self-documenting API
+-   No magic strings or enums to remember
+-   IntelliSense-friendly discovery
+-   Each method has clear semantics
 
 **API**:
+
 ```csharp
 public static class ActivatableExtensions
 {
@@ -354,7 +365,7 @@ public static class ActivatableExtensions
     public static IDisposable WhenActivated(
         this IActivatableView view,
         Action<DisposableBag> block);
-    
+
     /// <summary>
     /// Executes block when view is attached to UI hierarchy (Loaded/Unloaded).
     /// Ideal for: one-time setup, resource allocation, element measurement.
@@ -371,17 +382,19 @@ public static class ActivatableExtensions
 **Decision**: When a view activates, automatically activate its ViewModel. Provide opt-out mechanism.
 
 **Rationale**:
-- Most common use case is synchronized view/viewmodel activation
-- Reduces boilerplate for the 90% case
-- Opt-out available for advanced scenarios
+
+-   Most common use case is synchronized view/viewmodel activation
+-   Reduces boilerplate for the 90% case
+-   Opt-out available for advanced scenarios
 
 **Implementation**:
+
 ```csharp
 public interface IViewFor<TViewModel> : IActivatableView
     where TViewModel : class
 {
     TViewModel? ViewModel { get; set; }
-    
+
     /// <summary>
     /// When true (default), ViewModel is automatically activated/deactivated with view.
     /// Set to false to manage ViewModel activation manually.
@@ -395,12 +408,14 @@ public interface IViewFor<TViewModel> : IActivatableView
 **Decision**: Design for modern .NET DI (`Microsoft.Extensions.DependencyInjection`) compatibility.
 
 **Rationale**:
-- Standard .NET pattern, not a custom service locator
-- Works with MAUI's built-in DI container
-- Supports scoped services and lifetime management
-- Easy testing with mock services
+
+-   Standard .NET pattern, not a custom service locator
+-   Works with MAUI's built-in DI container
+-   Supports scoped services and lifetime management
+-   Easy testing with mock services
 
 **DI Integration**:
+
 ```csharp
 // Service registration in MauiProgram.cs
 public static class MauiActivationExtensions
@@ -409,10 +424,10 @@ public static class MauiActivationExtensions
     {
         // Register activation services
         builder.Services.AddSingleton<IActivationService, MauiActivationService>();
-        
+
         // Optional: auto-register ViewModels
         builder.Services.AddTransient<MyViewModel>();
-        
+
         return builder;
     }
 }
@@ -425,7 +440,7 @@ public partial class MyPage : ContentPage, IViewFor<MyViewModel>
         InitializeComponent();
         ViewModel = viewModel;
     }
-    
+
     public MyViewModel? ViewModel { get; set; }
 }
 ```
@@ -435,20 +450,23 @@ public partial class MyPage : ContentPage, IViewFor<MyViewModel>
 **Decision**: Create separate NuGet packages per platform.
 
 **Packages**:
-- `R3Ext` - Core abstractions (interfaces, base extensions)
-- `R3Ext.Maui` - MAUI-specific activation providers
-- `R3Ext.Blazor` - Blazor-specific activation providers  
-- `R3Ext.Avalonia` - Avalonia-specific activation providers
-- `R3Ext.Uno` - Uno Platform-specific activation providers
+
+-   `R3Ext` - Core abstractions (interfaces, base extensions)
+-   `R3Ext.Maui` - MAUI-specific activation providers
+-   `R3Ext.Blazor` - Blazor-specific activation providers
+-   `R3Ext.Avalonia` - Avalonia-specific activation providers
+-   `R3Ext.Uno` - Uno Platform-specific activation providers
 
 **Rationale**:
-- Tree-shaking: only include what you need
-- Smaller package sizes
-- Platform-specific dependencies don't pollute other platforms
-- Independent versioning and release cycles
-- Clear separation of concerns
+
+-   Tree-shaking: only include what you need
+-   Smaller package sizes
+-   Platform-specific dependencies don't pollute other platforms
+-   Independent versioning and release cycles
+-   Clear separation of concerns
 
 **Project Structure**:
+
 ```
 R3Ext/                          # Core abstractions (net9.0)
 ├── Activation/
@@ -563,6 +581,6 @@ public class MauiActivationService : IActivationService
 3. Implement Phase 1 (Core Abstractions in `R3Ext`)
 4. Create `R3Ext.Maui` project for Phase 2
 5. Integrate with SampleApp for validation
-3. Implement Phase 1 (Core Abstractions)
-4. Implement Phase 2 (MAUI Support) as proof-of-concept
-5. Gather feedback and iterate
+6. Implement Phase 1 (Core Abstractions)
+7. Implement Phase 2 (MAUI Support) as proof-of-concept
+8. Gather feedback and iterate
