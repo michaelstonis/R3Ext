@@ -249,14 +249,7 @@ public static class ObservableListAggregates
                             {
                                 var newVal2 = _selector(it);
                                 _itemValues[it] = newVal2;
-                                if (_valueCounts.TryGetValue(newVal2, out var c))
-                                {
-                                    _valueCounts[newVal2] = c + 1;
-                                }
-                                else
-                                {
-                                    _valueCounts[newVal2] = 1;
-                                }
+                                _valueCounts[newVal2] = _valueCounts.TryGetValue(newVal2, out var c) ? c + 1 : 1;
 
                                 if (!_hasValue || newVal2.CompareTo(_currentMax) > 0)
                                 {
@@ -285,14 +278,7 @@ public static class ObservableListAggregates
         {
             var value = _selector(item);
             _itemValues[item] = value;
-            if (_valueCounts.TryGetValue(value, out var count))
-            {
-                _valueCounts[value] = count + 1;
-            }
-            else
-            {
-                _valueCounts[value] = 1;
-            }
+            _valueCounts[value] = _valueCounts.TryGetValue(value, out var count) ? count + 1 : 1;
 
             if (!_hasValue || value.CompareTo(_currentMax) > 0)
             {
@@ -494,14 +480,7 @@ public static class ObservableListAggregates
                             {
                                 var newVal2 = _selector(it);
                                 _itemValues[it] = newVal2;
-                                if (_valueCounts.TryGetValue(newVal2, out var c))
-                                {
-                                    _valueCounts[newVal2] = c + 1;
-                                }
-                                else
-                                {
-                                    _valueCounts[newVal2] = 1;
-                                }
+                                _valueCounts[newVal2] = _valueCounts.TryGetValue(newVal2, out var c) ? c + 1 : 1;
 
                                 if (!_hasValue || newVal2.CompareTo(_currentMin) < 0)
                                 {
@@ -530,14 +509,7 @@ public static class ObservableListAggregates
         {
             var value = _selector(item);
             _itemValues[item] = value;
-            if (_valueCounts.TryGetValue(value, out var count))
-            {
-                _valueCounts[value] = count + 1;
-            }
-            else
-            {
-                _valueCounts[value] = 1;
-            }
+            _valueCounts[value] = _valueCounts.TryGetValue(value, out var count) ? count + 1 : 1;
 
             if (!_hasValue || value.CompareTo(_currentMin) < 0)
             {

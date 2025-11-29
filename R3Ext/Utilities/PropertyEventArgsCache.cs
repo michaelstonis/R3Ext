@@ -19,22 +19,17 @@ internal static class PropertyEventArgsCache
     /// </summary>
     public static PropertyChangedEventArgs GetPropertyChanged(string propertyName)
     {
-        // Try to get from cache first
-        if (ChangedCache.TryGetValue(propertyName, out var cached))
-        {
-            return cached;
-        }
-
-        // Create new and try to add to cache
-        var args = new PropertyChangedEventArgs(propertyName);
-
-        // Only cache if we haven't exceeded the limit (simple check, may slightly exceed)
+        // Only cache if we haven't exceeded the limit (approximate check for performance)
         if (ChangedCache.Count < MaxCacheSize)
         {
-            ChangedCache.TryAdd(propertyName, args);
+            // Atomically get or add to cache - avoids allocation on cache hit
+            return ChangedCache.GetOrAdd(propertyName, static n => new PropertyChangedEventArgs(n));
         }
 
-        return args;
+        // If cache is full, check if already cached, otherwise allocate new
+        return ChangedCache.TryGetValue(propertyName, out var cached)
+            ? cached
+            : new PropertyChangedEventArgs(propertyName);
     }
 
     /// <summary>
@@ -42,21 +37,16 @@ internal static class PropertyEventArgsCache
     /// </summary>
     public static PropertyChangingEventArgs GetPropertyChanging(string propertyName)
     {
-        // Try to get from cache first
-        if (ChangingCache.TryGetValue(propertyName, out var cached))
-        {
-            return cached;
-        }
-
-        // Create new and try to add to cache
-        var args = new PropertyChangingEventArgs(propertyName);
-
-        // Only cache if we haven't exceeded the limit (simple check, may slightly exceed)
+        // Only cache if we haven't exceeded the limit (approximate check for performance)
         if (ChangingCache.Count < MaxCacheSize)
         {
-            ChangingCache.TryAdd(propertyName, args);
+            // Atomically get or add to cache - avoids allocation on cache hit
+            return ChangingCache.GetOrAdd(propertyName, static n => new PropertyChangingEventArgs(n));
         }
 
-        return args;
+        // If cache is full, check if already cached, otherwise allocate new
+        return ChangingCache.TryGetValue(propertyName, out var cached)
+            ? cached
+            : new PropertyChangingEventArgs(propertyName);
     }
 }

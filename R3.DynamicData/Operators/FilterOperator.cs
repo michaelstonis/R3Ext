@@ -68,7 +68,7 @@ public static class FilterOperator
                 var key = change.Key;
                 var current = change.Current;
                 var matchesFilter = _predicate(current);
-                var wasInFilter = _filteredData.ContainsKey(key);
+                var wasInFilter = _filteredData.TryGetValue(key, out var previousValue);
 
                 switch (change.Reason)
                 {
@@ -87,13 +87,12 @@ public static class FilterOperator
                     case Kernel.ChangeReason.Update:
                         if (matchesFilter && wasInFilter)
                         {
-                            var previous = _filteredData[key];
                             _filteredData[key] = current;
                             filteredChanges.Add(new Change<TObject, TKey>(
                                 Kernel.ChangeReason.Update,
                                 key,
                                 current,
-                                previous));
+                                previousValue));
                         }
                         else if (matchesFilter && !wasInFilter)
                         {
@@ -105,13 +104,12 @@ public static class FilterOperator
                         }
                         else if (!matchesFilter && wasInFilter)
                         {
-                            var previous = _filteredData[key];
                             _filteredData.Remove(key);
                             filteredChanges.Add(new Change<TObject, TKey>(
                                 Kernel.ChangeReason.Remove,
                                 key,
-                                previous,
-                                previous));
+                                previousValue,
+                                previousValue));
                         }
 
                         break;
@@ -119,13 +117,12 @@ public static class FilterOperator
                     case Kernel.ChangeReason.Remove:
                         if (wasInFilter)
                         {
-                            var previous = _filteredData[key];
                             _filteredData.Remove(key);
                             filteredChanges.Add(new Change<TObject, TKey>(
                                 Kernel.ChangeReason.Remove,
                                 key,
-                                previous,
-                                previous));
+                                previousValue,
+                                previousValue));
                         }
 
                         break;
@@ -225,7 +222,7 @@ public static class FilterOperator
                 var key = kvp.Key;
                 var item = kvp.Value;
                 var matchesFilter = _currentPredicate(item);
-                var wasInFilter = _filteredData.ContainsKey(key);
+                var wasInFilter = _filteredData.TryGetValue(key, out _);
 
                 if (matchesFilter)
                 {
@@ -279,7 +276,7 @@ public static class FilterOperator
                         if (_currentPredicate != null)
                         {
                             var matchesFilter = _currentPredicate(current);
-                            var wasInFilter = _filteredData.ContainsKey(key);
+                            var wasInFilter = _filteredData.TryGetValue(key, out var previousValue);
 
                             if (matchesFilter && !wasInFilter)
                             {
@@ -291,23 +288,21 @@ public static class FilterOperator
                             }
                             else if (matchesFilter && wasInFilter)
                             {
-                                var previous = _filteredData[key];
                                 _filteredData[key] = current;
                                 outputChanges.Add(new Change<TObject, TKey>(
                                     Kernel.ChangeReason.Update,
                                     key,
                                     current,
-                                    previous));
+                                    previousValue));
                             }
                             else if (!matchesFilter && wasInFilter)
                             {
-                                var previous = _filteredData[key];
                                 _filteredData.Remove(key);
                                 outputChanges.Add(new Change<TObject, TKey>(
                                     Kernel.ChangeReason.Remove,
                                     key,
-                                    previous,
-                                    previous));
+                                    previousValue,
+                                    previousValue));
                             }
                         }
 
@@ -316,15 +311,14 @@ public static class FilterOperator
                     case Kernel.ChangeReason.Remove:
                         _allData.Remove(key);
 
-                        if (_filteredData.ContainsKey(key))
+                        if (_filteredData.TryGetValue(key, out var removedValue))
                         {
-                            var previous = _filteredData[key];
                             _filteredData.Remove(key);
                             outputChanges.Add(new Change<TObject, TKey>(
                                 Kernel.ChangeReason.Remove,
                                 key,
-                                previous,
-                                previous));
+                                removedValue,
+                                removedValue));
                         }
 
                         break;
