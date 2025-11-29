@@ -4,11 +4,14 @@
 
 This document outlines a modern, extensible architecture for cross-platform view-viewmodel binding and activation lifecycle management. The design prioritizes:
 
-1. **AOT Compatibility** - No reflection, source-generated code
+1. **AOT Compatibility** - No reflection, source-generated code, no service locators
 2. **Platform Agnosticism** - Core abstractions work across MAUI, Blazor, Avalonia, Uno
-3. **Extensibility** - New platforms can be added via source generators
-4. **Performance** - Closure-free patterns, minimal allocations
+3. **Extensibility** - New platforms can be added via source generators and extension methods
+4. **Performance** - Closure-free patterns, minimal allocations, static lambdas
 5. **Flexibility** - Multiple activation strategies per platform
+6. **No Base Classes** - Use source generation and extensions, not inheritance
+
+**Target Framework**: .NET 9+
 
 ---
 
@@ -46,6 +49,8 @@ This document outlines a modern, extensible architecture for cross-platform view
 3. **Observable Activation Streams** - Expose `Observable<ActivationState>` rather than callbacks
 4. **Scoped Disposables** - Automatic cleanup tied to deactivation
 5. **Multiple Activation Strategies** - Allow choosing `Appearing/Disappearing` vs `Loaded/Unloaded`
+6. **Extensions over Base Classes** - Use extension methods and source generation, avoid inheritance hierarchies
+7. **No Service Locators** - Standard .NET DI only, no Splat or custom locators
 
 ---
 
@@ -71,23 +76,25 @@ R3Ext/
 R3Ext.Maui/
 ├── Activation/
 │   ├── MauiActivationProvider.cs    # Registers MAUI-specific activation
-│   ├── PageActivation.cs            # Appearing/Disappearing for Pages
-│   ├── ViewActivation.cs            # IsVisible changes for Views
-│   ├── ElementLoadedActivation.cs   # Loaded/Unloaded alternative
-│   └── MauiViewForExtensions.cs     # Source-generated extensions
+│   ├── PageActivationExtensions.cs  # Extensions for Page lifecycle
+│   ├── ViewActivationExtensions.cs  # Extensions for View lifecycle
+│   └── ActivationSourceGenerator/   # Source generator for IViewFor<T>
 
 R3Ext.Blazor/
 ├── Activation/
 │   ├── BlazorActivationProvider.cs
-│   ├── ComponentActivation.cs       # OnAfterRender/Dispose lifecycle
-│   └── BlazorViewForExtensions.cs
+│   ├── ComponentActivationExtensions.cs  # Extensions for component lifecycle
+│   └── ActivationSourceGenerator/   # Source generator for components
 
 R3Ext.Avalonia/
 ├── Activation/
 │   ├── AvaloniaActivationProvider.cs
-│   ├── VisualActivation.cs          # AttachedToVisualTree/DetachedFromVisualTree
-│   └── AvaloniaViewForExtensions.cs
+│   ├── VisualActivationExtensions.cs  # Extensions for visual tree
+│   └── ActivationSourceGenerator/   # Source generator for controls
 ```
+
+> **Note**: All platform packages use extension methods and source generation.
+> No base classes are provided - users implement interfaces on their own types.
 
 ### Key Interfaces
 
@@ -135,21 +142,28 @@ public enum ActivationState
 }
 
 /// <summary>
-/// Specifies the activation strategy for a platform view.
+/// Specifies the activation trigger for lifecycle management.
+/// These are platform-agnostic concepts that map to platform-specific events.
 /// </summary>
-public enum ActivationStrategy
+public enum ActivationTrigger
 {
-    /// <summary>Use page Appearing/Disappearing (MAUI) or equivalent.</summary>
+    /// <summary>
+    /// Triggered when the view becomes visible/hidden.
+    /// Maps to: MAUI Page.Appearing/Disappearing, Avalonia IsVisible, Blazor render state.
+    /// </summary>
     Visibility,
     
-    /// <summary>Use Loaded/Unloaded events.</summary>
-    Loaded,
+    /// <summary>
+    /// Triggered when the view is attached/detached from the UI hierarchy.
+    /// Maps to: MAUI Loaded/Unloaded, Avalonia AttachedToVisualTree, Blazor OnAfterRender/Dispose.
+    /// </summary>
+    Attached,
     
-    /// <summary>Use visual tree attachment (Avalonia).</summary>
-    VisualTree,
-    
-    /// <summary>Use component lifecycle (Blazor).</summary>
-    ComponentLifecycle
+    /// <summary>
+    /// Triggered based on focus/interaction state.
+    /// Maps to: MAUI Window.Activated, Avalonia Window.Activated, Blazor focus events.
+    /// </summary>
+    Focus
 }
 ```
 
@@ -160,35 +174,47 @@ public static class ActivatableExtensions
 {
     /// <summary>
     /// Executes the block when the view is activated, disposing when deactivated.
+    /// AOT-compatible implementation using static lambdas where possible.
     /// </summary>
     public static IDisposable WhenActivated(
         this IActivatableView view,
-        Action<CompositeDisposable> block)
+        Action<DisposableBag> block)
     {
-        var serial = new SerialDisposable();
+        var serial = new SerialDisposableCore();
         
         return view.Activation
-            .Subscribe(state =>
-            {
-                if (state == ActivationState.Activated)
-                {
-                    var disposables = new CompositeDisposable();
-                    block(disposables);
-                    serial.Disposable = disposables;
-                }
-                else
-                {
-                    serial.Disposable = Disposable.Empty;
-                }
-            });
+            .Subscribe(new ActivationObserver(serial, block));
     }
     
     /// <summary>
-    /// Alternative using Loaded/Unloaded lifecycle.
+    /// Alternative using Attached/Detached lifecycle (Loaded/Unloaded events).
     /// </summary>
-    public static IDisposable WhenLoaded(
+    public static IDisposable WhenAttached(
         this IActivatableView view,
-        Action<CompositeDisposable> block);
+        Action<DisposableBag> block);
+}
+
+// AOT-friendly observer implementation (no closure allocation on hot path)
+file sealed class ActivationObserver(
+    SerialDisposableCore serial,
+    Action<DisposableBag> block) : Observer<ActivationState>
+{
+    protected override void OnNextCore(ActivationState state)
+    {
+        if (state == ActivationState.Activated)
+        {
+            var bag = new DisposableBag();
+            block(bag);
+            serial.Disposable = bag;
+        }
+        else
+        {
+            serial.Disposable = null;
+        }
+    }
+    
+    protected override void OnErrorResumeCore(Exception error) { }
+    protected override void OnCompletedCore(Result result) { }
 }
 ```
 
@@ -250,8 +276,8 @@ partial class MyPage : IActivatableView
 ### Phase 3: Blazor Platform Support
 - [ ] Create `R3Ext.Blazor` project structure
 - [ ] Implement `BlazorComponentActivation` using lifecycle methods
-- [ ] Create base component class `RxComponent<TViewModel>`
-- [ ] Add Blazor-specific source generation
+- [ ] Create source generator for `IViewFor<T>` on Blazor components
+- [ ] Add extension methods for component activation
 
 ### Phase 4: Avalonia Platform Support
 - [ ] Create `R3Ext.Avalonia` project structure
@@ -273,12 +299,15 @@ partial class MyPage : IActivatableView
 | View-VM Association | `IViewFor<T>` interface | `IViewFor<T>` interface (same) |
 | Activation Discovery | Reflection + Service Locator | Source Generation |
 | Dependency Injection | Splat (custom DI) | `Microsoft.Extensions.DependencyInjection` |
+| Service Locator | Yes (Splat) | **None** - DI only |
 | AOT Support | Limited | Full |
-| Activation Strategies | One per view type | Multiple via `WhenActivated()` / `WhenLoaded()` |
+| Activation Triggers | One per view type | Multiple via `WhenActivated()` / `WhenAttached()` |
 | Platform Extension | Implement `IActivationForViewFetcher` | Separate NuGet packages |
 | ViewModel Activation | `ViewModelActivator` class | Auto-activation with opt-out |
 | WhenActivated API | Extension method | Extension method (similar API) |
 | Package Structure | Monolithic + platform packages | Separate packages per platform |
+| Base Classes | `ReactiveContentPage`, etc. | **None** - extensions + source gen |
+| Target Framework | .NET 6+ | .NET 9+ |
 
 ---
 
@@ -320,18 +349,20 @@ public static class ActivatableExtensions
     /// <summary>
     /// Executes block when view becomes visible (Appearing/Disappearing).
     /// Ideal for: pausing/resuming subscriptions, analytics, visibility-based logic.
+    /// Uses ActivationTrigger.Visibility semantics.
     /// </summary>
     public static IDisposable WhenActivated(
         this IActivatableView view,
-        Action<CompositeDisposable> block);
+        Action<DisposableBag> block);
     
     /// <summary>
-    /// Executes block when view is loaded into visual tree (Loaded/Unloaded).
+    /// Executes block when view is attached to UI hierarchy (Loaded/Unloaded).
     /// Ideal for: one-time setup, resource allocation, element measurement.
+    /// Uses ActivationTrigger.Attached semantics.
     /// </summary>
-    public static IDisposable WhenLoaded(
+    public static IDisposable WhenAttached(
         this IActivatableView view,
-        Action<CompositeDisposable> block);
+        Action<DisposableBag> block);
 }
 ```
 
@@ -419,26 +450,30 @@ public partial class MyPage : ContentPage, IViewFor<MyViewModel>
 
 **Project Structure**:
 ```
-R3Ext/                          # Core abstractions
+R3Ext/                          # Core abstractions (net9.0)
 ├── Activation/
 │   ├── IActivatable.cs
 │   ├── IActivatableView.cs
 │   ├── IViewFor.cs
+│   ├── ActivationTrigger.cs
 │   └── ActivatableExtensions.cs
 
-R3Ext.Maui/                     # MAUI platform package
+R3Ext.Maui/                     # MAUI platform package (net9.0-*)
 ├── R3Ext.Maui.csproj          # References R3Ext, Microsoft.Maui.*
 ├── MauiActivationService.cs
-├── PageActivationProvider.cs
-├── ViewActivationProvider.cs
+├── PageActivationExtensions.cs
+├── ViewActivationExtensions.cs
 └── ServiceCollectionExtensions.cs
 
-R3Ext.Blazor/                   # Blazor platform package
+R3Ext.Blazor/                   # Blazor platform package (net9.0)
 ├── R3Ext.Blazor.csproj
 ├── BlazorActivationService.cs
-├── RxComponentBase.cs
+├── ComponentActivationExtensions.cs  # Extensions, not base classes
 └── ServiceCollectionExtensions.cs
 ```
+
+> **Design Principle**: No base classes are provided. All functionality is delivered
+> through extension methods and source generation, keeping user code inheritance-free.
 
 ---
 
@@ -450,6 +485,7 @@ The core package contains only platform-agnostic interfaces and extensions:
 
 ```csharp
 // No platform dependencies - pure abstractions
+// Target: net9.0
 namespace R3Ext.Activation;
 
 public interface IActivatable
@@ -471,6 +507,17 @@ public interface IViewFor<TViewModel> : IActivatableView
 {
     TViewModel? ViewModel { get; set; }
     bool AutoActivateViewModel => true;
+}
+
+/// <summary>
+/// Platform-agnostic activation triggers.
+/// Each platform maps these to appropriate native events.
+/// </summary>
+public enum ActivationTrigger
+{
+    Visibility,  // Visible/Hidden state changes
+    Attached,    // Attached/Detached from UI hierarchy
+    Focus        // Focus/Activated state changes
 }
 
 public interface IActivationService

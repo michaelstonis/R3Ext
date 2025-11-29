@@ -11,10 +11,14 @@
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Activation Opt-in | Explicit `IViewFor<T>` implementation | Developer control, AOT-friendly |
-| Activation Strategies | Separate methods: `WhenActivated()` + `WhenLoaded()` | Clear API, self-documenting |
+| Activation Triggers | Platform-agnostic `ActivationTrigger` enum | Flexible terminology |
+| Activation Methods | `WhenActivated()` + `WhenAttached()` | Clear API, self-documenting |
 | ViewModel Auto-activation | Yes, with opt-out | Reduces boilerplate for 90% case |
-| Dependency Injection | `Microsoft.Extensions.DependencyInjection` | Standard .NET pattern |
+| Dependency Injection | `Microsoft.Extensions.DependencyInjection` | Standard .NET pattern, no Splat |
 | Package Structure | Separate packages per platform | Tree-shaking, smaller dependencies |
+| Base Classes | **None** - use extensions + source gen | Avoid inheritance hierarchies |
+| Target Framework | .NET 9+ | Modern platform baseline |
+| Service Locator | **None** | DI only, no Splat or custom locators |
 
 ---
 
@@ -27,6 +31,7 @@
 - [ ] Create `IActivatableViewModel.cs` - extends `IActivatable` with `ViewModelActivator`
 - [ ] Create `IViewFor.cs` - view-viewmodel association with `AutoActivateViewModel` property
 - [ ] Create `ActivationState.cs` - enum: `Activated`, `Deactivated`
+- [ ] Create `ActivationTrigger.cs` - enum: `Visibility`, `Attached`, `Focus` (platform-agnostic)
 - [ ] Create `IActivationService.cs` - DI-friendly activation service interface
 
 ### 1.2 ViewModel Activation
@@ -34,21 +39,24 @@
 - [ ] Implement `Activated` and `Deactivated` observables
 - [ ] Support explicit `Activate()` / `Deactivate()` methods
 - [ ] Handle opt-out scenario for auto-activation
+- [ ] Ensure AOT compatibility (no reflection)
 
 ### 1.3 Extension Methods
 - [ ] Create `ActivatableViewExtensions.cs`
-- [ ] Add `WhenActivated(Action<DisposableBag> block)` - visibility-based
-- [ ] Add `WhenLoaded(Action<DisposableBag> block)` - loaded-based
+- [ ] Add `WhenActivated(Action<DisposableBag> block)` - visibility-based (uses static observer)
+- [ ] Add `WhenAttached(Action<DisposableBag> block)` - hierarchy-based (uses static observer)
 - [ ] Create `ActivatableViewModelExtensions.cs`
 - [ ] Add ViewModel-side `WhenActivated` extension
+- [ ] Use `file` classes for observers to avoid allocations
 
 ### 1.4 Tests
 - [ ] Create `R3Ext.Tests/Activation/` directory
 - [ ] Add unit tests for `ViewModelActivator`
 - [ ] Add unit tests for `WhenActivated` extensions
-- [ ] Add unit tests for `WhenLoaded` extensions
+- [ ] Add unit tests for `WhenAttached` extensions
 - [ ] Add tests for auto-activation of ViewModels
 - [ ] Add tests for opt-out of auto-activation
+- [ ] Verify no closure allocations on hot path
 
 ---
 
@@ -56,46 +64,52 @@
 
 ### 2.1 Project Setup
 - [ ] Create `R3Ext.Maui/` project directory
-- [ ] Create `R3Ext.Maui.csproj` targeting `net8.0-android`, `net8.0-ios`, `net8.0-maccatalyst`
+- [ ] Create `R3Ext.Maui.csproj` targeting `net9.0-android`, `net9.0-ios`, `net9.0-maccatalyst`
 - [ ] Add reference to `R3Ext` core project
 - [ ] Add `Microsoft.Maui.Controls` dependency
+- [ ] Enable AOT compatibility settings
 
 ### 2.2 DI Integration
 - [ ] Create `ServiceCollectionExtensions.cs`
 - [ ] Implement `UseR3Activation(this MauiAppBuilder builder)` extension
 - [ ] Register `MauiActivationService` as `IActivationService`
+- [ ] **No Splat or service locator usage**
 - [ ] Document DI setup in README
 
-### 2.3 Page Activation (Appearing/Disappearing)
-- [ ] Create `PageActivationProvider.cs`
-- [ ] Implement `GetActivation(Page page)` returning `Observable<ActivationState>`
+### 2.3 Page Activation (Visibility trigger)
+- [ ] Create `PageActivationExtensions.cs`
+- [ ] Implement `GetActivation(this Page page)` returning `Observable<ActivationState>`
+- [ ] Use Appearing/Disappearing events
 - [ ] Handle edge cases (rapid navigation, modal pages)
 - [ ] Add tests with mock Page
 
-### 2.4 View Activation (IsVisible)
-- [ ] Create `ViewActivationProvider.cs`
-- [ ] Implement `GetActivation(View view)` returning `Observable<ActivationState>`
+### 2.4 View Activation (Visibility trigger)
+- [ ] Create `ViewActivationExtensions.cs`
+- [ ] Implement `GetActivation(this View view)` returning `Observable<ActivationState>`
+- [ ] Use IsVisible property changes
 - [ ] Handle initial visibility state
 - [ ] Add tests
 
-### 2.5 Loaded/Unloaded Support
-- [ ] Create `LoadedActivationProvider.cs`
+### 2.5 Attached/Detached Support (Attached trigger)
+- [ ] Create `LoadedActivationExtensions.cs`
 - [ ] Implement Loaded/Unloaded event subscription
-- [ ] Wire to `WhenLoaded` extension method
-- [ ] Document when to use `WhenLoaded` vs `WhenActivated`
+- [ ] Wire to `WhenAttached` extension method
+- [ ] Document when to use `WhenAttached` vs `WhenActivated`
 
 ### 2.6 Source Generator Integration
 - [ ] Extend source generator or create MAUI-specific generator
 - [ ] Generate `Activation` property for `IViewFor<T>` implementations
 - [ ] Support `ContentPage`, `ContentView`, `Shell` types
+- [ ] Ensure AOT compatibility (no reflection in generated code)
 - [ ] Add integration tests
 
 ### 2.7 Sample App Integration
 - [ ] Update `R3Ext.SampleApp` to reference `R3Ext.Maui`
+- [ ] Update to .NET 9 target frameworks
 - [ ] Add `UseR3Activation()` to `MauiProgram.cs`
 - [ ] Update existing pages to use `IViewFor<T>`
 - [ ] Add `WhenActivated` usage examples
-- [ ] Add `WhenLoaded` usage examples
+- [ ] Add `WhenAttached` usage examples
 - [ ] Create dedicated activation demo page
 
 ---
@@ -104,19 +118,21 @@
 
 ### 3.1 Project Setup
 - [ ] Create `R3Ext.Blazor/` project directory
-- [ ] Create `R3Ext.Blazor.csproj` targeting `net8.0`
+- [ ] Create `R3Ext.Blazor.csproj` targeting `net9.0`
 - [ ] Add reference to `R3Ext` core project
 - [ ] Add `Microsoft.AspNetCore.Components` dependency
+- [ ] Enable AOT compatibility settings
 
 ### 3.2 DI Integration
 - [ ] Create `ServiceCollectionExtensions.cs`
 - [ ] Implement `AddR3Activation(this IServiceCollection services)` extension
+- [ ] **No Splat or service locator usage**
 
-### 3.3 Component Base Classes
-- [ ] Create `RxComponentBase.cs` - base component with activation
-- [ ] Create `RxComponentBase<TViewModel>.cs` - generic version with `IViewFor<T>`
-- [ ] Implement `OnAfterRender(firstRender: true)` → Activated
-- [ ] Implement `Dispose()` → Deactivated
+### 3.3 Component Activation (via extensions + source generation)
+- [ ] Create `ComponentActivationExtensions.cs` - **not a base class**
+- [ ] Implement activation observable for components via source generator
+- [ ] Map `OnAfterRender(firstRender: true)` → Activated
+- [ ] Map `Dispose()` → Deactivated
 - [ ] Handle `OnParametersSet` for ViewModel changes
 - [ ] Support auto-activation of ViewModel
 
@@ -131,19 +147,21 @@
 
 ### 4.1 Project Setup
 - [ ] Create `R3Ext.Avalonia/` project directory
-- [ ] Create `R3Ext.Avalonia.csproj` targeting `net8.0`
+- [ ] Create `R3Ext.Avalonia.csproj` targeting `net9.0`
 - [ ] Add reference to `R3Ext` core project
 - [ ] Add Avalonia dependencies
+- [ ] Enable AOT compatibility settings
 
-### 4.2 Visual Tree Activation
-- [ ] Create `VisualActivationProvider.cs`
-- [ ] Implement `AttachedToVisualTree` → Activated
+### 4.2 Visual Tree Activation (via extensions)
+- [ ] Create `VisualActivationExtensions.cs` - **not a base class**
+- [ ] Implement `AttachedToVisualTree` → Activated (`WhenAttached`)
 - [ ] Implement `DetachedFromVisualTree` → Deactivated
 - [ ] Handle visual tree edge cases
 
 ### 4.3 DI Integration
 - [ ] Create `ServiceCollectionExtensions.cs`
 - [ ] Support Avalonia's DI patterns
+- [ ] **No Splat or service locator usage**
 
 ### 4.4 Tests & Samples
 - [ ] Create `R3Ext.Avalonia.Tests` project
@@ -192,7 +210,7 @@
 ## Package Structure
 
 ```
-R3Ext/                          # Core abstractions (platform-agnostic)
+R3Ext/                          # Core abstractions (net9.0, platform-agnostic)
 ├── Activation/
 │   ├── IActivatable.cs
 │   ├── IActivatableView.cs
@@ -200,29 +218,32 @@ R3Ext/                          # Core abstractions (platform-agnostic)
 │   ├── IViewFor.cs
 │   ├── IActivationService.cs
 │   ├── ActivationState.cs
+│   ├── ActivationTrigger.cs         # Platform-agnostic: Visibility, Attached, Focus
 │   ├── ViewModelActivator.cs
-│   └── ActivatableExtensions.cs
+│   └── ActivatableExtensions.cs     # WhenActivated, WhenAttached
 
-R3Ext.Maui/                     # MAUI platform package
+R3Ext.Maui/                     # MAUI platform package (net9.0-*)
 ├── R3Ext.Maui.csproj
 ├── MauiActivationService.cs
-├── PageActivationProvider.cs
-├── ViewActivationProvider.cs
-├── LoadedActivationProvider.cs
+├── PageActivationExtensions.cs      # Extensions, not providers
+├── ViewActivationExtensions.cs
+├── LoadedActivationExtensions.cs
 └── ServiceCollectionExtensions.cs
 
-R3Ext.Blazor/                   # Blazor platform package
+R3Ext.Blazor/                   # Blazor platform package (net9.0)
 ├── R3Ext.Blazor.csproj
-├── RxComponentBase.cs
 ├── BlazorActivationService.cs
+├── ComponentActivationExtensions.cs  # Extensions, NOT base classes
 └── ServiceCollectionExtensions.cs
 
-R3Ext.Avalonia/                 # Avalonia platform package
+R3Ext.Avalonia/                 # Avalonia platform package (net9.0)
 ├── R3Ext.Avalonia.csproj
-├── VisualActivationProvider.cs
+├── VisualActivationExtensions.cs     # Extensions, not providers
 ├── AvaloniaActivationService.cs
 └── ServiceCollectionExtensions.cs
 ```
+
+> **Key Principle**: No base classes. All platforms use extension methods and source generation.
 
 ---
 
@@ -232,10 +253,10 @@ R3Ext.Avalonia/                 # Avalonia platform package
 |---------|---------|---------|
 | R3 | Existing | All |
 | R3Ext | Existing | All platform packages |
-| Microsoft.Maui.Controls | 8.0+ | R3Ext.Maui |
-| Microsoft.AspNetCore.Components | 8.0+ | R3Ext.Blazor |
+| Microsoft.Maui.Controls | 9.0+ | R3Ext.Maui |
+| Microsoft.AspNetCore.Components | 9.0+ | R3Ext.Blazor |
 | Avalonia | 11.0+ | R3Ext.Avalonia |
-| Microsoft.Extensions.DependencyInjection.Abstractions | 8.0+ | All |
+| Microsoft.Extensions.DependencyInjection.Abstractions | 9.0+ | All |
 
 ---
 
@@ -243,8 +264,10 @@ R3Ext.Avalonia/                 # Avalonia platform package
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| MAUI version compatibility | Medium | Test with MAUI 8.0, 9.0 |
+| MAUI version compatibility | Medium | Test with MAUI 9.0 |
 | Source generator complexity | High | Start with manual implementation, then generate |
 | Breaking existing code | Low | Additive API, no breaking changes to R3Ext |
 | Performance overhead | Medium | Benchmark early, use static lambdas |
 | DI container variations | Low | Depend only on abstractions |
+| AOT compatibility | High | Test with NativeAOT, avoid reflection |
+| No base classes constraint | Medium | Source generator must handle all boilerplate |
