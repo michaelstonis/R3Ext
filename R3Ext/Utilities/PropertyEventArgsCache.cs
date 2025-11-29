@@ -9,7 +9,7 @@ namespace R3Ext.Utilities;
 /// </summary>
 internal static class PropertyEventArgsCache
 {
-    private const int MaxCacheSize = 128;
+    private const int MaxCacheSize = 256;
 
     private static readonly ConcurrentDictionary<string, PropertyChangedEventArgs> ChangedCache = new();
     private static readonly ConcurrentDictionary<string, PropertyChangingEventArgs> ChangingCache = new();
