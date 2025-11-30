@@ -626,6 +626,29 @@ public sealed class BindingGenerator : IIncrementalGenerator
             string memberName = mae.Name.Identifier.ValueText;
             SymbolInfo si = model.GetSymbolInfo(mae);
             ISymbol? symbol = si.Symbol;
+            ITypeSymbol? overrideType = null; // Used when we find member in interface and need to substitute type args
+
+            // If symbol resolution failed, try to find the member from the previous segment's type
+            // This handles source-generated properties like ViewModel from IViewFor<T>
+            if (symbol is null && into.Count > 0)
+            {
+                ITypeSymbol? previousType = GetTypeFromSegment(model.Compilation, into[into.Count - 1]);
+                if (previousType is not null)
+                {
+                    (symbol, overrideType) = TryFindMemberInTypeOrInterfacesWithType(previousType, memberName);
+                }
+            }
+
+            // If still null and this is the first member, check the lambda parameter type's interfaces
+            if (symbol is null && into.Count == 0)
+            {
+                // Get the lambda parameter type
+                ITypeSymbol? paramType = model.GetTypeInfo(mae.Expression).Type;
+                if (paramType is not null)
+                {
+                    (symbol, overrideType) = TryFindMemberInTypeOrInterfacesWithType(paramType, memberName);
+                }
+            }
 
             if (symbol is null)
             {
@@ -650,31 +673,34 @@ public sealed class BindingGenerator : IIncrementalGenerator
 
             if (symbol is IPropertySymbol ps)
             {
+                // Use overrideType if we found the member via interface lookup (handles type parameter substitution)
+                ITypeSymbol actualType = overrideType ?? ps.Type;
                 PropertySegment seg = new()
                 {
                     Name = ps.Name,
-                    TypeName = ps.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    TypeName = actualType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     DeclaringTypeName = ps.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
-                    IsReferenceType = ps.Type.IsReferenceType,
-                    IsNotify = ImplementsNotify(ps.Type),
+                    IsReferenceType = actualType.IsReferenceType,
+                    IsNotify = ImplementsNotify(actualType),
                     DeclaringTypeImplementsNotify = ImplementsNotify(ps.ContainingType),
                     HasSetter = ps.SetMethod is not null,
                     SetterIsNonPublic = ps.SetMethod is not null && ps.SetMethod.DeclaredAccessibility != Accessibility.Public,
                     IsNonPublic = ps.DeclaredAccessibility != Accessibility.Public,
                     IsField = false,
-                    IsNullable = ps.Type.NullableAnnotation == NullableAnnotation.Annotated,
+                    IsNullable = actualType.NullableAnnotation == NullableAnnotation.Annotated || ps.Type.NullableAnnotation == NullableAnnotation.Annotated,
                 };
                 into.Add(seg);
             }
             else if (symbol is IFieldSymbol fs)
             {
+                ITypeSymbol actualType = overrideType ?? fs.Type;
                 PropertySegment seg = new()
                 {
                     Name = fs.Name,
-                    TypeName = fs.Type.ToDisplayString(FullyQualifiedFormatWithNullability),
+                    TypeName = actualType.ToDisplayString(FullyQualifiedFormatWithNullability),
                     DeclaringTypeName = fs.ContainingType.ToDisplayString(FullyQualifiedFormatWithNullability),
-                    IsReferenceType = fs.Type.IsReferenceType,
-                    IsNotify = ImplementsNotify(fs.Type),
+                    IsReferenceType = actualType.IsReferenceType,
+                    IsNotify = ImplementsNotify(actualType),
                     DeclaringTypeImplementsNotify = ImplementsNotify(fs.ContainingType),
                     HasSetter = false,
                     SetterIsNonPublic = false,
@@ -800,6 +826,193 @@ public sealed class BindingGenerator : IIncrementalGenerator
                 current = field.Type;
             }
         }
+    }
+
+    /// <summary>
+    /// Tries to find a property or field member in a type or any of its implemented interfaces.
+    /// This is useful for finding source-generated properties like ViewModel from IViewFor{T}.
+    /// Returns the member and the type it was found in (which may have type arguments substituted).
+    /// </summary>
+    private static (ISymbol? Member, ITypeSymbol? SubstitutedType) TryFindMemberInTypeOrInterfacesWithType(ITypeSymbol type, string memberName)
+    {
+        // First check the type itself and its base types
+        ITypeSymbol? current = type;
+        while (current is not null)
+        {
+            ISymbol? member = current.GetMembers(memberName).FirstOrDefault(m => m is IPropertySymbol or IFieldSymbol);
+            if (member is not null)
+            {
+                // For concrete types, the type is correct as-is
+                ITypeSymbol? memberType = GetMemberType(member);
+                return (member, memberType);
+            }
+
+            current = current.BaseType;
+        }
+
+        // Check all implemented interfaces
+        foreach (INamedTypeSymbol iface in type.AllInterfaces)
+        {
+            ISymbol? member = iface.GetMembers(memberName).FirstOrDefault(m => m is IPropertySymbol or IFieldSymbol);
+            if (member is not null)
+            {
+                // For interfaces, we need to substitute type arguments
+                ITypeSymbol? memberType = GetMemberType(member);
+
+                // If the member type is a type parameter, substitute from the constructed interface
+                if (memberType is ITypeParameterSymbol typeParam && iface.IsGenericType)
+                {
+                    // Find which type argument position this type parameter is at
+                    INamedTypeSymbol genericDefinition = iface.OriginalDefinition;
+                    for (int i = 0; i < genericDefinition.TypeParameters.Length; i++)
+                    {
+                        if (SymbolEqualityComparer.Default.Equals(genericDefinition.TypeParameters[i], typeParam.OriginalDefinition))
+                        {
+                            // Return the concrete type argument
+                            memberType = iface.TypeArguments[i];
+                            break;
+                        }
+                    }
+                }
+
+                return (member, memberType);
+            }
+        }
+
+        return (null, null);
+    }
+
+    private static ITypeSymbol? GetMemberType(ISymbol member)
+    {
+        return member switch
+        {
+            IPropertySymbol ps => ps.Type,
+            IFieldSymbol fs => fs.Type,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Tries to find a property or field member in a type or any of its implemented interfaces.
+    /// This is useful for finding source-generated properties like ViewModel from IViewFor{T}.
+    /// </summary>
+    private static ISymbol? TryFindMemberInTypeOrInterfaces(ITypeSymbol type, string memberName)
+    {
+        return TryFindMemberInTypeOrInterfacesWithType(type, memberName).Member;
+    }
+
+    /// <summary>
+    /// Gets the ITypeSymbol for the type of a PropertySegment.
+    /// </summary>
+    private static ITypeSymbol? GetTypeFromSegment(Compilation compilation, PropertySegment segment)
+    {
+        // The TypeName is fully qualified, so we need to parse it
+        string typeName = segment.TypeName;
+
+        // Remove global:: prefix if present
+        if (typeName.StartsWith("global::"))
+        {
+            typeName = typeName.Substring(8);
+        }
+
+        // Remove nullable suffix if present
+        bool wasNullable = false;
+        if (typeName.EndsWith("?"))
+        {
+            typeName = typeName.Substring(0, typeName.Length - 1);
+            wasNullable = true;
+        }
+
+        // Handle generic types - the TypeName might be like "R3.ReadOnlyReactiveProperty<string>"
+        int genericStart = typeName.IndexOf('<');
+        if (genericStart > 0)
+        {
+            // Parse the type arguments
+            string baseTypeName = typeName.Substring(0, genericStart);
+            string argsSection = typeName.Substring(genericStart + 1, typeName.Length - genericStart - 2);
+
+            // Parse type arguments (simple parsing, doesn't handle nested generics well)
+            List<string> typeArgs = new List<string>();
+            int depth = 0;
+            int start = 0;
+            for (int i = 0; i < argsSection.Length; i++)
+            {
+                char c = argsSection[i];
+                if (c == '<')
+                {
+                    depth++;
+                }
+                else if (c == '>')
+                {
+                    depth--;
+                }
+                else if (c == ',' && depth == 0)
+                {
+                    typeArgs.Add(argsSection.Substring(start, i - start).Trim());
+                    start = i + 1;
+                }
+            }
+
+            typeArgs.Add(argsSection.Substring(start).Trim());
+
+            // Get the open generic type
+            string metadataName = baseTypeName + "`" + typeArgs.Count;
+            INamedTypeSymbol? openType = compilation.GetTypeByMetadataName(metadataName);
+            if (openType is null)
+            {
+                return null;
+            }
+
+            // Resolve each type argument
+            ITypeSymbol[] resolvedArgs = new ITypeSymbol[typeArgs.Count];
+            for (int i = 0; i < typeArgs.Count; i++)
+            {
+                string argName = typeArgs[i];
+
+                // Remove global:: from type argument if present
+                if (argName.StartsWith("global::"))
+                {
+                    argName = argName.Substring(8);
+                }
+
+                // Handle nullable on type arg
+                if (argName.EndsWith("?"))
+                {
+                    argName = argName.Substring(0, argName.Length - 1);
+                }
+
+                // Get the type argument - recursively handle generics
+                ITypeSymbol? argType = compilation.GetTypeByMetadataName(argName);
+                if (argType is null)
+                {
+                    // Try special types
+                    argType = argName switch
+                    {
+                        "string" => compilation.GetSpecialType(SpecialType.System_String),
+                        "int" => compilation.GetSpecialType(SpecialType.System_Int32),
+                        "bool" => compilation.GetSpecialType(SpecialType.System_Boolean),
+                        "double" => compilation.GetSpecialType(SpecialType.System_Double),
+                        "float" => compilation.GetSpecialType(SpecialType.System_Single),
+                        "long" => compilation.GetSpecialType(SpecialType.System_Int64),
+                        "object" => compilation.GetSpecialType(SpecialType.System_Object),
+                        _ => null,
+                    };
+                }
+
+                if (argType is null)
+                {
+                    return null;
+                }
+
+                resolvedArgs[i] = argType;
+            }
+
+            // Construct the closed generic type
+            return openType.Construct(resolvedArgs);
+        }
+
+        // Non-generic type
+        return compilation.GetTypeByMetadataName(typeName);
     }
 
     private static bool ImplementsNotify(ITypeSymbol t)

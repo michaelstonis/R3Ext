@@ -56,10 +56,16 @@ public static class MauiActivatableViewExtensions
     /// <summary>
     /// Executes a block when the MAUI page/view is activated (visibility-based).
     /// Automatically activates the associated view model if <see cref="IViewFor{TViewModel}.AutoActivateViewModel"/> is true.
+    /// Supports late-bound ViewModels - the activator is fetched on each activation.
     /// </summary>
     /// <typeparam name="TViewModel">The view model type.</typeparam>
     /// <param name="view">The MAUI view implementing IViewFor.</param>
     /// <param name="block">The block to execute on activation.</param>
+    /// <remarks>
+    /// The subscription is automatically disposed when the element's Window becomes null
+    /// (i.e., when the element is removed from the visual tree). You do not need to manage
+    /// the returned disposable unless you want to stop monitoring before the element is removed.
+    /// </remarks>
     /// <returns>An IDisposable that stops monitoring when disposed.</returns>
     public static IDisposable WhenActivated<TViewModel>(
         this IViewFor<TViewModel> view,
@@ -69,28 +75,44 @@ public static class MauiActivatableViewExtensions
         ArgumentNullException.ThrowIfNull(view);
         ArgumentNullException.ThrowIfNull(block);
 
-        var activation = view.GetActivation();
-        var vmActivator = GetViewModelActivator(view);
-        var state = new MauiActivationState(block, vmActivator);
+        Observable<ActivationState> activation = view.GetActivation();
 
-        var subscription = activation.Subscribe(new MauiActivationObserver(state));
+        // Create a delegate that fetches the activator each time (supports late-bound ViewModels)
+        Func<ViewModelActivator?>? getActivator = view.AutoActivateViewModel
+            ? () => (view.ViewModel as IActivatableViewModel)?.Activator
+            : null;
 
-        return Disposable.Combine(
+        var state = new MauiActivationState(block, getActivator);
+
+        IDisposable subscription = activation.Subscribe(new MauiActivationObserver(state));
+
+        IDisposable combined = Disposable.Combine(
             subscription,
             Disposable.Create(state, static s =>
             {
                 s.CurrentBag.Dispose();
                 s.VmActivationHandle?.Dispose();
             }));
+
+        // Auto-dispose when the element is removed from the window
+        return AttachToWindowLifecycle(view, combined);
     }
 
     /// <summary>
     /// Executes a block when the MAUI page/view is attached to the visual tree.
     /// Uses Loaded/Unloaded events.
+    /// Automatically attaches the associated view model if <see cref="IViewFor{TViewModel}.AutoActivateViewModel"/> is true
+    /// and the ViewModel implements <see cref="IAttachableViewModel"/>.
+    /// Supports late-bound ViewModels - the attacher is fetched on each attachment.
     /// </summary>
     /// <typeparam name="TViewModel">The view model type.</typeparam>
     /// <param name="view">The MAUI view implementing IViewFor.</param>
     /// <param name="block">The block to execute on attachment.</param>
+    /// <remarks>
+    /// The subscription is automatically disposed when the element is unloaded.
+    /// You do not need to manage the returned disposable unless you want to stop
+    /// monitoring before the element is unloaded.
+    /// </remarks>
     /// <returns>An IDisposable that stops monitoring when disposed.</returns>
     public static IDisposable WhenAttached<TViewModel>(
         this IViewFor<TViewModel> view,
@@ -100,28 +122,113 @@ public static class MauiActivatableViewExtensions
         ArgumentNullException.ThrowIfNull(view);
         ArgumentNullException.ThrowIfNull(block);
 
-        var activation = view.GetLoadedActivation();
-        var state = new MauiActivationState(block, null);
+        Observable<ActivationState> activation = view.GetLoadedActivation();
 
-        var subscription = activation.Subscribe(new MauiActivationObserver(state));
+        // Create a delegate that fetches the attacher each time (supports late-bound ViewModels)
+        Func<ViewModelAttacher?>? getAttacher = view.AutoActivateViewModel
+            ? () => (view.ViewModel as IAttachableViewModel)?.Attacher
+            : null;
 
-        return Disposable.Combine(
+        var state = new MauiAttachmentState(block, getAttacher);
+
+        IDisposable subscription = activation.Subscribe(new MauiAttachmentObserver(state));
+
+        IDisposable combined = Disposable.Combine(
             subscription,
             Disposable.Create(state, static s =>
             {
                 s.CurrentBag.Dispose();
-                s.VmActivationHandle?.Dispose();
+                s.VmAttachmentHandle?.Dispose();
             }));
+
+        // Auto-dispose when the element is unloaded
+        return AttachToLoadedLifecycle(view, combined);
     }
 
-    private static ViewModelActivator? GetViewModelActivator<TViewModel>(IViewFor<TViewModel> view)
+    /// <summary>
+    /// Attaches a disposable to an element's window lifecycle so it's automatically disposed
+    /// when the element's Window becomes null (removed from visual tree).
+    /// </summary>
+    private static IDisposable AttachToWindowLifecycle<TViewModel>(IViewFor<TViewModel> view, IDisposable disposable)
         where TViewModel : class
     {
-        if (!view.AutoActivateViewModel)
+        if (view is not VisualElement element)
         {
-            return null;
+            // If not a VisualElement, just return the disposable as-is
+            return disposable;
         }
 
-        return (view.ViewModel as IActivatableViewModel)?.Activator;
+        var disposed = false;
+
+        void OnWindowChanged(object? sender, EventArgs e)
+        {
+            // When the window becomes null, the element is being removed from the visual tree
+            if (element.Window is null && !disposed)
+            {
+                disposed = true;
+                element.PropertyChanged -= OnPropertyChanged;
+                disposable.Dispose();
+            }
+        }
+
+        void OnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(VisualElement.Window))
+            {
+                OnWindowChanged(sender, e);
+            }
+        }
+
+        element.PropertyChanged += OnPropertyChanged;
+
+        // Return a wrapper that also removes the event handler when manually disposed
+        return Disposable.Create(() =>
+        {
+            if (!disposed)
+            {
+                disposed = true;
+                element.PropertyChanged -= OnPropertyChanged;
+                disposable.Dispose();
+            }
+        });
+    }
+
+    /// <summary>
+    /// Attaches a disposable to an element's loaded/unloaded lifecycle so it's automatically disposed
+    /// when the element is unloaded.
+    /// </summary>
+    private static IDisposable AttachToLoadedLifecycle<TViewModel>(IViewFor<TViewModel> view, IDisposable disposable)
+        where TViewModel : class
+    {
+        if (view is not VisualElement element)
+        {
+            // If not a VisualElement, just return the disposable as-is
+            return disposable;
+        }
+
+        var disposed = false;
+
+        void OnUnloaded(object? sender, EventArgs e)
+        {
+            if (!disposed)
+            {
+                disposed = true;
+                element.Unloaded -= OnUnloaded;
+                disposable.Dispose();
+            }
+        }
+
+        element.Unloaded += OnUnloaded;
+
+        // Return a wrapper that also removes the event handler when manually disposed
+        return Disposable.Create(() =>
+        {
+            if (!disposed)
+            {
+                disposed = true;
+                element.Unloaded -= OnUnloaded;
+                disposable.Dispose();
+            }
+        });
     }
 }

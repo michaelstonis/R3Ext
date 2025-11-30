@@ -364,12 +364,88 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
-            .UseR3(); // Enables R3 with MAUI-aware scheduling
+            .UseR3() // Enables R3 with MAUI-aware scheduling
+            .UseR3Activation(); // Enables view/viewmodel activation lifecycle
+
+        // Register your ViewModels for DI
+        builder.Services.AddTransient<MainViewModel>();
+        builder.Services.AddTransient<MainPage>();
 
         return builder.Build();
     }
 }
 ```
+
+### View-ViewModel Activation (IViewFor Pattern)
+
+R3Ext provides activation lifecycle management for views and view models:
+
+```csharp
+// Implement IViewFor<T> on your page - source generator handles the rest
+public partial class MainPage : ContentPage, IViewFor<MainViewModel>
+{
+    public MainPage(MainViewModel viewModel)
+    {
+        InitializeComponent();
+        ViewModel = viewModel;
+
+        // WhenActivated: runs when page appears, cleans up when it disappears
+        this.WhenActivated((ref DisposableBag d) =>
+        {
+            // Start polling only while visible
+            Observable.Interval(TimeSpan.FromSeconds(30))
+                .Subscribe(_ => ViewModel?.RefreshData())
+                .AddTo(ref d);
+
+            // Subscriptions automatically disposed when page disappears
+            ViewModel!.Status
+                .Subscribe(s => statusLabel.Text = s)
+                .AddTo(ref d);
+        });
+
+        // WhenAttached: runs when loaded, cleans up when unloaded
+        this.WhenAttached((ref DisposableBag d) =>
+        {
+            // One-time setup when added to visual tree
+            ViewModel?.Initialize();
+
+            Disposable.Create(() => ViewModel?.Cleanup())
+                .AddTo(ref d);
+        });
+    }
+}
+
+// ViewModel with activation support
+public class MainViewModel : IActivatableViewModel, IDisposable
+{
+    private DisposableBag _disposables;
+
+    public ViewModelActivator Activator { get; } = new();
+
+    public MainViewModel()
+    {
+        // ViewModel-side activation (runs when view activates this VM)
+        this.WhenActivated((ref DisposableBag d) =>
+        {
+            // Set up subscriptions scoped to activation
+            _dataService.Connect()
+                .Subscribe()
+                .AddTo(ref d);
+        }).AddTo(ref _disposables);
+    }
+
+    public void Dispose() => _disposables.Dispose();
+}
+```
+
+**Activation Methods:**
+
+| Method | Trigger | Use Case |
+|--------|---------|----------|
+| `WhenActivated` | Page Appearing/Disappearing | Polling, real-time data, animations |
+| `WhenAttached` | View Loaded/Unloaded | One-time setup, resource initialization |
+
+For detailed documentation, see [docs/ActivationGuide.md](docs/ActivationGuide.md).
 
 ### ViewModel with Commands
 
@@ -487,13 +563,20 @@ R3Ext/
 │
 ├── R3Ext.Bindings.SourceGenerator/     # Compile-time binding generator
 │   ├── BindingGenerator.cs             # WhenChanged/WhenObserved generation
+│   ├── ViewForGenerator.cs             # IViewFor<TViewModel> generation
 │   └── UiBindingMetadata.cs            # MAUI UI element metadata
 │
 ├── R3Ext.Bindings.MauiTargets/         # MAUI integration
 │   └── GenerateUiBindingTargetsTask.cs # MSBuild task for UI bindings
 │
+├── R3Ext.Maui/                         # MAUI platform activation
+│   ├── MauiActivatableViewExtensions.cs  # WhenActivated/WhenAttached extensions
+│   ├── MauiAppBuilderExtensions.cs       # UseR3Activation() for DI setup
+│   └── Internal/                         # MAUI-specific activation observers
+│
 ├── R3Ext.Tests/                        # Core library tests
-├── R3.DynamicData.Tests/               # DynamicData tests (NEW!)
+├── R3.DynamicData.Tests/               # DynamicData tests
+├── R3Ext.Maui.Tests/                   # MAUI activation tests
 └── R3Ext.SampleApp/                    # .NET MAUI sample app
 ```
 

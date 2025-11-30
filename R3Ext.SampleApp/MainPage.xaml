@@ -28,7 +28,7 @@
                 <Label Text="Reactive programming patterns and data binding"
                        Style="{StaticResource SectionSubtitleStyle}" />
                 <Grid ColumnDefinitions="*,*"
-                      RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                      RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
                       ColumnSpacing="14"
                       RowSpacing="14"
                       Margin="0,0,0,32">
@@ -199,6 +199,23 @@
                             <Label Text="Interaction"
                                    Style="{StaticResource CardTitleStyle}" />
                             <Label Text="ViewModel ↔ UI dialog"
+                                   Style="{StaticResource CardDescriptionStyle}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                    <Frame Grid.Column="0"
+                           Grid.Row="5"
+                           Style="{StaticResource FeatureCardStyle}">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnNavigate"
+                                                  CommandParameter="ActivationDemoPage" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="10">
+                            <Label Text="🔄"
+                                   FontSize="36"
+                                   Margin="0,0,0,4" />
+                            <Label Text="Activation"
+                                   Style="{StaticResource CardTitleStyle}" />
+                            <Label Text="IViewFor lifecycle"
                                    Style="{StaticResource CardDescriptionStyle}" />
                         </VerticalStackLayout>
                     </Frame>

@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:r3="clr-namespace:R3Ext.SampleApp"
+             x:Class="R3Ext.SampleApp.ActivationDemoPage"
+             Title="Activation Demo">
+    <ScrollView>
+        <VerticalStackLayout Padding="24"
+                             Spacing="20">
+            <!-- Header -->
+            <Label Text="Activation Lifecycle Demo"
+                   FontSize="24"
+                   FontAttributes="Bold"
+                   HorizontalOptions="Center" />
+            <Label Text="This page demonstrates the IViewFor&lt;T&gt; pattern with automatic ViewModel activation. Navigate away and back to see the activation/deactivation cycle."
+                   FontSize="14"
+                   TextColor="Gray"
+                   HorizontalTextAlignment="Center" />
+            <!-- Status Card -->
+            <Frame BackgroundColor="#F0F0F0"
+                   CornerRadius="12"
+                   Padding="16"
+                   HasShadow="False">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Current Status"
+                           FontSize="18"
+                           FontAttributes="Bold" />
+                    <Label x:Name="StatusLabel"
+                           FontSize="16" />
+                </VerticalStackLayout>
+            </Frame>
+            <!-- Timer Card -->
+            <Frame BackgroundColor="#E8F4E8"
+                   CornerRadius="12"
+                   Padding="16"
+                   HasShadow="False">
+                <VerticalStackLayout Spacing="8"
+                                     HorizontalOptions="Center">
+                    <Label Text="Active Timer"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center" />
+                    <Label x:Name="TimerLabel"
+                           FontSize="48"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center" />
+                    <Label x:Name="TimerStatusLabel"
+                           FontSize="14"
+                           TextColor="Gray"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Frame>
+            <!-- Counters -->
+            <HorizontalStackLayout Spacing="20"
+                                   HorizontalOptions="Center">
+                <Frame BackgroundColor="#E8E8F4"
+                       CornerRadius="12"
+                       Padding="16"
+                       HasShadow="False"
+                       WidthRequest="140">
+                    <VerticalStackLayout HorizontalOptions="Center">
+                        <Label Text="Activations"
+                               FontSize="14"
+                               HorizontalOptions="Center" />
+                        <Label x:Name="ActivationCountLabel"
+                               FontSize="32"
+                               FontAttributes="Bold"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Frame>
+                <Frame BackgroundColor="#F4E8E8"
+                       CornerRadius="12"
+                       Padding="16"
+                       HasShadow="False"
+                       WidthRequest="140">
+                    <VerticalStackLayout HorizontalOptions="Center">
+                        <Label Text="Deactivations"
+                               FontSize="14"
+                               HorizontalOptions="Center" />
+                        <Label x:Name="DeactivationCountLabel"
+                               FontSize="32"
+                               FontAttributes="Bold"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
+                </Frame>
+            </HorizontalStackLayout>
+            <!-- Navigation Instructions -->
+            <Frame BackgroundColor="#FFF8E8"
+                   CornerRadius="12"
+                   Padding="16"
+                   HasShadow="False">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="How it works:"
+                           FontSize="16"
+                           FontAttributes="Bold" />
+                    <Label Text="1. When this page appears, the ViewModel activates automatically"
+                           FontSize="14" />
+                    <Label Text="2. The timer starts running (only while activated)"
+                           FontSize="14" />
+                    <Label Text="3. Navigate to another page - the ViewModel deactivates"
+                           FontSize="14" />
+                    <Label Text="4. Timer stops and disposables are cleaned up"
+                           FontSize="14" />
+                    <Label Text="5. Return to this page - ViewModel activates again"
+                           FontSize="14" />
+                </VerticalStackLayout>
+            </Frame>
+            <!-- Code Sample -->
+            <Frame BackgroundColor="#2D2D2D"
+                   CornerRadius="12"
+                   Padding="16"
+                   HasShadow="False">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="WhenActivated (Visibility-based):"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="White" />
+                    <Label Text="// Fires when Page.Appearing / View.IsVisible = true&#xA;this.WhenActivated((ref DisposableBag d) => {&#xA;    myObservable.Subscribe(...).AddTo(ref d);&#xA;});"
+                           FontSize="12"
+                           FontFamily="Courier New"
+                           TextColor="#98C379" />
+                </VerticalStackLayout>
+            </Frame>
+            <!-- WhenAttached Code Sample -->
+            <Frame BackgroundColor="#2D2D2D"
+                   CornerRadius="12"
+                   Padding="16"
+                   HasShadow="False">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="WhenAttached (Visual Tree-based):"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="White" />
+                    <Label Text="// Fires when Loaded/Unloaded events occur&#xA;this.WhenAttached((ref DisposableBag d) => {&#xA;    // For setup that needs visual tree access&#xA;    oneTimeSetup.Subscribe(...).AddTo(ref d);&#xA;});"
+                           FontSize="12"
+                           FontFamily="Courier New"
+                           TextColor="#61AFEF" />
+                </VerticalStackLayout>
+            </Frame>
+            <!-- Attached Demo -->
+            <Frame BackgroundColor="#E8F0F4"
+                   CornerRadius="12"
+                   Padding="16"
+                   HasShadow="False">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="WhenAttached Demo"
+                           FontSize="18"
+                           FontAttributes="Bold" />
+                    <Label Text="Attached count (Loaded/Unloaded events):"
+                           FontSize="14" />
+                    <Label x:Name="AttachedCountLabel"
+                           Text="0"
+                           FontSize="24"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

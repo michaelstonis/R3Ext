@@ -2,7 +2,7 @@
 
 **Branch**: `feature/platform-activation`  
 **Started**: November 29, 2025  
-**Status**: 🟡 In Progress
+**Status**: ✅ Phase 2 Complete (Platform-Agnostic Source Generator)
 
 ---
 
@@ -19,6 +19,7 @@
 | Base Classes              | **None** - use extensions + source gen     | Avoid inheritance hierarchies        |
 | Target Framework          | .NET 9+                                    | Modern platform baseline             |
 | Service Locator           | **None**                                   | DI only, no Splat or custom locators |
+| **Activation Provider**   | **Registry pattern in core**               | Platform-agnostic, extensible        |
 
 ---
 
@@ -84,7 +85,7 @@
 -   [x] Implement `UseR3Activation(this MauiAppBuilder builder)` extension
 -   [ ] Register `MauiActivationService` as `IActivationService` (deferred - not needed for current API)
 -   [x] **No Splat or service locator usage**
--   [ ] Document DI setup in README
+-   [x] Document DI setup in README (Platform Activation section added)
 
 ### 2.3 Page Activation (Visibility trigger)
 
@@ -100,34 +101,88 @@
 -   [x] Implement `GetActivation(this View view)` returning `Observable<ActivationState>`
 -   [x] Use IsVisible property changes
 -   [x] Handle initial visibility state
--   [ ] Add tests
+-   [x] Add tests (41 tests in R3Ext.Maui.Tests)
 
 ### 2.5 Attached/Detached Support (Attached trigger)
 
 -   [x] Loaded/Unloaded in `PageActivationExtensions.cs` and `ViewActivationExtensions.cs`
 -   [x] Implement Loaded/Unloaded event subscription via `GetLoadedActivation()`
 -   [x] Wire to `WhenAttached` extension method via `MauiActivatableViewExtensions`
--   [ ] Document when to use `WhenAttached` vs `WhenActivated`
+-   [x] Document when to use `WhenAttached` vs `WhenActivated` (ActivationGuide.md)
 
-### 2.6 Source Generator Integration
+### 2.6 Source Generator Integration (Required for Full IViewFor Support)
 
--   [ ] Extend source generator or create MAUI-specific generator
--   [ ] Generate `Activation` property for `IViewFor<T>` implementations
--   [ ] Support `ContentPage`, `ContentView`, `Shell` types
--   [ ] Ensure AOT compatibility (no reflection in generated code)
--   [ ] Add integration tests
+> **Updated**: Source generator is now COMPLETE. The `IViewFor<TViewModel>` pattern gets automatic:
+>
+> 1. **ViewModel ↔ BindingContext sync** - When ViewModel is set, BindingContext updates (and vice versa)
+> 2. **DI resolution** - If ViewModel is null, resolve from `IServiceProvider`
+> 3. **Activation property** - Generate the `Activation` observable from lifecycle events
+
+#### 2.6.1 ViewModel-BindingContext Synchronization
+
+-   [x] Generate `ViewModel` property that syncs with `BindingContext`
+-   [x] Handle two-way sync (setting either updates the other)
+-   [x] Handle type mismatches gracefully (BindingContext set to wrong type)
+-   [x] Fire property change notifications for ViewModel
+
+#### 2.6.2 DI Integration
+
+-   [x] Generate `InitializeViewFor()` method that accepts `IServiceProvider` (or uses app's services)
+-   [x] Auto-resolve ViewModel from DI if not explicitly set
+-   [x] Support property injection pattern (ViewModel assigned after DI resolution)
+-   [x] Use `Application.Current?.Handler?.MauiContext?.Services` as fallback
+
+#### 2.6.3 Activation Property Generation
+
+-   [x] Generate `Activation` property for `IViewFor<T>` implementations
+-   [x] **Platform-agnostic**: Uses `ViewActivation.GetActivation()` from registry
+-   [x] No MAUI-specific code in generator (no `Page`, `View`, `ContentPage` references)
+-   [x] Platforms register providers via `ActivationProviderRegistry.Register()`
+-   [x] Ensure AOT compatibility (no reflection, uses MetadataName for interface lookup)
+
+#### 2.6.4 Source Generator Tasks
+
+-   [x] Added to `R3Ext.Bindings.SourceGenerator` project (ViewForGenerator.cs)
+-   [x] Detect `IViewFor<T>` implementations using MetadataName lookup
+-   [x] Generate partial class with ViewModel/BindingContext sync
+-   [x] Generate Activation property with explicit interface implementation
+-   [x] Generate InitializeViewFor() helper for DI resolution
+-   [x] **Platform-agnostic**: Generator has no platform-specific dependencies
+-   [x] Add integration tests for source generator (14 tests in ViewForGeneratorIntegrationTests.cs)
+-   [x] Document generated code pattern (in IViewForSourceGeneratorDesign.md)
+
+#### 2.6.5 Platform-Agnostic Activation Registry (NEW)
+
+-   [x] Create `R3Ext/Activation/ViewActivation.cs` with:
+    -   [x] `ActivationProviderRegistry.Register(ActivationProvider)` - platform registration
+    -   [x] `ViewActivation.GetActivation(this IActivatableView)` - extension method
+    -   [x] `ActivationProviderRegistry.Clear()` - for testing
+-   [x] Thread-safe provider registration with lock
+-   [x] First provider returning non-null wins
+-   [x] Clear error when no provider registered
+
+#### 2.6.6 MAUI Provider Registration
+
+-   [x] Update `MauiAppBuilderExtensions.UseR3Activation()` to register MAUI provider
+-   [x] Provider handles `Page` → `PageActivationExtensions.GetActivation()`
+-   [x] Provider handles `View` → `ViewActivationExtensions.GetActivation()`
+-   [x] Idempotent registration (safe to call multiple times)
 
 ### 2.7 Sample App Integration
 
 -   [x] Update `R3Ext.SampleApp` to reference `R3Ext.Maui`
 -   [x] Already on .NET 9 target frameworks
 -   [x] Add `UseR3Activation()` to `MauiProgram.cs`
--   [ ] Update existing pages to use `IViewFor<T>`
--   [ ] Add `WhenActivated` usage examples
--   [ ] Add `WhenAttached` usage examples
--   [ ] Create dedicated activation demo page
+-   [x] ActivationDemoPage uses source-generated `IViewFor<T>` infrastructure
+-   [x] Add `WhenActivated` usage examples (in ActivationDemoPage)
+-   [x] Add `WhenAttached` usage examples (in ActivationDemoPage)
+-   [x] Create dedicated activation demo page (`ActivationDemoPage.xaml/cs`)
 
-> **Commit**: `6062aed` - R3Ext.Maui created with Page/View activation, Loaded/Unloaded support, DI integration
+> **Commits**:
+>
+> -   `6062aed` - R3Ext.Maui created with Page/View activation, Loaded/Unloaded support, DI integration
+> -   (pending) - Added R3Ext.Maui.Tests (41 tests), ActivationDemoPage with WhenActivated + WhenAttached examples
+> -   (pending) - Added ViewForGenerator source generator for IViewFor<T> infrastructure
 
 ---
 
@@ -205,8 +260,8 @@
 
 ### 5.2 User Guides
 
--   [ ] Write "Getting Started with Activation" guide
--   [ ] Write MAUI-specific guide
+-   [x] Write "Getting Started with Activation" guide (ActivationGuide.md)
+-   [x] Write MAUI-specific guide (included in ActivationGuide.md)
 -   [ ] Write Blazor-specific guide
 -   [ ] Write Avalonia-specific guide
 -   [ ] Document migration from ReactiveUI
@@ -228,13 +283,21 @@
 
 ## Progress Log
 
-| Date       | Item             | Status       | Notes                                                               |
-| ---------- | ---------------- | ------------ | ------------------------------------------------------------------- |
-| 2025-11-29 | Design Document  | ✅ Complete  | Created PlatformActivationDesign.md                                 |
-| 2025-11-29 | Feature Branch   | ✅ Complete  | Created feature/platform-activation                                 |
-| 2025-11-29 | Design Decisions | ✅ Finalized | Opt-in, separate methods, auto-activation, MS DI, separate packages |
-| 2025-11-29 | Phase 1 Core     | ✅ Complete  | Commit 755f68e - 19 tests, ActivationBlock delegate with ref param  |
-| 2025-11-29 | Phase 2 MAUI     | ✅ Complete  | Commit 6062aed - Page/View activation, Loaded, DI integration       |
+| Date       | Item                         | Status       | Notes                                                               |
+| ---------- | ---------------------------- | ------------ | ------------------------------------------------------------------- |
+| 2025-11-29 | Design Document              | ✅ Complete  | Created PlatformActivationDesign.md                                 |
+| 2025-11-29 | Feature Branch               | ✅ Complete  | Created feature/platform-activation                                 |
+| 2025-11-29 | Design Decisions             | ✅ Finalized | Opt-in, separate methods, auto-activation, MS DI, separate packages |
+| 2025-11-29 | Phase 1 Core                 | ✅ Complete  | Commit 755f68e - 19 tests, ActivationBlock delegate with ref param  |
+| 2025-11-29 | Phase 2 MAUI                 | ✅ Complete  | Commit 6062aed - Page/View activation, Loaded, DI integration       |
+| 2025-11-30 | ViewForGenerator             | ✅ Complete  | Platform-agnostic source generator, registry pattern                |
+| 2025-11-30 | Activation Provider Registry | ✅ Complete  | `ViewActivation.cs` with `ActivationProviderRegistry`               |
+| 2025-11-30 | MAUI Provider                | ✅ Complete  | `UseR3Activation()` registers MAUI-specific activation provider     |
+| 2025-11-30 | IAttachableViewModel         | ✅ Complete  | ViewModelAttacher, AttachableViewModelExtensions for VM WhenAttached |
+| 2025-11-30 | ActivationGuide.md           | ✅ Complete  | Comprehensive docs: WhenActivated vs WhenAttached, MAUI setup       |
+| 2025-11-30 | Source Gen Integration Tests | ✅ Complete  | 14 tests in ViewForGeneratorIntegrationTests.cs                     |
+| 2025-11-30 | README Updates               | ✅ Complete  | Platform Activation section, UseR3Activation() setup, examples      |
+| 2025-11-30 | R3Ext.Maui.Tests             | ✅ Complete  | 55 MAUI activation tests passing                                    |
 
 ---
 
@@ -246,20 +309,32 @@ R3Ext/                          # Core abstractions (net9.0, platform-agnostic)
 │   ├── IActivatable.cs
 │   ├── IActivatableView.cs
 │   ├── IActivatableViewModel.cs
+│   ├── IAttachableViewModel.cs      # NEW: VM attachment lifecycle
 │   ├── IViewFor.cs
-│   ├── IActivationService.cs
 │   ├── ActivationState.cs
 │   ├── ActivationTrigger.cs         # Platform-agnostic: Visibility, Attached, Focus
 │   ├── ViewModelActivator.cs
-│   └── ActivatableExtensions.cs     # WhenActivated, WhenAttached
+│   ├── ViewModelAttacher.cs         # NEW: Manages VM attachment state
+│   ├── ViewActivation.cs            # Activation provider registry
+│   ├── ActivatableViewExtensions.cs # WhenActivated, WhenAttached for views
+│   ├── ActivatableViewModelExtensions.cs
+│   └── AttachableViewModelExtensions.cs  # NEW: WhenAttached for VMs
 
 R3Ext.Maui/                     # MAUI platform package (net9.0-*)
 ├── R3Ext.Maui.csproj
-├── MauiActivationService.cs
-├── PageActivationExtensions.cs      # Extensions, not providers
-├── ViewActivationExtensions.cs
-├── LoadedActivationExtensions.cs
-└── ServiceCollectionExtensions.cs
+├── MauiAppBuilderExtensions.cs      # UseR3Activation() for DI setup
+├── MauiActivatableViewExtensions.cs # WhenActivated, WhenAttached MAUI impl
+├── PageActivationExtensions.cs      # Page Appearing/Disappearing
+├── ViewActivationExtensions.cs      # View IsVisible changes
+└── Internal/
+    ├── MauiActivationState.cs       # WhenActivated state management
+    ├── MauiActivationObserver.cs    # Window-based activation
+    ├── MauiAttachmentState.cs       # WhenAttached state management
+    └── MauiAttachmentObserver.cs    # Unloaded-based cleanup
+
+R3Ext.Maui.Tests/               # MAUI activation tests (55 tests)
+├── MauiActivationFixture.cs         # Test fixture for provider registration
+└── ViewForGeneratorIntegrationTests.cs  # Source generator tests
 
 R3Ext.Blazor/                   # Blazor platform package (net9.0)
 ├── R3Ext.Blazor.csproj

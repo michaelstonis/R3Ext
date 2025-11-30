@@ -4,18 +4,18 @@ using R3Ext.Activation;
 namespace R3Ext.Maui.Internal;
 
 /// <summary>
-/// Observer that handles MAUI activation state changes.
-/// Supports late-bound ViewModels by fetching the activator on each activation.
+/// Observer that handles MAUI attachment state changes (Loaded/Unloaded events).
+/// Supports late-bound ViewModels by fetching the attacher on each attachment.
 /// </summary>
-internal sealed class MauiActivationObserver(MauiActivationState state) : Observer<ActivationState>
+internal sealed class MauiAttachmentObserver(MauiAttachmentState state) : Observer<ActivationState>
 {
     protected override void OnNextCore(ActivationState activationState)
     {
         if (activationState == ActivationState.Activated)
         {
-            // Get the current activator (supports late-bound ViewModels)
-            ViewModelActivator? activator = state.GetActivator?.Invoke();
-            state.VmActivationHandle = activator?.Activate();
+            // Get the current attacher (supports late-bound ViewModels)
+            ViewModelAttacher? attacher = state.GetAttacher?.Invoke();
+            state.VmAttachmentHandle = attacher?.Attach();
 
             // Execute the block with a new disposable bag
             state.CurrentBag = default;
@@ -23,24 +23,24 @@ internal sealed class MauiActivationObserver(MauiActivationState state) : Observ
         }
         else
         {
-            // Deactivate: dispose the bag and view model handle
+            // Detach: dispose the bag and view model handle
             state.CurrentBag.Dispose();
             state.CurrentBag = default;
 
-            state.VmActivationHandle?.Dispose();
-            state.VmActivationHandle = null;
+            state.VmAttachmentHandle?.Dispose();
+            state.VmAttachmentHandle = null;
         }
     }
 
     protected override void OnErrorResumeCore(Exception error)
     {
-        // Log error but don't propagate - activation should be resilient
+        // Log error but don't propagate - attachment should be resilient
     }
 
     protected override void OnCompletedCore(Result result)
     {
         // Ensure cleanup on completion
         state.CurrentBag.Dispose();
-        state.VmActivationHandle?.Dispose();
+        state.VmAttachmentHandle?.Dispose();
     }
 }

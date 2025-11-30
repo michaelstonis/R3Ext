@@ -5,18 +5,23 @@ namespace R3Ext.Maui.Internal;
 
 /// <summary>
 /// State object for MAUI activation, avoiding closure allocations.
+/// Supports late-bound ViewModels by using a delegate to fetch the activator.
 /// </summary>
 internal sealed class MauiActivationState
 {
-    public MauiActivationState(ActivationBlock block, ViewModelActivator? vmActivator)
+    public MauiActivationState(ActivationBlock block, Func<ViewModelActivator?>? getActivator)
     {
         Block = block;
-        ViewModelActivator = vmActivator;
+        GetActivator = getActivator;
     }
 
     public ActivationBlock Block { get; }
 
-    public ViewModelActivator? ViewModelActivator { get; }
+    /// <summary>
+    /// Gets the delegate to fetch the current ViewModelActivator.
+    /// Called on each activation to support late-bound ViewModels.
+    /// </summary>
+    public Func<ViewModelActivator?>? GetActivator { get; }
 
     public DisposableBag CurrentBag;
 

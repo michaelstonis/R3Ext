@@ -1,3 +1,4 @@
+using System.Linq;
 using R3;
 
 namespace R3Ext.Activation;
@@ -54,7 +55,10 @@ public static class ActivatableViewExtensions
         ArgumentNullException.ThrowIfNull(view);
         ArgumentNullException.ThrowIfNull(block);
 
-        var state = new ViewActivationState(block, null);
+        // Check if the view implements IViewFor and has an activatable ViewModel
+        ViewModelActivator? vmActivator = GetViewModelActivator(view);
+
+        var state = new ViewActivationState(block, vmActivator);
         var subscription = view.Activation.Subscribe(new ViewActivationObserver(state));
 
         // When disposed, clean up both the subscription and any current activation state
@@ -68,31 +72,29 @@ public static class ActivatableViewExtensions
     }
 
     /// <summary>
-    /// Executes a block when the view is activated, with automatic view model activation.
+    /// Gets the ViewModelActivator from an IViewFor view's ViewModel, if available.
     /// </summary>
-    /// <typeparam name="TViewModel">The view model type.</typeparam>
-    /// <param name="view">The view implementing IViewFor.</param>
-    /// <param name="block">The block to execute on activation.</param>
-    /// <returns>An <see cref="IDisposable"/> that stops monitoring when disposed.</returns>
-    public static IDisposable WhenActivated<TViewModel>(
-        this IViewFor<TViewModel> view,
-        ActivationBlock block)
-        where TViewModel : class
+    private static ViewModelActivator? GetViewModelActivator(IActivatableView view)
     {
-        ArgumentNullException.ThrowIfNull(view);
-        ArgumentNullException.ThrowIfNull(block);
+        // Check if view implements IViewFor<T> via reflection on the ViewModel property
+        var viewType = view.GetType();
+        var viewForInterface = viewType.GetInterfaces()
+            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IViewFor<>));
 
-        var vmActivator = GetViewModelActivator(view);
-        var state = new ViewActivationState(block, vmActivator);
-        var subscription = view.Activation.Subscribe(new ViewActivationObserver(state));
-
-        return Disposable.Combine(
-            subscription,
-            Disposable.Create(state, static s =>
+        if (viewForInterface is not null)
+        {
+            var vmProperty = viewForInterface.GetProperty("ViewModel");
+            if (vmProperty is not null)
             {
-                s.CurrentBag.Dispose();
-                s.VmActivationHandle?.Dispose();
-            }));
+                var vm = vmProperty.GetValue(view);
+                if (vm is IActivatableViewModel activatableVm)
+                {
+                    return activatableVm.Activator;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -143,18 +145,6 @@ public static class ActivatableViewExtensions
                 s.CurrentBag.Dispose();
                 s.VmActivationHandle?.Dispose();
             }));
-    }
-
-    private static ViewModelActivator? GetViewModelActivator<TViewModel>(IViewFor<TViewModel> view)
-        where TViewModel : class
-    {
-        // No reflection - direct type checking
-        if (!view.AutoActivateViewModel)
-        {
-            return null;
-        }
-
-        return (view.ViewModel as IActivatableViewModel)?.Activator;
     }
 
     /// <summary>

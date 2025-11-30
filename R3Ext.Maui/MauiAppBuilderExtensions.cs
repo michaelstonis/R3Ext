@@ -1,5 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.Controls;
 using Microsoft.Maui.Hosting;
+using R3;
+using R3Ext.Activation;
 
 namespace R3Ext.Maui;
 
@@ -8,6 +11,8 @@ namespace R3Ext.Maui;
 /// </summary>
 public static class MauiAppBuilderExtensions
 {
+    private static int _registered;
+
     /// <summary>
     /// Configures R3Ext activation support for the MAUI application.
     /// </summary>
@@ -41,9 +46,9 @@ public static class MauiAppBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        // Register activation services
-        // Currently this is a marker method for future services
-        // The actual activation is done via extension methods on Page/View
+        // Register the MAUI activation provider with the platform-agnostic registry.
+        // This is idempotent - calling UseR3Activation multiple times is safe.
+        RegisterMauiActivationProvider();
 
         return builder;
     }
@@ -61,6 +66,8 @@ public static class MauiAppBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
+        RegisterMauiActivationProvider();
+
         var options = new R3ActivationOptions();
         configure(options);
 
@@ -68,6 +75,32 @@ public static class MauiAppBuilderExtensions
         builder.Services.AddSingleton(options);
 
         return builder;
+    }
+
+    /// <summary>
+    /// Registers the MAUI-specific activation provider with the platform-agnostic registry.
+    /// This method is idempotent.
+    /// </summary>
+    private static void RegisterMauiActivationProvider()
+    {
+        if (Interlocked.Exchange(ref _registered, 1) == 1)
+        {
+            return;
+        }
+
+        // Register the MAUI activation provider.
+        // It handles Page and View types by delegating to the appropriate extension methods.
+        ActivationProviderRegistry.Register(MauiActivationProvider);
+    }
+
+    private static Observable<ActivationState>? MauiActivationProvider(object view)
+    {
+        return view switch
+        {
+            Page page => page.GetActivation(),
+            View mauiView => mauiView.GetActivation(),
+            _ => null,
+        };
     }
 }
 
