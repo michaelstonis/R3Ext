@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:R3Ext.Avalonia.SampleApp.ViewModels"
+        xmlns:views="using:R3Ext.Avalonia.SampleApp.Views"
+        x:Class="R3Ext.Avalonia.SampleApp.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="R3Ext Avalonia Sample"
+        Width="800"
+        Height="600"
+        WindowStartupLocation="CenterScreen">
+    <Design.DataContext>
+        <vm:MainWindowViewModel />
+    </Design.DataContext>
+    <DockPanel>
+        <!-- Navigation Panel -->
+        <Border DockPanel.Dock="Left"
+                Background="#2D2D2D"
+                Width="200"
+                Padding="10">
+            <StackPanel Spacing="5">
+                <TextBlock Text="R3Ext Avalonia"
+                           FontSize="18"
+                           FontWeight="Bold"
+                           Foreground="White"
+                           Margin="0,0,0,20" />
+                <Button Content="Activation Demo"
+                        Command="{Binding NavigateToActivationDemoCommand}"
+                        HorizontalAlignment="Stretch"
+                        Classes.selected="{Binding IsActivationDemoSelected}" />
+                <Button Content="Timer Demo"
+                        Command="{Binding NavigateToTimerDemoCommand}"
+                        HorizontalAlignment="Stretch"
+                        Classes.selected="{Binding IsTimerDemoSelected}" />
+                <Separator Margin="0,20" />
+                <TextBlock Text="Navigation Info"
+                           Foreground="#888888"
+                           FontSize="11" />
+                <TextBlock Text="Switch between pages to see"
+                           Foreground="#888888"
+                           FontSize="11"
+                           TextWrapping="Wrap" />
+                <TextBlock Text="activation/deactivation lifecycle"
+                           Foreground="#888888"
+                           FontSize="11"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+        <!-- Content Area -->
+        <ContentControl Content="{Binding CurrentView}" />
+    </DockPanel>
+    <Window.Styles>
+        <Style Selector="Button">
+            <Setter Property="Background"
+                    Value="Transparent" />
+            <Setter Property="Foreground"
+                    Value="#CCCCCC" />
+            <Setter Property="Padding"
+                    Value="10,8" />
+            <Setter Property="CornerRadius"
+                    Value="4" />
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background"
+                    Value="#3D3D3D" />
+        </Style>
+        <Style Selector="Button.selected">
+            <Setter Property="Background"
+                    Value="#0078D4" />
+            <Setter Property="Foreground"
+                    Value="White" />
+        </Style>
+    </Window.Styles>
+</Window>

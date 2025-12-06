@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Importing project must be able to locate this assembly; when used via project reference, we build a relative path -->
+  <PropertyGroup>
+    <R3ExtAvaloniaTargetsAssembly>$(MSBuildThisFileDirectory)bin/$(Configuration)/netstandard2.0/R3Ext.Bindings.AvaloniaTargets.dll</R3ExtAvaloniaTargetsAssembly>
+  </PropertyGroup>
+  <UsingTask TaskName="R3Ext.Bindings.AvaloniaTargets.GenerateAvaloniaUiBindingTargetsTask"
+             AssemblyFile="$(R3ExtAvaloniaTargetsAssembly)"/>
+  <Target Name="GenerateAvaloniaUiBindingTargets"
+          BeforeTargets="CoreCompile"
+          Condition=" '$(GenerateR3ExtUiBindingTargets)' == 'true' ">
+    <ItemGroup>
+      <!-- Include Avalonia-generated .g.cs files -->
+      <AvaloniaGeneratedCodeFiles Include="$(IntermediateOutputPath)**/*.g.cs"/>
+      <!-- Also check for generated files in obj/gen (if EmitCompilerGeneratedFiles is enabled) -->
+      <AvaloniaGeneratedCodeFiles Include="$(MSBuildProjectDirectory)/obj/gen/**/*.g.cs"/>
+      <!-- AXAML files for fallback parsing -->
+      <AxamlFiles Include="**/*.axaml"/>
+    </ItemGroup>
+    <GenerateAvaloniaUiBindingTargetsTask ProjectAssemblyName="$(AssemblyName)"
+                                          IntermediateOutputPath="$(IntermediateOutputPath)"
+                                          GeneratedCodeFiles="@(AvaloniaGeneratedCodeFiles)"
+                                          AxamlFiles="@(AxamlFiles)"/>
+    <!-- Expose the emitted JSON to analyzers in this project -->
+    <ItemGroup>
+      <AdditionalFiles Include="$(IntermediateOutputPath)**/R3Ext.BindingTargets.json"/>
+    </ItemGroup>
+  </Target>
+</Project>

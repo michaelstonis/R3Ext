@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <!-- AOT Compatibility -->
+        <IsAotCompatible>true</IsAotCompatible>
+        <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+        <!-- Package Info -->
+        <PackageId>R3Ext.Avalonia</PackageId>
+        <Description>Avalonia platform support for R3Ext activation lifecycle</Description>
+        <Authors>Michael Stonis</Authors>
+        <PackageTags>R3;Reactive;Avalonia;MVVM;Activation</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Avalonia"
+                          Version="11.2.2" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
+    </ItemGroup>
+</Project>

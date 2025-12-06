@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Avalonia"
+                          Version="11.2.*" />
+        <PackageReference Include="Avalonia.Desktop"
+                          Version="11.2.*" />
+        <PackageReference Include="Avalonia.Themes.Fluent"
+                          Version="11.2.*" />
+        <PackageReference Include="Avalonia.Headless"
+                          Version="11.2.*" />
+        <PackageReference Include="Avalonia.Headless.XUnit"
+                          Version="11.2.*" />
+        <PackageReference Include="Avalonia.Skia"
+                          Version="11.2.*" />
+        <PackageReference Include="coverlet.collector"
+                          Version="6.0.2" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk"
+                          Version="18.0.1" />
+        <PackageReference Include="xunit"
+                          Version="2.9.2" />
+        <PackageReference Include="xunit.runner.visualstudio"
+                          Version="3.1.5">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+    <ItemGroup>
+        <Using Include="Xunit" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\R3Ext.Avalonia\R3Ext.Avalonia.csproj" />
+        <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
+    </ItemGroup>
+</Project>

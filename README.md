@@ -440,10 +440,10 @@ public class MainViewModel : IActivatableViewModel, IDisposable
 
 **Activation Methods:**
 
-| Method | Trigger | Use Case |
-|--------|---------|----------|
-| `WhenActivated` | Page Appearing/Disappearing | Polling, real-time data, animations |
-| `WhenAttached` | View Loaded/Unloaded | One-time setup, resource initialization |
+| Method          | Trigger                     | Use Case                                |
+| --------------- | --------------------------- | --------------------------------------- |
+| `WhenActivated` | Page Appearing/Disappearing | Polling, real-time data, animations     |
+| `WhenAttached`  | View Loaded/Unloaded        | One-time setup, resource initialization |
 
 For detailed documentation, see [docs/ActivationGuide.md](docs/ActivationGuide.md).
 

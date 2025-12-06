@@ -2,7 +2,7 @@
 
 **Branch**: `feature/platform-activation`  
 **Started**: November 29, 2025  
-**Status**: ✅ Phase 2 Complete (Platform-Agnostic Source Generator)
+**Status**: ✅ Phase 4 Complete (Avalonia Support)
 
 ---
 
@@ -219,34 +219,43 @@
 
 ---
 
-## Phase 4: Avalonia Platform Support (new `R3Ext.Avalonia` project)
+## Phase 4: Avalonia Platform Support (new `R3Ext.Avalonia` project) ✅ COMPLETE
 
 ### 4.1 Project Setup
 
--   [ ] Create `R3Ext.Avalonia/` project directory
--   [ ] Create `R3Ext.Avalonia.csproj` targeting `net9.0`
--   [ ] Add reference to `R3Ext` core project
--   [ ] Add Avalonia dependencies
--   [ ] Enable AOT compatibility settings
+-   [x] Create `R3Ext.Avalonia/` project directory
+-   [x] Create `R3Ext.Avalonia.csproj` targeting `net9.0`
+-   [x] Add reference to `R3Ext` core project
+-   [x] Add Avalonia dependencies
+-   [x] Enable AOT compatibility settings
 
 ### 4.2 Visual Tree Activation (via extensions)
 
--   [ ] Create `VisualActivationExtensions.cs` - **not a base class**
--   [ ] Implement `AttachedToVisualTree` → Activated (`WhenAttached`)
--   [ ] Implement `DetachedFromVisualTree` → Deactivated
--   [ ] Handle visual tree edge cases
+-   [x] Create `VisualActivationExtensions.cs` - **not a base class**
+-   [x] Implement `AttachedToVisualTree` → Activated (`WhenActivated`)
+-   [x] Implement `DetachedFromVisualTree` → Deactivated
+-   [x] Handle visual tree edge cases
+-   [x] Implement `GetVisibilityActivation()` for IsVisible changes
 
 ### 4.3 DI Integration
 
--   [ ] Create `ServiceCollectionExtensions.cs`
--   [ ] Support Avalonia's DI patterns
--   [ ] **No Splat or service locator usage**
+-   [x] Create `AvaloniaAppBuilderExtensions.cs`
+-   [x] Implement `UseR3Activation(this AppBuilder)` extension
+-   [x] Register Avalonia activation provider
+-   [x] **No Splat or service locator usage**
 
 ### 4.4 Tests & Samples
 
--   [ ] Create `R3Ext.Avalonia.Tests` project
--   [ ] Add visual tree lifecycle tests
--   [ ] Create sample Avalonia app (optional)
+-   [x] Create `R3Ext.Avalonia.Tests` project (26 tests)
+-   [x] Add visual tree lifecycle tests
+-   [x] Add visibility activation tests
+-   [x] Add WhenActivated/WhenAttached tests
+-   [ ] Create sample Avalonia app (optional - deferred)
+
+> **Commits**:
+>
+> -   (pending) - R3Ext.Avalonia with Visual activation, AppBuilder extensions, provider registration
+> -   (pending) - R3Ext.Avalonia.Tests with 26 tests for activation lifecycle
 
 ---
 
@@ -283,21 +292,22 @@
 
 ## Progress Log
 
-| Date       | Item                         | Status       | Notes                                                               |
-| ---------- | ---------------------------- | ------------ | ------------------------------------------------------------------- |
-| 2025-11-29 | Design Document              | ✅ Complete  | Created PlatformActivationDesign.md                                 |
-| 2025-11-29 | Feature Branch               | ✅ Complete  | Created feature/platform-activation                                 |
-| 2025-11-29 | Design Decisions             | ✅ Finalized | Opt-in, separate methods, auto-activation, MS DI, separate packages |
-| 2025-11-29 | Phase 1 Core                 | ✅ Complete  | Commit 755f68e - 19 tests, ActivationBlock delegate with ref param  |
-| 2025-11-29 | Phase 2 MAUI                 | ✅ Complete  | Commit 6062aed - Page/View activation, Loaded, DI integration       |
-| 2025-11-30 | ViewForGenerator             | ✅ Complete  | Platform-agnostic source generator, registry pattern                |
-| 2025-11-30 | Activation Provider Registry | ✅ Complete  | `ViewActivation.cs` with `ActivationProviderRegistry`               |
-| 2025-11-30 | MAUI Provider                | ✅ Complete  | `UseR3Activation()` registers MAUI-specific activation provider     |
+| Date       | Item                         | Status       | Notes                                                                |
+| ---------- | ---------------------------- | ------------ | -------------------------------------------------------------------- |
+| 2025-11-29 | Design Document              | ✅ Complete  | Created PlatformActivationDesign.md                                  |
+| 2025-11-29 | Feature Branch               | ✅ Complete  | Created feature/platform-activation                                  |
+| 2025-11-29 | Design Decisions             | ✅ Finalized | Opt-in, separate methods, auto-activation, MS DI, separate packages  |
+| 2025-11-29 | Phase 1 Core                 | ✅ Complete  | Commit 755f68e - 19 tests, ActivationBlock delegate with ref param   |
+| 2025-11-29 | Phase 2 MAUI                 | ✅ Complete  | Commit 6062aed - Page/View activation, Loaded, DI integration        |
+| 2025-11-30 | ViewForGenerator             | ✅ Complete  | Platform-agnostic source generator, registry pattern                 |
+| 2025-11-30 | Activation Provider Registry | ✅ Complete  | `ViewActivation.cs` with `ActivationProviderRegistry`                |
+| 2025-11-30 | MAUI Provider                | ✅ Complete  | `UseR3Activation()` registers MAUI-specific activation provider      |
 | 2025-11-30 | IAttachableViewModel         | ✅ Complete  | ViewModelAttacher, AttachableViewModelExtensions for VM WhenAttached |
-| 2025-11-30 | ActivationGuide.md           | ✅ Complete  | Comprehensive docs: WhenActivated vs WhenAttached, MAUI setup       |
-| 2025-11-30 | Source Gen Integration Tests | ✅ Complete  | 14 tests in ViewForGeneratorIntegrationTests.cs                     |
-| 2025-11-30 | README Updates               | ✅ Complete  | Platform Activation section, UseR3Activation() setup, examples      |
-| 2025-11-30 | R3Ext.Maui.Tests             | ✅ Complete  | 55 MAUI activation tests passing                                    |
+| 2025-11-30 | ActivationGuide.md           | ✅ Complete  | Comprehensive docs: WhenActivated vs WhenAttached, MAUI setup        |
+| 2025-11-30 | Source Gen Integration Tests | ✅ Complete  | 14 tests in ViewForGeneratorIntegrationTests.cs                      |
+| 2025-11-30 | README Updates               | ✅ Complete  | Platform Activation section, UseR3Activation() setup, examples       |
+| 2025-11-30 | R3Ext.Maui.Tests             | ✅ Complete  | 55 MAUI activation tests passing                                     |
+| 2025-11-30 | Phase 4 Avalonia             | ✅ Complete  | R3Ext.Avalonia with Visual tree activation, 26 tests passing         |
 
 ---
 

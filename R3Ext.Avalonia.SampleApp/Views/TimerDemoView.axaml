@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:R3Ext.SampleApp.ViewModels"
+             x:Class="R3Ext.Avalonia.SampleApp.Views.TimerDemoView"
+             x:DataType="vm:TimerDemoViewModel">
+    <Design.DataContext>
+        <vm:TimerDemoViewModel />
+    </Design.DataContext>
+    <ScrollViewer Padding="24">
+        <StackPanel Spacing="20"
+                    MaxWidth="600">
+            <!-- Header -->
+            <TextBlock Text="Timer Demo"
+                       FontSize="28"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center" />
+            <TextBlock Text="Another view to demonstrate navigation and R3Ext bindings. When you navigate away from the Activation Demo, its timer stops and resources are cleaned up."
+                       FontSize="14"
+                       Foreground="#666666"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center" />
+            <!-- Local Timer Card -->
+            <Border Background="#E8F4E8"
+                    CornerRadius="12"
+                    Padding="24">
+                <StackPanel Spacing="12"
+                            HorizontalAlignment="Center">
+                    <TextBlock Text="This Page's Timer (seconds)"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center" />
+                    <TextBlock x:Name="TimerLabel"
+                               FontSize="64"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               Text="0" />
+                    <TextBlock x:Name="StatusLabel"
+                               FontSize="14"
+                               Foreground="#666666"
+                               HorizontalAlignment="Center"
+                               Text="Waiting..." />
+                </StackPanel>
+            </Border>
+            <!-- Running Status -->
+            <Border Background="#E8E8F4"
+                    CornerRadius="12"
+                    Padding="16">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="Running"
+                               FontSize="14"
+                               HorizontalAlignment="Center" />
+                    <TextBlock x:Name="RunningLabel"
+                               FontSize="24"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               Text="False" />
+                </StackPanel>
+            </Border>
+            <!-- Instructions -->
+            <Border Background="#FFF8E8"
+                    CornerRadius="12"
+                    Padding="16">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Try this:"
+                               FontSize="16"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="1. Note the timer value"
+                               FontSize="14" />
+                    <TextBlock Text="2. Click 'Activation Demo' in the sidebar"
+                               FontSize="14" />
+                    <TextBlock Text="3. Notice both timers run independently"
+                               FontSize="14" />
+                    <TextBlock Text="4. Each view manages its own lifecycle!"
+                               FontSize="14" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

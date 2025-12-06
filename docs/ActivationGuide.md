@@ -6,10 +6,10 @@ This guide explains the activation system in R3Ext, which manages the lifecycle 
 
 R3Ext provides two distinct activation patterns that correspond to different lifecycle events:
 
-| Method | Trigger | Use Case |
-|--------|---------|----------|
-| `WhenActivated` | Visibility (Appearing/Disappearing) | Start/stop work when page is visible |
-| `WhenAttached` | Loaded/Unloaded | Setup/teardown when added to visual tree |
+| Method          | Trigger                             | Use Case                                 |
+| --------------- | ----------------------------------- | ---------------------------------------- |
+| `WhenActivated` | Visibility (Appearing/Disappearing) | Start/stop work when page is visible     |
+| `WhenAttached`  | Loaded/Unloaded                     | Setup/teardown when added to visual tree |
 
 ## Quick Start
 
@@ -23,10 +23,10 @@ public static MauiApp CreateMauiApp()
     builder
         .UseMauiApp<App>()
         .UseR3Activation();  // Register R3Ext activation support
-    
+
     // Register your ViewModels
     builder.Services.AddTransient<MyViewModel>();
-    
+
     return builder.Build();
 }
 ```
@@ -39,21 +39,22 @@ public partial class MyPage : ContentPage, IViewFor<MyViewModel>
     public MyPage()
     {
         InitializeComponent();
-        
+
         // Initialize the view-viewmodel infrastructure
         // This syncs ViewModel with BindingContext and sets up DI resolution
         this.InitializeViewFor();
     }
-    
+
     // Implement the interface
     public MyViewModel? ViewModel { get; set; }
 }
 ```
 
 The source generator automatically provides:
-- ViewModel ↔ BindingContext synchronization
-- The `Activation` observable property
-- The `InitializeViewFor()` helper method
+
+-   ViewModel ↔ BindingContext synchronization
+-   The `Activation` observable property
+-   The `InitializeViewFor()` helper method
 
 ---
 
@@ -62,9 +63,10 @@ The source generator automatically provides:
 ### WhenActivated (Visibility-Based)
 
 Use `WhenActivated` for work that should:
-- Start when the page becomes **visible** to the user
-- Stop when the page is **hidden** (navigated away, covered by modal, etc.)
-- Restart when the page becomes visible again
+
+-   Start when the page becomes **visible** to the user
+-   Stop when the page is **hidden** (navigated away, covered by modal, etc.)
+-   Restart when the page becomes visible again
 
 **MAUI Events**: `Page.Appearing` / `Page.Disappearing`
 
@@ -75,7 +77,7 @@ public partial class DashboardPage : ContentPage, IViewFor<DashboardViewModel>
     {
         InitializeComponent();
         this.InitializeViewFor();
-        
+
         // This runs each time the page becomes visible
         this.WhenActivated((ref DisposableBag d) =>
         {
@@ -83,14 +85,14 @@ public partial class DashboardPage : ContentPage, IViewFor<DashboardViewModel>
             Observable.Interval(TimeSpan.FromSeconds(30))
                 .Subscribe(_ => ViewModel?.RefreshData())
                 .AddTo(ref d);  // Automatically stopped when page disappears
-            
+
             // Set up bindings that only matter when visible
             ViewModel?.StatusMessage
                 .Subscribe(msg => statusLabel.Text = msg)
                 .AddTo(ref d);
         });
     }
-    
+
     public DashboardViewModel? ViewModel { get; set; }
 }
 ```
@@ -98,9 +100,10 @@ public partial class DashboardPage : ContentPage, IViewFor<DashboardViewModel>
 ### WhenAttached (Load-Based)
 
 Use `WhenAttached` for work that should:
-- Start when the view is **loaded** into the visual tree
-- Stop when the view is **unloaded** (removed from parent, page disposed)
-- Only run once per load cycle (not affected by visibility changes)
+
+-   Start when the view is **loaded** into the visual tree
+-   Stop when the view is **unloaded** (removed from parent, page disposed)
+-   Only run once per load cycle (not affected by visibility changes)
 
 **MAUI Events**: `Loaded` / `Unloaded`
 
@@ -111,7 +114,7 @@ public partial class VideoPlayerView : ContentView, IViewFor<VideoPlayerViewMode
     {
         InitializeComponent();
         this.InitializeViewFor();
-        
+
         // This runs when the view is added to the visual tree
         this.WhenAttached((ref DisposableBag d) =>
         {
@@ -119,29 +122,29 @@ public partial class VideoPlayerView : ContentView, IViewFor<VideoPlayerViewMode
             ViewModel?.InitializePlayer()
                 .Subscribe()
                 .AddTo(ref d);
-            
+
             // Cleanup happens automatically when unloaded
             Disposable.Create(() => ViewModel?.ReleaseResources())
                 .AddTo(ref d);
         });
     }
-    
+
     public VideoPlayerViewModel? ViewModel { get; set; }
 }
 ```
 
 ### Decision Matrix
 
-| Scenario | Use |
-|----------|-----|
-| Real-time data polling | `WhenActivated` |
-| Timer-based UI updates | `WhenActivated` |
+| Scenario                           | Use             |
+| ---------------------------------- | --------------- |
+| Real-time data polling             | `WhenActivated` |
+| Timer-based UI updates             | `WhenActivated` |
 | Network subscriptions (live feeds) | `WhenActivated` |
-| Hardware resource initialization | `WhenAttached` |
-| One-time data loading | `WhenAttached` |
-| Event handler registration | `WhenAttached` |
-| Animation setup | `WhenActivated` |
-| Sensor monitoring | `WhenActivated` |
+| Hardware resource initialization   | `WhenAttached`  |
+| One-time data loading              | `WhenAttached`  |
+| Event handler registration         | `WhenAttached`  |
+| Animation setup                    | `WhenActivated` |
+| Sensor monitoring                  | `WhenActivated` |
 
 ### Combining Both
 
@@ -154,7 +157,7 @@ public partial class CameraPage : ContentPage, IViewFor<CameraViewModel>
     {
         InitializeComponent();
         this.InitializeViewFor();
-        
+
         // One-time setup when loaded
         this.WhenAttached((ref DisposableBag d) =>
         {
@@ -162,19 +165,19 @@ public partial class CameraPage : ContentPage, IViewFor<CameraViewModel>
                 .Subscribe()
                 .AddTo(ref d);
         });
-        
+
         // Start/stop camera feed based on visibility
         this.WhenActivated((ref DisposableBag d) =>
         {
             ViewModel?.StartPreview()
                 .Subscribe()
                 .AddTo(ref d);
-                
+
             Disposable.Create(() => ViewModel?.StopPreview())
                 .AddTo(ref d);
         });
     }
-    
+
     public CameraViewModel? ViewModel { get; set; }
 }
 ```
@@ -191,9 +194,9 @@ ViewModels can also participate in the activation lifecycle by implementing `IAc
 public class DashboardViewModel : IActivatableViewModel, IDisposable
 {
     private DisposableBag _disposables;
-    
+
     public ViewModelActivator Activator { get; } = new();
-    
+
     public DashboardViewModel()
     {
         // This runs when the associated view becomes visible
@@ -205,7 +208,7 @@ public class DashboardViewModel : IActivatableViewModel, IDisposable
                 .AddTo(ref d);
         }).AddTo(ref _disposables);
     }
-    
+
     public void Dispose() => _disposables.Dispose();
 }
 ```
@@ -216,9 +219,9 @@ public class DashboardViewModel : IActivatableViewModel, IDisposable
 public class MediaPlayerViewModel : IAttachableViewModel, IDisposable
 {
     private DisposableBag _disposables;
-    
+
     public ViewModelAttacher Attacher { get; } = new();
-    
+
     public MediaPlayerViewModel()
     {
         // This runs when the associated view is loaded
@@ -226,12 +229,12 @@ public class MediaPlayerViewModel : IAttachableViewModel, IDisposable
         {
             // Initialize media engine
             InitializeMediaEngine();
-            
+
             Disposable.Create(() => DisposeMediaEngine())
                 .AddTo(ref d);
         }).AddTo(ref _disposables);
     }
-    
+
     public void Dispose() => _disposables.Dispose();
 }
 ```
@@ -244,10 +247,10 @@ A ViewModel can implement both interfaces to respond to different lifecycle even
 public class StreamingViewModel : IActivatableViewModel, IAttachableViewModel, IDisposable
 {
     private DisposableBag _disposables;
-    
+
     public ViewModelActivator Activator { get; } = new();
     public ViewModelAttacher Attacher { get; } = new();
-    
+
     public StreamingViewModel()
     {
         // One-time connection setup
@@ -257,7 +260,7 @@ public class StreamingViewModel : IActivatableViewModel, IAttachableViewModel, I
                 .Subscribe()
                 .AddTo(ref d);
         }).AddTo(ref _disposables);
-        
+
         // Start/stop streaming based on visibility
         this.WhenActivated((ref DisposableBag d) =>
         {
@@ -266,7 +269,7 @@ public class StreamingViewModel : IActivatableViewModel, IAttachableViewModel, I
                 .AddTo(ref d);
         }).AddTo(ref _disposables);
     }
-    
+
     public void Dispose() => _disposables.Dispose();
 }
 ```
@@ -287,7 +290,7 @@ public partial class ManualPage : ContentPage, IViewFor<MyViewModel>
 {
     // Override to disable auto-activation
     public bool AutoActivateViewModel => false;
-    
+
     public MyViewModel? ViewModel { get; set; }
 }
 ```
@@ -305,27 +308,28 @@ public partial class SimplePage : ContentPage, IViewFor<SimpleViewModel>
     {
         InitializeComponent();
         this.InitializeViewFor();
-        
+
         // No need to store the return value!
         // Cleanup happens automatically when the element is removed
         this.WhenActivated((ref DisposableBag d) =>
         {
             // Your subscriptions here
         });
-        
+
         this.WhenAttached((ref DisposableBag d) =>
         {
             // Your subscriptions here
         });
     }
-    
+
     public SimpleViewModel? ViewModel { get; set; }
 }
 ```
 
 The cleanup logic:
-- **WhenActivated**: Disposes when `Window` property becomes `null`
-- **WhenAttached**: Disposes when `Unloaded` event fires
+
+-   **WhenActivated**: Disposes when `Window` property becomes `null`
+-   **WhenAttached**: Disposes when `Unloaded` event fires
 
 ---
 
@@ -340,19 +344,19 @@ public partial class DetailPage : ContentPage, IViewFor<DetailViewModel>
     {
         InitializeComponent();
         this.InitializeViewFor();
-        
+
         // WhenActivated will pick up the ViewModel when it's set
         this.WhenActivated((ref DisposableBag d) =>
         {
             // ViewModel might be null on first activation
             if (ViewModel is null) return;
-            
+
             ViewModel.Title
                 .Subscribe(t => titleLabel.Text = t)
                 .AddTo(ref d);
         });
     }
-    
+
     public DetailViewModel? ViewModel { get; set; }
 }
 
@@ -385,13 +389,13 @@ public partial class HomePage : ContentPage, IViewFor<HomeViewModel>
     public HomePage()
     {
         InitializeComponent();
-        
+
         // If ViewModel is null, InitializeViewFor will resolve from DI
         this.InitializeViewFor();
-        
+
         // ViewModel is now set (if registered in DI)
     }
-    
+
     public HomeViewModel? ViewModel { get; set; }
 }
 ```
@@ -409,7 +413,7 @@ public partial class ProfilePage : ContentPage, IViewFor<ProfileViewModel>
         ViewModel = viewModel;
         this.InitializeViewFor();
     }
-    
+
     public ProfileViewModel? ViewModel { get; set; }
 }
 
@@ -424,18 +428,18 @@ builder.Services.AddTransient<ProfileViewModel>();
 
 ### ✅ Do
 
-- Use `WhenActivated` for visibility-sensitive work (polling, animations, sensors)
-- Use `WhenAttached` for one-time setup and resource management
-- Keep activation blocks focused and small
-- Use `AddTo(ref d)` to register cleanup
-- Implement `IDisposable` on ViewModels that use activation
+-   Use `WhenActivated` for visibility-sensitive work (polling, animations, sensors)
+-   Use `WhenAttached` for one-time setup and resource management
+-   Keep activation blocks focused and small
+-   Use `AddTo(ref d)` to register cleanup
+-   Implement `IDisposable` on ViewModels that use activation
 
 ### ❌ Don't
 
-- Don't store the `IDisposable` from `WhenActivated`/`WhenAttached` unless needed for early disposal
-- Don't put heavy initialization in `WhenActivated` (use `WhenAttached` instead)
-- Don't forget to call `InitializeViewFor()` in your view constructor
-- Don't create long-lived subscriptions outside of activation blocks
+-   Don't store the `IDisposable` from `WhenActivated`/`WhenAttached` unless needed for early disposal
+-   Don't put heavy initialization in `WhenActivated` (use `WhenAttached` instead)
+-   Don't forget to call `InitializeViewFor()` in your view constructor
+-   Don't create long-lived subscriptions outside of activation blocks
 
 ### Performance Tips
 
@@ -455,12 +459,12 @@ this.WhenActivated(static (ref DisposableBag d) =>
 
 ## Platform Event Mapping
 
-| Platform | WhenActivated Trigger | WhenAttached Trigger |
-|----------|----------------------|---------------------|
-| MAUI Page | Appearing/Disappearing | Loaded/Unloaded |
-| MAUI View | IsVisible changes | Loaded/Unloaded |
-| Blazor | (coming soon) | OnAfterRender/Dispose |
-| Avalonia | (coming soon) | AttachedToVisualTree/DetachedFromVisualTree |
+| Platform  | WhenActivated Trigger  | WhenAttached Trigger                        |
+| --------- | ---------------------- | ------------------------------------------- |
+| MAUI Page | Appearing/Disappearing | Loaded/Unloaded                             |
+| MAUI View | IsVisible changes      | Loaded/Unloaded                             |
+| Blazor    | (coming soon)          | OnAfterRender/Dispose                       |
+| Avalonia  | (coming soon)          | AttachedToVisualTree/DetachedFromVisualTree |
 
 ---
 
