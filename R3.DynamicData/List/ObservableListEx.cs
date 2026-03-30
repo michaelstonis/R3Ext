@@ -424,6 +424,25 @@ public static partial class ObservableListEx
     }
 
     /// <summary>
+    /// Automatically disposes items that implement <see cref="IAsyncDisposable"/> when they are removed from the list.
+    /// Disposal is fire-and-forget; exceptions are swallowed.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list (must be <see cref="IAsyncDisposable"/>).</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <returns>An observable that emits change sets with automatic async disposal.</returns>
+    public static Observable<IChangeSet<T>> AsyncDisposeMany<T>(
+        this Observable<IChangeSet<T>> source)
+        where T : notnull, IAsyncDisposable
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        return new Internal.AsyncDisposeMany<T>(source).Run();
+    }
+
+    /// <summary>
     /// Creates subscriptions for each item added to the list and disposes them when removed.
     /// </summary>
     /// <typeparam name="T">The type of the items in the list.</typeparam>
