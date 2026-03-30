@@ -1,4 +1,8 @@
 // Static predicate Filter operator for cache change sets.
+// Audited against DD #1013 (bogus overload removal) and DD #1048 (Filter modernization).
+// - DD #1013: No bogus no-predicate overload exists here; only FilterCacheInternal which requires a predicate. Not affected.
+// - DD #1048: ChangeReason.Refresh is handled: re-evaluates predicate and emits Refresh (still passes),
+//   Remove (stops passing), or Refresh (starts passing). Implementation is correct.
 using R3.DynamicData.Kernel;
 
 namespace R3.DynamicData.Cache;

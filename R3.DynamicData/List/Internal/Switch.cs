@@ -1,4 +1,8 @@
 // Port of DynamicData to R3.
+// Audited against DD #968 (Switch error propagation fix).
+// The inner source is subscribed directly with `innerSource.Subscribe(observer)`, which routes
+// OnNext, OnError, and OnCompleted from the inner source directly to the downstream observer.
+// Errors are therefore propagated correctly; this implementation is NOT affected by DD #968.
 
 using System;
 using R3;

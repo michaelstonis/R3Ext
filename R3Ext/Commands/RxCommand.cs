@@ -3,6 +3,11 @@ using R3;
 
 namespace R3Ext;
 
+// Audited against ReactiveUI #4196 (cancellation race / activator negative refCount).
+// The upstream fix addressed a ref-count going negative under concurrent cancellation.
+// Our Execute() sets _isExecuting via a simple bool, which suffers the same race when
+// Execute() is called concurrently (second finishes and sets false before first finishes).
+// Fix: use an Interlocked counter; only clear _isExecuting when count reaches zero.
 public sealed class RxCommand<TInput, TOutput> : ICommand, IObservable<TOutput>, IDisposable
 {
     private readonly Subject<TOutput> _executionResults = new();
@@ -13,6 +18,8 @@ public sealed class RxCommand<TInput, TOutput> : ICommand, IObservable<TOutput>,
     private readonly TimeProvider? _outputScheduler;
     private readonly DisposableBag _disposables = default;
 
+    // Interlocked counter for concurrent-safe IsExecuting state management (fixes race analogous to ReactiveUI #4196).
+    private int _executingCount;
     private bool _isDisposed;
 
     public RxCommand(
@@ -54,7 +61,11 @@ public sealed class RxCommand<TInput, TOutput> : ICommand, IObservable<TOutput>,
 
             try
             {
-                _isExecuting.Value = true;
+                if (Interlocked.Increment(ref _executingCount) == 1)
+                {
+                    _isExecuting.Value = true;
+                }
+
                 TOutput result = await _executeAsync(parameter, ct);
                 if (_outputScheduler != null)
                 {
@@ -73,7 +84,10 @@ public sealed class RxCommand<TInput, TOutput> : ICommand, IObservable<TOutput>,
             }
             finally
             {
-                _isExecuting.Value = false;
+                if (Interlocked.Decrement(ref _executingCount) == 0)
+                {
+                    _isExecuting.Value = false;
+                }
             }
         });
     }

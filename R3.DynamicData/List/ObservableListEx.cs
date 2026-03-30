@@ -771,6 +771,14 @@ public static partial class ObservableListEx
         });
     }
 
+    // Audited against DD #1064-1069 (OnItemAdded/OnItemRemoved/OnItemRefreshed rewrites):
+    // - OnItemAdded (OnBeingAdded): handles Add (single item via change.Item) and AddRange
+    //   (multiple items via change.Range iteration). Correct.
+    // - OnItemRemoved (OnBeingRemoved): handles Remove, RemoveRange, Replace (previous item),
+    //   and Clear. Correct.
+    // - OnItemRefreshed: iterates Refresh changes and invokes callback per item. Correct.
+    // These implementations are not affected by the upstream rewrites.
+
     /// <summary>
     /// Callback for each item as and when it is being added to the stream.
     /// </summary>

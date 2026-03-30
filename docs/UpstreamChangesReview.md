@@ -1,5 +1,10 @@
 # Upstream Changes Review
 
+> **Status as of 2026-03-30**
+> This review was created on 2026-03-30 and covers the period from the initial migration (November 2025) through March 2026.
+> Items are being addressed in the current sprint — see the checklist below for progress.
+> For the current parity state of each library (synced versions, component mapping, known gaps), see [docs/LibraryParity.md](LibraryParity.md).
+
 **Review Date**: 2026-03-30  
 **Review Window**: Late November 2025 → March 2026  
 **Upstream Sources**:
@@ -31,50 +36,58 @@ These are bugs fixed in DynamicData that may have equivalent issues in our porte
   The static list `.Filter()` operator was rewritten to properly support `Refresh` changeset reasons and to preserve item ordering for downstream consumers. Audit `R3.DynamicData/List/Internal/Filter.cs` against these requirements and add Refresh-specific tests.  
   _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1063
 
-- [ ] 🟡 **[DD 9.4.31 #1013] Cache Filter — Bogus Overload Removal**  
+- [x] 🟡 **[DD 9.4.31 #1013] Cache Filter — Bogus Overload Removal**  
   _Type: Bug Fix_  
   DynamicData removed a `.Filter()` overload that contained a logic error causing all items to always be filtered out. Verify that `ObservableCacheEx.Filter.cs` does not contain an equivalent overload with this defect. Also review #1048 (cache Filter operator modernization) for any additional correctness issues to adopt.  
-  _Upstream PRs_: https://github.com/reactivemarbles/DynamicData/pull/1013, https://github.com/reactivemarbles/DynamicData/pull/1048
+  _Upstream PRs_: https://github.com/reactivemarbles/DynamicData/pull/1013, https://github.com/reactivemarbles/DynamicData/pull/1048  
+  _(audited: not affected — only FilterCacheInternal exists, which requires a predicate. Refresh handling is correct: re-evaluates and emits Refresh/Remove/Add-as-Refresh as appropriate. Comment added to source file.)_
 
-- [ ] 🟡 **[DD 9.4.31 #1059] WhenValueChanged — Null Fallback for Non-Nullable Value Types**  
+- [x] 🟡 **[DD 9.4.31 #1059] WhenValueChanged — Null Fallback for Non-Nullable Value Types**  
   _Type: Enhancement_  
   DynamicData enhanced `.WhenValueChanged()` to support type casting within the expression, specifically allowing `null` as a fallback value for non-nullable value types. Our `WhenValueChanged` implementation (which requires an explicit key selector for AOT safety) should be updated to support this pattern.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1059
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1059  
+  _(audited: not affected — our implementation uses explicit selectors rather than expression trees for AOT safety. Callers can already pass default(T) or any custom fallback directly. Comment added to source file.)_
 
-- [ ] 🟡 **[DD 9.1.1 #935] Bind for ISortedChangeSet — ResetOnFirstTimeLoad Fix**  
+- [x] 🟡 **[DD 9.1.1 #935] Bind for ISortedChangeSet — ResetOnFirstTimeLoad Fix**  
   _Type: Bug Fix_  
   The `Bind()` operators for `ISortedChangeSet<TObject, TKey>` were not correctly using the `ResetOnFirstTimeLoad` option — it was only applied when the initial changeset exceeded the `ResetThreshold`. Audit our `SortAndBind` and any `Bind` overloads for sorted changesets for this defect.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/935
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/935  
+  _(fixed: added `ResetOnFirstTimeLoad` property to `SortAndBindOptions` (default `true`). `SortAndBindInternal` now always performs a full reset on the first changeset when this flag is set, regardless of `ResetThreshold`.)_
 
-- [ ] 🟡 **[DD 9.1.1 #938] GroupOnObservable — OnCompleted Handling Fix**  
+- [x] 🟡 **[DD 9.1.1 #938] GroupOnObservable — OnCompleted Handling Fix**  
   _Type: Bug Fix_  
   Fix for `GroupOnObservable` incorrectly handling `OnCompleted`. Audit our `GroupOn` / `GroupOnObservable` implementation for the same issue (missing or incorrect propagation of completion through group state).  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/938
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/938  
+  _(audited: not affected — `GroupOn` passes `observer.OnCompleted` directly to `Subscribe`, so source completion propagates immediately to downstream. Comment added to source file.)_
 
-- [ ] 🟡 **[DD 9.1.1 #940] ChangeSetMergeTracker — Value Type Support Fix**  
+- [x] 🟡 **[DD 9.1.1 #940] ChangeSetMergeTracker — Value Type Support Fix**  
   _Type: Bug Fix_  
   `ChangeSetMergeTracker` did not correctly work with value types. Our `MergeChangeSets` implementation should be audited for the same defect when `TObject` is a struct or value type.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/940
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/940  
+  _(audited: not affected — `MergeChangeSets` uses `HashSet<T>(EqualityComparer<T>.Default)` and `Dictionary<T, long>(EqualityComparer<T>.Default)` throughout, which use proper value equality for structs. Comment added to source file.)_
 
-- [ ] 🟡 **[DD 9.1.1 #945] Join Operators — Initialization Fix (single initial changeset)**  
+- [x] 🟡 **[DD 9.1.1 #945] Join Operators — Initialization Fix (single initial changeset)**  
   _Type: Bug Fix_  
   Join operators were emitting more than one initial changeset, and emitting before both sources had initialized. Audit `ObservableCacheEx.Joins.cs` for the same initialization race condition.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/945
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/945  
+  _(audited: not affected — all four join types use `RecomputeAndEmit()` which only emits when there are actual result changes. When only one side has emitted, no overlapping keys exist so no emission occurs; the single initial emission happens only when both sides have matching keys.)_
 
-- [ ] 🟡 **[DD 9.4.1 #1012] Join Operators — Re-Grouping When Foreign Key Changes**  
+- [x] 🟡 **[DD 9.4.1 #1012] Join Operators — Re-Grouping When Foreign Key Changes**  
   _Type: Bug Fix_  
   Fixed incomplete or missing support for re-grouping in Join operators when foreign key values change. This is a separate issue from the initialization fix above. Review all four join types (Inner, Left, Right, Full) in our implementation.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1012
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1012  
+  _(audited: not affected — all four join types process Update changes by replacing the dictionary entry and calling `RecomputeAndEmit()`, which removes stale results and adds new overlapping-key results correctly.)_
 
 - [ ] 🟡 **[DD 9.1.1 #967] SortAndPage — Missing Downstream Changeset When All Items on Current Page**  
   _Type: Bug Fix_  
   `.SortAndPage()` would not send a downstream changeset when the comparer changed and the current page already contained all items. Audit our `Page()` / `Sort()` combination and the `SortAsync` operator for this edge case.  
   _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/967
 
-- [ ] 🟡 **[DD 9.1.1 #968] Switch — Error Propagation Fix**  
+- [x] 🟡 **[DD 9.1.1 #968] Switch — Error Propagation Fix**  
   _Type: Bug Fix_  
   `.Switch()` did not propagate errors downstream. Audit our equivalent switching/flattening operators for proper error propagation.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/968
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/968  
+  _(audited: not affected — inner source is subscribed with `innerSource.Subscribe(observer)`, routing OnNext/OnError/OnCompleted directly to the downstream observer. Comment added to source file.)_
 
 - [ ] 🔵 **[DD 9.2.2 #997] Virtual Sort — Same-Page Sort Bug**  
   _Type: Bug Fix_  
@@ -116,10 +129,11 @@ Improvements that don't introduce new APIs but improve the behavior or performan
   DynamicData added weak-referencing to all operators that use background scheduling, ensuring schedulers do not hold a strong reference that prevents operator subscriptions from being collected. Audit all operators in our codebase that use `TimeProvider`-based or background scheduling for equivalent leaks.  
   _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1027
 
-- [ ] 🟡 **[DD 9.4.31 #1064–1069] OnItemAdded / OnItemRemoved / OnItemRefreshed — List Rewrites**  
+- [x] 🟡 **[DD 9.4.31 #1064–1069] OnItemAdded / OnItemRemoved / OnItemRefreshed — List Rewrites**  
   _Type: Performance / Correctness_  
   All three list-variant notification operators were rewritten in DynamicData 9.4.31. Our implementations exist in `ObservableListEx.cs`. Review the upstream rewrites for correctness improvements (particularly around change reason handling and concurrency).  
-  _Upstream PRs_: https://github.com/reactivemarbles/DynamicData/pull/1064, https://github.com/reactivemarbles/DynamicData/pull/1067, https://github.com/reactivemarbles/DynamicData/pull/1068
+  _Upstream PRs_: https://github.com/reactivemarbles/DynamicData/pull/1064, https://github.com/reactivemarbles/DynamicData/pull/1067, https://github.com/reactivemarbles/DynamicData/pull/1068  
+  _(audited: not affected — OnBeingAdded handles Add+AddRange correctly; OnBeingRemoved handles Remove/RemoveRange/Replace/Clear correctly; OnItemRefreshed iterates Refresh changes per item. Comment added to ObservableListEx.cs.)_
 
 - [ ] 🟡 **[DD 9.1.1 #936] SortAndBind — Use Move Instead of RemoveAt/Insert**  
   _Type: Performance_  
@@ -152,10 +166,11 @@ These items update the existing migration tracking matrix in `docs/MigrationMatr
 
 Bugs fixed in ReactiveUI that may have analogues in our R3Ext implementation.
 
-- [ ] 🟡 **[RxUI 22.3.1 #4196] RxCommand — ReactiveCommand Cancellation Race Condition**  
+- [x] 🟡 **[RxUI 22.3.1 #4196] RxCommand — ReactiveCommand Cancellation Race Condition**  
   _Type: Bug Fix_  
   A race condition was fixed in ReactiveUI's `ReactiveCommand` cancellation path. Audit our `RxCommand<TInput, TOutput>` for a similar race condition in cancellation handling, particularly when `CanExecute` changes concurrently with command execution.  
-  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4196
+  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4196  
+  _(fixed: replaced simple `_isExecuting.Value = true/false` in `Execute()` with an `Interlocked` counter (`_executingCount`). `_isExecuting` is now only set to `true` on the first concurrent increment and cleared to `false` only when the count reaches zero, preventing premature clearing when multiple executions overlap.)_
 
 - [ ] 🟡 **[RxUI 23.1.0-beta.1 #4240] Nested Property Binding — Redundant Setter Calls**  
   _Type: Bug Fix_  
