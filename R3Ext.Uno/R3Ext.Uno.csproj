@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <!-- AOT Compatibility -->
+        <IsAotCompatible>true</IsAotCompatible>
+        <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+        <!-- Package Info -->
+        <PackageId>R3Ext.Uno</PackageId>
+        <Description>Uno Platform support for R3Ext activation lifecycle</Description>
+        <Authors>Michael Stonis</Authors>
+        <PackageTags>R3;Reactive;Uno;WinUI;MVVM;Activation</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
+        <PackageReference Include="Uno.WinUI" Version="6.4.195" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
+    </ItemGroup>
+</Project>

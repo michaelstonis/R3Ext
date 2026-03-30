@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NOTE: This sample app is configured for multi-platform support using Uno Platform.
+    
+    Full multi-platform builds require the Uno Platform templates and workload:
+        dotnet new install Uno.Templates
+        dotnet workload install uno-check
+        uno-check
+    
+    Supported platforms:
+    - Windows: net9.0-windows10.0.19041 (requires Windows)
+    - Android: net9.0-android (requires Android SDK)
+    - iOS: net9.0-ios (requires macOS with Xcode)
+    - Mac Catalyst: net9.0 (requires macOS)
+    
+    For build instructions, see: https://platform.uno/docs/articles/get-started.html
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <!-- 
+            Platform configuration: 
+            - On macOS: Build for iOS, MacCatalyst, and Android
+            - On Windows: Build for Windows, and Android
+        -->
+        <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('osx'))">net9.0</TargetFrameworks>
+        <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">net9.0-windows10.0.19041</TargetFrameworks>
+        
+        <OutputType>Exe</OutputType>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <IsPackable>false</IsPackable>
+        <RootNamespace>R3Ext.Uno.SampleApp</RootNamespace>
+        
+        <!-- App Info -->
+        <ApplicationTitle>R3Ext Uno Sample</ApplicationTitle>
+        <ApplicationId>com.r3ext.uno.sampleapp</ApplicationId>
+        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+        <ApplicationVersion>1</ApplicationVersion>
+        
+        <!-- WinUI settings for Windows -->
+        <UseWinUI Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">true</UseWinUI>
+        <ApplicationManifest Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">app.manifest</ApplicationManifest>
+        
+        <!-- Platform-specific minimum versions -->
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+        <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+    </PropertyGroup>
+    
+    <!-- Windows-specific settings -->
+    <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+        <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+        <Platforms>x86;x64;ARM64</Platforms>
+        <WindowsPackageType>None</WindowsPackageType>
+    </PropertyGroup>
+    
+    <!-- macOS/MacCatalyst specific settings -->
+    <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+        <!-- Note for MacCatalyst:
+        The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
+        When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>. -->
+        <!-- <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
+    </PropertyGroup>
+    
+    <!-- Exclude platform-specific files from other platforms -->
+    <ItemGroup>
+        <!-- Exclude all platform folders by default -->
+        <Compile Remove="Platforms\**\*" />
+        <None Include="Platforms\**\*" Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder)" />
+    </ItemGroup>
+    
+    <!-- Include Android-specific files only for Android -->
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+        <Compile Include="Platforms\Android\**\*.cs" />
+        <AndroidResource Include="Platforms\Android\Resources\**\*" />
+    </ItemGroup>
+    
+    <!-- Include iOS-specific files only for iOS -->
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+        <Compile Include="Platforms\iOS\**\*.cs" />
+    </ItemGroup>
+    
+    <!-- Include MacCatalyst-specific files only for MacCatalyst -->
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+        <Compile Include="Platforms\MacCatalyst\**\*.cs" />
+    </ItemGroup>
+    
+    <!-- Include Windows-specific files only for Windows -->
+    <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+        <Compile Include="Platforms\Windows\**\*.cs" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <PackageReference Include="Uno.WinUI" Version="6.4.195" />
+        <!-- WinAppSDK only needed on Windows -->
+        <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <ProjectReference Include="..\R3Ext\R3Ext.csproj" />
+        <ProjectReference Include="..\R3Ext.Uno\R3Ext.Uno.csproj" />
+        <ProjectReference Include="..\R3Ext.SampleApp.ViewModels\R3Ext.SampleApp.ViewModels.csproj" />
+        <ProjectReference Include="..\R3Ext.Bindings.SourceGenerator\R3Ext.Bindings.SourceGenerator.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
+    </ItemGroup>
+    
+    <!-- Import Uno binding targets to enable metadata generation -->
+    <Import Project="..\R3Ext.Bindings.UnoTargets\build\R3Ext.Bindings.UnoTargets.props" />
+</Project>

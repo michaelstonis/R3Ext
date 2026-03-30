@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page x:Class="R3Ext.Uno.SampleApp.Views.TimerDemoPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:R3Ext.Uno.SampleApp.Views"
+      Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <ScrollViewer>
+        <StackPanel Padding="20"
+                    Spacing="20">
+            <TextBlock Text="R3Ext Timer Demo"
+                       Style="{ThemeResource TitleTextBlockStyle}" />
+
+            <TextBlock Text="This page demonstrates WhenAttached - resources are created when the page loads and disposed when it unloads."
+                       TextWrapping="Wrap" />
+
+            <!-- Timer Display -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    CornerRadius="8"
+                    Padding="24">
+                <StackPanel HorizontalAlignment="Center"
+                            Spacing="16">
+                    <TextBlock x:Name="TimerLabel"
+                               Text="00:00:00"
+                               Style="{ThemeResource TitleLargeTextBlockStyle}"
+                               HorizontalAlignment="Center" />
+                    <TextBlock x:Name="StatusLabel"
+                               Text="Timer Status"
+                               Style="{ThemeResource BodyTextBlockStyle}"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+            <!-- Controls -->
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Spacing="16">
+                <Button x:Name="StartButton"
+                        Content="Start"
+                        Click="StartButton_Click" />
+                <Button x:Name="StopButton"
+                        Content="Stop"
+                        Click="StopButton_Click" />
+                <Button x:Name="ResetButton"
+                        Content="Reset"
+                        Click="ResetButton_Click" />
+            </StackPanel>
+
+            <!-- Info Section -->
+            <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                    CornerRadius="8"
+                    Padding="16">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="About WhenAttached"
+                               Style="{ThemeResource SubtitleTextBlockStyle}" />
+                    <TextBlock TextWrapping="Wrap"
+                               Style="{ThemeResource BodyTextBlockStyle}">
+                        <Run Text="WhenAttached is used when you need subscriptions that:" />
+                    </TextBlock>
+                    <TextBlock TextWrapping="Wrap"
+                               Style="{ThemeResource BodyTextBlockStyle}"
+                               Margin="16,0,0,0">
+                        <Run Text="• Start when the view is loaded" />
+                    </TextBlock>
+                    <TextBlock TextWrapping="Wrap"
+                               Style="{ThemeResource BodyTextBlockStyle}"
+                               Margin="16,0,0,0">
+                        <Run Text="• Continue running even when navigated away" />
+                    </TextBlock>
+                    <TextBlock TextWrapping="Wrap"
+                               Style="{ThemeResource BodyTextBlockStyle}"
+                               Margin="16,0,0,0">
+                        <Run Text="• Only dispose when the view is unloaded" />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

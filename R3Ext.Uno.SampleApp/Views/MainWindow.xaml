@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="R3Ext.Uno.SampleApp.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:R3Ext.Uno.SampleApp.Views"
+        Title="R3Ext Uno Platform Sample">
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Navigation Header -->
+        <StackPanel Grid.Row="0"
+                    Orientation="Horizontal"
+                    Spacing="10"
+                    Padding="20">
+            <Button x:Name="ActivationDemoButton"
+                    Content="Activation Demo"
+                    Click="ActivationDemoButton_Click" />
+            <Button x:Name="TimerDemoButton"
+                    Content="Timer Demo"
+                    Click="TimerDemoButton_Click" />
+        </StackPanel>
+
+        <!-- Content Area -->
+        <Frame x:Name="ContentFrame"
+               Grid.Row="1" />
+    </Grid>
+</Window>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <!-- Enable binding targets generation by default -->
+        <GenerateR3ExtUiBindingTargets Condition="'$(GenerateR3ExtUiBindingTargets)' == ''">true</GenerateR3ExtUiBindingTargets>
+    </PropertyGroup>
+</Project>
