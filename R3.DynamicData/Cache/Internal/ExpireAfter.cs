@@ -1,4 +1,8 @@
 // Port of DynamicData to R3.
+// DD #1027 audit: ExpireAfter uses Observable.Timer subscriptions stored in `timers` dict,
+// each added to the `disp` CompositeDisposable via .AddTo(disp). The Disposable.Create
+// cleanup explicitly iterates and disposes all timers and calls disp.Dispose(), so no
+// scheduler-held reference can outlive the operator subscription. SAFE.
 namespace R3.DynamicData.Cache.Internal;
 
 internal sealed class ExpireAfter<TObject, TKey>

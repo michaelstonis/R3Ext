@@ -1,4 +1,9 @@
 // Port of DynamicData to R3.
+// DD #1027 audit: List AutoRefresh per-item subscriptions were not cleaned up on operator
+// disposal — fixed by wrapping the Merge result in Observable.Create and disposing all
+// entries in itemSubscriptions and the refreshSubject in the teardown action.
+// List AutoRefresh uses Debounce timers (inside R3) that are disposed with their
+// subscription via the mergedSubscription dispose path. SAFE after fix.
 
 using System.Collections.Generic;
 using System.Linq;
@@ -110,7 +115,26 @@ internal sealed class AutoRefresh<TObject, TAny>
                 });
 
             // Merge original changesets with refresh changesets
-            return processedSource.Merge(refreshChangeSets);
+            // DD #1027 audit: wrap in Observable.Create so per-item subscriptions in
+            // itemSubscriptions are disposed when the operator subscription is disposed.
+            // Previously, using Observable.Defer + Merge alone leaked those subscriptions
+            // because Merge disposal only disposes the upstream, not the side-effect dict.
+            return Observable.Create<IChangeSet<TObject>>(observer =>
+            {
+                var mergedSubscription = processedSource.Merge(refreshChangeSets).Subscribe(observer);
+                return Disposable.Combine(
+                    mergedSubscription,
+                    Disposable.Create((itemSubscriptions, refreshSubject), static state =>
+                    {
+                        foreach (var sub in state.itemSubscriptions.Values)
+                        {
+                            sub.Dispose();
+                        }
+
+                        state.itemSubscriptions.Clear();
+                        state.refreshSubject.Dispose();
+                    }));
+            });
         });
     }
 

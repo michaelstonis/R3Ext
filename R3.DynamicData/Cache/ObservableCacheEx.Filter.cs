@@ -155,4 +155,161 @@ public static partial class ObservableCacheEx
             Predicate = predicate;
         }
     }
+
+    /// <summary>
+    /// Filters a cache changeset using a predicate that combines item data with a changing state value.
+    /// Avoids allocating a new predicate delegate on each state change (DD #941).
+    /// </summary>
+    /// <typeparam name="TObject">The type of the objects in the cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TState">The type of the external filter state.</typeparam>
+    /// <param name="source">The source observable cache.</param>
+    /// <param name="stateStream">Observable that emits new state values. When a new state arrives, all cached items are re-evaluated.</param>
+    /// <param name="predicate">Predicate that receives an item and the current state and returns true to include the item.</param>
+    /// <returns>An observable that emits filtered change sets.</returns>
+    public static Observable<IChangeSet<TObject, TKey>> Filter<TObject, TKey, TState>(
+        this Observable<IChangeSet<TObject, TKey>> source,
+        Observable<TState> stateStream,
+        Func<TObject, TState, bool> predicate)
+        where TKey : notnull
+        where TObject : notnull
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (stateStream is null)
+        {
+            throw new ArgumentNullException(nameof(stateStream));
+        }
+
+        if (predicate is null)
+        {
+            throw new ArgumentNullException(nameof(predicate));
+        }
+
+        return Observable.Create<IChangeSet<TObject, TKey>>(observer =>
+        {
+            var cache = new Dictionary<TKey, TObject>();
+            var included = new HashSet<TKey>();
+            TState currentState = default!;
+            bool hasState = false;
+            var disp = new CompositeDisposable();
+
+            IChangeSet<TObject, TKey> EvaluateItem(TKey key, TObject item, ChangeReason incomingReason)
+            {
+                var outSet = new ChangeSet<TObject, TKey>();
+                bool nowIncluded = hasState && predicate(item, currentState);
+                bool wasIncluded = included.Contains(key);
+
+                if (incomingReason == ChangeReason.Remove)
+                {
+                    if (wasIncluded)
+                    {
+                        included.Remove(key);
+                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, item, item));
+                    }
+
+                    cache.Remove(key);
+                    return outSet;
+                }
+
+                // Add or Update
+                cache[key] = item;
+                if (wasIncluded && nowIncluded)
+                {
+                    if (incomingReason == ChangeReason.Update)
+                    {
+                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Update, key, item));
+                    }
+                    else if (incomingReason == ChangeReason.Refresh)
+                    {
+                        outSet.Add(new Change<TObject, TKey>(ChangeReason.Refresh, key, item));
+                    }
+                }
+                else if (wasIncluded && !nowIncluded)
+                {
+                    included.Remove(key);
+                    outSet.Add(new Change<TObject, TKey>(ChangeReason.Remove, key, item, item));
+                }
+                else if (!wasIncluded && nowIncluded)
+                {
+                    included.Add(key);
+                    outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, key, item));
+                }
+
+                return outSet;
+            }
+
+            // Subscribe to state changes: re-evaluate all cached items
+            stateStream.Subscribe(
+                state =>
+                {
+                    try
+                    {
+                        currentState = state;
+                        hasState = true;
+                        var outSet = new ChangeSet<TObject, TKey>();
+                        foreach (var kvp in cache)
+                        {
+                            bool nowIncluded = predicate(kvp.Value, currentState);
+                            bool wasIncluded = included.Contains(kvp.Key);
+                            if (!wasIncluded && nowIncluded)
+                            {
+                                included.Add(kvp.Key);
+                                outSet.Add(new Change<TObject, TKey>(ChangeReason.Add, kvp.Key, kvp.Value));
+                            }
+                            else if (wasIncluded && !nowIncluded)
+                            {
+                                included.Remove(kvp.Key);
+                                outSet.Add(new Change<TObject, TKey>(ChangeReason.Remove, kvp.Key, kvp.Value, kvp.Value));
+                            }
+                        }
+
+                        if (outSet.Count > 0)
+                        {
+                            observer.OnNext(outSet);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        observer.OnErrorResume(ex);
+                    }
+                },
+                observer.OnErrorResume,
+                observer.OnCompleted).AddTo(disp);
+
+            // Subscribe to source changes: apply current state
+            source.Subscribe(
+                changes =>
+                {
+                    try
+                    {
+                        var outSet = new ChangeSet<TObject, TKey>();
+                        foreach (var change in changes)
+                        {
+                            var partial = EvaluateItem(change.Key, change.Current, change.Reason);
+                            foreach (var c in partial)
+                            {
+                                outSet.Add(c);
+                            }
+                        }
+
+                        if (outSet.Count > 0)
+                        {
+                            observer.OnNext(outSet);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        observer.OnErrorResume(ex);
+                    }
+                },
+                observer.OnErrorResume,
+                observer.OnCompleted).AddTo(disp);
+
+            return disp;
+        });
+    }
 }

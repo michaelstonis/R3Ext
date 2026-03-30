@@ -372,6 +372,40 @@ public static partial class ObservableListEx
     }
 
     /// <summary>
+    /// Filters the list using a predicate that takes an item and an external state value.
+    /// Re-evaluates all items when the state observable emits. Avoids allocating a new predicate
+    /// delegate on each state change (DD #941).
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <typeparam name="TState">The type of the external filter state.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="stateStream">Observable that emits new state values.</param>
+    /// <param name="predicate">Predicate that receives an item and the current state.</param>
+    /// <returns>An observable that emits filtered change sets.</returns>
+    public static Observable<IChangeSet<T>> Filter<T, TState>(
+        this Observable<IChangeSet<T>> source,
+        Observable<TState> stateStream,
+        Func<T, TState, bool> predicate)
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (stateStream is null)
+        {
+            throw new ArgumentNullException(nameof(stateStream));
+        }
+
+        if (predicate is null)
+        {
+            throw new ArgumentNullException(nameof(predicate));
+        }
+
+        return new Internal.StatefulFilter<T, TState>(source, stateStream, predicate).Run();
+    }
+
+    /// <summary>
     /// Reverses the order of items in the list.
     /// </summary>
     /// <typeparam name="T">The type of the items in the list.</typeparam>

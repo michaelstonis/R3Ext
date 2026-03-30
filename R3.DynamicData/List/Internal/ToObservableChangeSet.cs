@@ -1,4 +1,8 @@
 // Port of DynamicData to R3.
+// DD #1027 audit: ToObservableChangeSet uses Observable.Timer for item expirations;
+// each timer subscription is stored in `expirations` dict. The Disposable.Create cleanup
+// iterates and disposes all entries in expirations, then calls subscription.Dispose().
+// No scheduler-held reference can outlive the operator subscription. SAFE.
 
 using System;
 using System.Collections.Generic;
