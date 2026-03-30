@@ -26,15 +26,17 @@
 
 These are bugs fixed in DynamicData that may have equivalent issues in our ported operators. Each item should be investigated and fixed if the same defect exists locally.
 
-- [ ] 🔴 **[DD 9.4.31 #1017] ToObservableChangeSet — Deadlock Fix**  
+- [x] 🔴 **[DD 9.4.31 #1017] ToObservableChangeSet — Deadlock Fix**  
   _Type: Bug Fix_  
   DynamicData rewrote `.ToObservableChangeSet()` for both Cache and List variants to eliminate a deadlocking issue. Our `ToObservableChangeSet` (implemented in `List/ObservableListEx.cs`) should be audited against the upstream rewrite to determine if the same deadlock scenario is reproducible.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1017
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1017  
+  _(fixed: audited against upstream rewrite; applied thread-safety improvements to `ToObservableChangeSet` to eliminate the same lock-inversion scenario.)_
 
-- [ ] 🔴 **[DD 9.4.31 #1063] List Filter — Refresh Change Support and Ordering Preservation**  
+- [x] 🔴 **[DD 9.4.31 #1063] List Filter — Refresh Change Support and Ordering Preservation**  
   _Type: Bug Fix_  
   The static list `.Filter()` operator was rewritten to properly support `Refresh` changeset reasons and to preserve item ordering for downstream consumers. Audit `R3.DynamicData/List/Internal/Filter.cs` against these requirements and add Refresh-specific tests.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1063
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1063  
+  _(fixed: `List/Internal/Filter.cs` updated to handle `Refresh` change reasons and maintain stable ordering; Refresh-specific tests added.)_
 
 - [x] 🟡 **[DD 9.4.31 #1013] Cache Filter — Bogus Overload Removal**  
   _Type: Bug Fix_  
@@ -78,10 +80,11 @@ These are bugs fixed in DynamicData that may have equivalent issues in our porte
   _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1012  
   _(audited: not affected — all four join types process Update changes by replacing the dictionary entry and calling `RecomputeAndEmit()`, which removes stale results and adds new overlapping-key results correctly.)_
 
-- [ ] 🟡 **[DD 9.1.1 #967] SortAndPage — Missing Downstream Changeset When All Items on Current Page**  
+- [x] 🟡 **[DD 9.1.1 #967] SortAndPage — Missing Downstream Changeset When All Items on Current Page**  
   _Type: Bug Fix_  
   `.SortAndPage()` would not send a downstream changeset when the comparer changed and the current page already contained all items. Audit our `Page()` / `Sort()` combination and the `SortAsync` operator for this edge case.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/967
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/967  
+  _(audited: not affected — our virtualize/page/sort operators use a different architecture that re-emits the full virtual window on every sort change, so this edge case cannot occur.)_
 
 - [x] 🟡 **[DD 9.1.1 #968] Switch — Error Propagation Fix**  
   _Type: Bug Fix_  
@@ -89,10 +92,11 @@ These are bugs fixed in DynamicData that may have equivalent issues in our porte
   _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/968  
   _(audited: not affected — inner source is subscribed with `innerSource.Subscribe(observer)`, routing OnNext/OnError/OnCompleted directly to the downstream observer. Comment added to source file.)_
 
-- [ ] 🔵 **[DD 9.2.2 #997] Virtual Sort — Same-Page Sort Bug**  
+- [x] 🔵 **[DD 9.2.2 #997] Virtual Sort — Same-Page Sort Bug**  
   _Type: Bug Fix_  
   Fixed a virtual sort bug that manifested when sorting items that remain on the same page. Audit our `Virtualize`/`Page`/`Sort` pipeline integration for this edge case.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/997
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/997  
+  _(audited: not affected — different architecture; our virtualize/page/sort pipeline re-computes the full window on each sort change rather than diffing positions.)_
 
 ---
 
@@ -100,23 +104,26 @@ These are bugs fixed in DynamicData that may have equivalent issues in our porte
 
 These are new operators added to DynamicData after the initial port that are not currently in our migration matrix.
 
-- [ ] 🟡 **[DD 9.4.1 #1011] AsyncDisposeMany — New Operator**  
+- [x] 🟡 **[DD 9.4.1 #1011] AsyncDisposeMany — New Operator**  
   _Type: New Operator_  
   DynamicData added `.AsyncDisposeMany()`, equivalent to `.DisposeMany()` but for items implementing `IAsyncDisposable`. This operator does not exist in our port and should be added to both Cache and List variants.  
   _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1011  
-  _File to add_: `R3.DynamicData/Cache/ObservableCacheEx.AsyncDisposeMany.cs`, `R3.DynamicData/List/ObservableListEx.cs`
+  _File to add_: `R3.DynamicData/Cache/ObservableCacheEx.AsyncDisposeMany.cs`, `R3.DynamicData/List/ObservableListEx.cs`  
+  _(implemented: Cache and List variants added; IAsyncDisposable support with fire-and-forget disposal; 9 tests passing.)_
 
-- [ ] 🟡 **[DD 9.4.1 #1008] TransformOnObservable — New Cache Operator (with ordering)**  
+- [x] 🟡 **[DD 9.4.1 #1008] TransformOnObservable — New Cache Operator (with ordering)**  
   _Type: New Operator_  
   DynamicData has a `TransformOnObservable` Cache operator (transforms each item via an observable, preserving changeset ordering). This operator is not in our migration matrix or codebase. Assess whether it warrants porting.  
   _Upstream source_: `src/DynamicData/Cache/Internal/TransformOnObservable.cs`  
   _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1008  
-  _File to add_: `R3.DynamicData/Cache/Internal/TransformOnObservable.cs`
+  _File to add_: `R3.DynamicData/Cache/Internal/TransformOnObservable.cs`  
+  _(implemented: Cache operator added with ordering preservation; 5 tests passing.)_
 
-- [ ] 🔵 **[DD 9.1.1 #941] Filter — Predicate State Stream Overloads**  
+- [x] 🔵 **[DD 9.1.1 #941] Filter — Predicate State Stream Overloads**  
   _Type: New Operator / Enhancement_  
   New `.Filter()` overloads that accept a predicate _and_ a separate state stream, avoiding the need to allocate a new delegate every time filtering logic changes. Useful for high-frequency filter updates. Add to both Cache and List variants.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/941
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/941  
+  _(implemented: Cache and List overloads added; 10 tests passing.)_
 
 ---
 
@@ -124,10 +131,11 @@ These are new operators added to DynamicData after the initial port that are not
 
 Improvements that don't introduce new APIs but improve the behavior or performance of existing operators.
 
-- [ ] 🟡 **[DD 9.4.31 #1027] Background Scheduling — Weak Reference Leak Fix**  
+- [x] 🟡 **[DD 9.4.31 #1027] Background Scheduling — Weak Reference Leak Fix**  
   _Type: Performance / Correctness_  
   DynamicData added weak-referencing to all operators that use background scheduling, ensuring schedulers do not hold a strong reference that prevents operator subscriptions from being collected. Audit all operators in our codebase that use `TimeProvider`-based or background scheduling for equivalent leaks.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1027
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1027  
+  _(fixed: `AutoRefresh` List variant updated to use weak references for the background scheduling subscription, eliminating the memory leak.)_
 
 - [x] 🟡 **[DD 9.4.31 #1064–1069] OnItemAdded / OnItemRemoved / OnItemRefreshed — List Rewrites**  
   _Type: Performance / Correctness_  
@@ -135,15 +143,17 @@ Improvements that don't introduce new APIs but improve the behavior or performan
   _Upstream PRs_: https://github.com/reactivemarbles/DynamicData/pull/1064, https://github.com/reactivemarbles/DynamicData/pull/1067, https://github.com/reactivemarbles/DynamicData/pull/1068  
   _(audited: not affected — OnBeingAdded handles Add+AddRange correctly; OnBeingRemoved handles Remove/RemoveRange/Replace/Clear correctly; OnItemRefreshed iterates Refresh changes per item. Comment added to ObservableListEx.cs.)_
 
-- [ ] 🟡 **[DD 9.1.1 #936] SortAndBind — Use Move Instead of RemoveAt/Insert**  
+- [x] 🟡 **[DD 9.1.1 #936] SortAndBind — Use Move Instead of RemoveAt/Insert**  
   _Type: Performance_  
   DynamicData updated `SortAndBind` to emit `Move` changesets instead of `RemoveAt`/`Insert` pairs when items reorder. This results in fewer downstream change notifications and better binding performance. Audit our `SortAndBind` implementation.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/936
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/936  
+  _(fixed: `SortAndBind` updated to emit `Move` instead of `RemoveAt`/`Insert` pairs for item reordering.)_
 
-- [ ] 🔵 **[DD 9.3.2 #1005] Internal Lock Primitive Modernization**  
+- [x] 🔵 **[DD 9.3.2 #1005] Internal Lock Primitive Modernization**  
   _Type: Performance_  
   DynamicData replaced internal locking with a newer lock primitive for better performance. Assess whether our internal synchronization patterns (particularly in `SourceCache` and `SourceList`) should adopt the same approach.  
-  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1005
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1005  
+  _(audited: not applicable — R3 port uses a different concurrency model based on R3 schedulers and `Subject<T>`; the upstream lock primitive change does not translate to our architecture.)_
 
 ---
 
@@ -151,14 +161,17 @@ Improvements that don't introduce new APIs but improve the behavior or performan
 
 These items update the existing migration tracking matrix in `docs/MigrationMatrix.md`.
 
-- [ ] 🟡 **Update MigrationMatrix.md — Add `TransformOnObservable` entry**  
-  Add a row for `TransformOnObservable` (Cache) to the Transformation section with `NotStarted` / `None` status.
+- [x] 🟡 **Update MigrationMatrix.md — Add `TransformOnObservable` entry**  
+  Add a row for `TransformOnObservable` (Cache) to the Transformation section with `NotStarted` / `None` status.  
+  _(done: added with `Implemented` / `Passing` status; 5 tests.)_
 
-- [ ] 🟡 **Update MigrationMatrix.md — Add `AsyncDisposeMany` entry**  
-  Add a row for `AsyncDisposeMany` (Cache/List) to the Lifecycle section with `NotStarted` / `None` status.
+- [x] 🟡 **Update MigrationMatrix.md — Add `AsyncDisposeMany` entry**  
+  Add a row for `AsyncDisposeMany` (Cache/List) to the Lifecycle section with `NotStarted` / `None` status.  
+  _(done: added with `Implemented` / `Passing` status; 9 tests.)_
 
-- [ ] 🔵 **Update MigrationMatrix.md — `FilterOnProperty` formally removed upstream**  
-  DynamicData 9.4.31 explicitly removed `FilterOnProperty` (it was previously just obsoleted). Update the `Deferred` note in the matrix to reflect that it is now fully removed upstream and will never need porting.
+- [x] 🔵 **Update MigrationMatrix.md — `FilterOnProperty` formally removed upstream**  
+  DynamicData 9.4.31 explicitly removed `FilterOnProperty` (it was previously just obsoleted). Update the `Deferred` note in the matrix to reflect that it is now fully removed upstream and will never need porting.  
+  _(done: FollowUp updated to note full removal in DynamicData 9.4.31.)_
 
 ---
 
@@ -172,24 +185,27 @@ Bugs fixed in ReactiveUI that may have analogues in our R3Ext implementation.
   _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4196  
   _(fixed: replaced simple `_isExecuting.Value = true/false` in `Execute()` with an `Interlocked` counter (`_executingCount`). `_isExecuting` is now only set to `true` on the first concurrent increment and cleared to `false` only when the count reaches zero, preventing premature clearing when multiple executions overlap.)_
 
-- [ ] 🟡 **[RxUI 23.1.0-beta.1 #4240] Nested Property Binding — Redundant Setter Calls**  
+- [x] 🟡 **[RxUI 23.1.0-beta.1 #4240] Nested Property Binding — Redundant Setter Calls**  
   _Type: Bug Fix_  
   Nested property bindings were calling the setter redundantly when intermediate path nodes changed. Audit our source-generated `WhenChanged(vm => vm.A.B.C)` and `BindOneWay`/`BindTwoWay` implementations for the same redundant-setter behavior.  
-  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4240
+  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4240  
+  _(audited: not affected — source-generated bindings use explicit compiled property chains rather than runtime reflection/expression trees; intermediate node changes trigger only the appropriate leaf setter with no redundant calls. Different architecture.)_
 
-- [ ] 🟡 **[RxUI 23.1.8 #4301] Builder StackOverflow / Activator Negative RefCount / Binding Regression**  
+- [x] 🟡 **[RxUI 23.1.8 #4301] Builder StackOverflow / Activator Negative RefCount / Binding Regression**  
   _Type: Bug Fix_  
   Multiple related fixes: StackOverflow in builder patterns, negative refCount in activators, and a binding regression. Review our `BindingRegistry`, `RxCommand` activation, and any builder-style initialization APIs for these classes of defect.  
-  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4301
+  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4301  
+  _(audited: not applicable — R3Ext uses a different initialization architecture with no RxAppBuilder, no activator refCount, and no builder StackOverflow risk. Source-generated bindings bypass the upstream binding registry entirely.)_
 
 ---
 
 ## Section 6 — ReactiveUI: Performance Improvements
 
-- [ ] 🟡 **[RxUI 22.3.1 #4195] RxObject / RxRecord — Allocation Reduction**  
+- [x] 🟡 **[RxUI 22.3.1 #4195] RxObject / RxRecord — Allocation Reduction**  
   _Type: Performance_  
   ReactiveUI reduced allocations within `ReactiveObject` and `ReactiveRecord` (the bases for our `RxObject` and `RxRecord`). Review their change and assess whether equivalent allocation optimizations can be applied to our `RxObject.cs` and `RxRecord.cs` implementations.  
-  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4195
+  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4195  
+  _(audited: not affected — `PropertyEventArgsCache` already provides args caching so `PropertyChangedEventArgs` instances are never reallocated; allocations in `RxObject`/`RxRecord` are already minimized. No further action required.)_
 
 ---
 
@@ -275,8 +291,8 @@ These items are from `docs/ClosureEliminationStatus.md` and `docs/MigrationMatri
 
 | Priority | Count | Description |
 |----------|-------|-------------|
-| 🔴 High  | 2     | ToObservableChangeSet deadlock; List Filter Refresh support |
-| 🟡 Medium | 17   | Bug fixes in joins, sort, commands, bindings; new AsyncDisposeMany; TransformOnObservable; performance items |
-| 🔵 Low   | 14+  | Optional operators, enhancements, infra housekeeping |
+| 🔴 High  | 0     | All high-priority items resolved (ToObservableChangeSet deadlock fixed; List Filter Refresh support fixed) |
+| 🟡 Medium | 2    | Closure elimination: List aggregates and internal operators (Section 8) |
+| 🔵 Low   | 14+  | Optional operators, enhancements, infra housekeeping (Sections 7–9) |
 
 **Recommended starting point**: Items in Sections 1 and 2 (DynamicData bug fixes and new operators) have the highest user-visible impact and the most direct precedent in the upstream codebase to reference.

@@ -61,8 +61,8 @@ The `R3.DynamicData` project is a full port of [DynamicData](https://github.com/
 | `SortExpressionComparer<T>` | `SortExpressionComparer<T>` | Full parity |
 | `GroupWithImmutableState` | `GroupWithImmutableState` | Full parity |
 | `ChangeAwareList<T>` | `ChangeAwareList<T>` | Full parity |
-| `TransformOnObservable` | ❌ Not yet ported | See `UpstreamChangesReview.md` §2 |
-| `AsyncDisposeMany` | ❌ Not yet ported | See `UpstreamChangesReview.md` §2 |
+| `TransformOnObservable` | ✅ Ported | See `UpstreamChangesReview.md` §2 |
+| `AsyncDisposeMany` | ✅ Ported | See `UpstreamChangesReview.md` §2 |
 | `FilterOnProperty` (obsolete) | Deferred | Superseded upstream; use `AutoRefresh + Filter` |
 
 **File layout in `R3.DynamicData/`:**
@@ -167,7 +167,7 @@ After completing a sync review and incorporating changes:
 | 2025-11-22 | DynamicData | — | 9.0.x | Initial migration — ~93% operator parity achieved |
 | 2025-11-22 | ReactiveUI | — | 22.2.1 | Initial migration — RxCommand, Interaction, RxObject, WhenChanged patterns ported |
 | 2025-11-22 | R3 | — | 1.3.0 | Initial dependency — current latest at time of project creation |
-| 2026-03-30 | DynamicData | 9.0.x | 9.4.31 | Bug fixes review, new operators identified (see UpstreamChangesReview.md) |
+| 2026-03-30 | DynamicData | 9.0.x | 9.4.31 | Bug fixes: ToObservableChangeSet thread safety (fixed), List Filter Refresh support (fixed), SortAndBind ResetOnFirstTimeLoad (fixed), SortAndBind Move optimization (fixed), RxCommand concurrent execution (fixed), List AutoRefresh memory leak (fixed); New operators: AsyncDisposeMany (Cache+List), TransformOnObservable (Cache), Filter predicate state stream overloads (Cache+List); 8 audits confirmed not affected |
 | 2026-03-30 | ReactiveUI | 22.2.1 | 23.1.8 | Bug fixes and patterns review (see UpstreamChangesReview.md) |
 
 ---
@@ -179,22 +179,10 @@ The following are known areas where R3Ext's implementation differs from or lags 
 ### DynamicData Gaps
 
 **Not yet ported (new upstream operators):**
-- `AsyncDisposeMany` — equivalent to `DisposeMany` for `IAsyncDisposable` items; added in DD 9.4.1. See `UpstreamChangesReview.md` §2.
-- `TransformOnObservable` (Cache) — transforms each cache item via a per-item observable with ordering guarantees; added in DD 9.4.1. See `UpstreamChangesReview.md` §2.
-- `Filter` predicate-with-state-stream overloads — avoids delegate allocation on frequent filter changes; added in DD 9.1.1. See `UpstreamChangesReview.md` §2.
+- _(None — all new operators from DD 9.0.x–9.4.31 have been ported: `AsyncDisposeMany`, `TransformOnObservable`, and `Filter` predicate state stream overloads.)_
 
 **Bug fixes pending audit:**
-- `ToObservableChangeSet` deadlock fix (DD 9.4.31 #1017) — 🔴 high priority.
-- List `Filter` Refresh support and ordering preservation (DD 9.4.31 #1063) — 🔴 high priority.
-- `WhenValueChanged` null fallback for non-nullable types (DD 9.4.31 #1059).
-- Join operators initialization and re-grouping fixes (DD 9.1.1 #945, DD 9.4.1 #1012).
-- `GroupOnObservable` completion handling (DD 9.1.1 #938).
-- `SortAndPage` missing downstream changeset edge case (DD 9.1.1 #967).
-
-**Performance improvements pending:**
-- Background scheduling weak-reference leak (DD 9.4.31 #1027).
-- `OnItemAdded` / `OnItemRemoved` / `OnItemRefreshed` list rewrites (DD 9.4.31 #1064–1069).
-- `SortAndBind` Move-instead-of-RemoveAt/Insert (DD 9.1.1 #936).
+- _(All audited — ToObservableChangeSet thread safety fixed; List Filter Refresh support fixed; SortAndBind ResetOnFirstTimeLoad fixed; SortAndBind Move optimization fixed. 8 additional items audited as not affected. See `UpstreamChangesReview.md` §1–§3 for details.)_
 
 **In-progress internal work (unrelated to upstream):**
 - Closure elimination across ~30+ operators — see `docs/ClosureEliminationStatus.md`.
