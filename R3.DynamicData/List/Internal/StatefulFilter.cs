@@ -101,30 +101,53 @@ internal sealed class StatefulFilter<T, TState>
     private static void ReconcileFiltered(List<Slot> slots, ChangeAwareList<T> filtered)
     {
         var newFiltered = slots.Where(s => s.Passes).Select(s => s.Item).ToList();
-        var oldFiltered = filtered.ToList();
 
-        for (int i = oldFiltered.Count - 1; i >= 0; i--)
+        // Build a multiset of the required items so duplicate-equal values are
+        // handled correctly (contains/IndexOf would match the wrong instance).
+        // CS8714 suppressed: T may not carry notnull constraint, but Dictionary with
+        // an explicit EqualityComparer is safe regardless — nulls compare equal only to
+        // themselves, which is the desired behavior.
+#pragma warning disable CS8714
+        var requiredCounts = new Dictionary<T, int>(EqualityComparer<T>.Default);
+#pragma warning restore CS8714
+        foreach (var item in newFiltered)
         {
-            if (!newFiltered.Contains(oldFiltered[i]))
+            requiredCounts[item] = requiredCounts.TryGetValue(item, out var c) ? c + 1 : 1;
+        }
+
+        // Remove surplus items from the end, decrementing the allowed count as each
+        // item that should stay is encountered.
+        for (int i = filtered.Count - 1; i >= 0; i--)
+        {
+            var item = filtered[i];
+            if (requiredCounts.TryGetValue(item, out var remaining) && remaining > 0)
+            {
+                requiredCounts[item] = remaining - 1;
+            }
+            else
             {
                 filtered.RemoveAt(i);
             }
         }
 
+        // Ensure every position in filtered matches newFiltered.  If the slot at
+        // position i differs, insert the desired item there (the old item and any
+        // duplicates created by the inserts are trimmed in the step below).
         for (int i = 0; i < newFiltered.Count; i++)
         {
-            if (i >= filtered.Count || !EqualityComparer<T>.Default.Equals(filtered[i], newFiltered[i]))
+            var desired = newFiltered[i];
+            if (i < filtered.Count && EqualityComparer<T>.Default.Equals(filtered[i], desired))
             {
-                int existingIndex = filtered.IndexOf(newFiltered[i]);
-                if (existingIndex >= 0)
-                {
-                    filtered.Move(existingIndex, i);
-                }
-                else
-                {
-                    filtered.Insert(i, newFiltered[i]);
-                }
+                continue;
             }
+
+            filtered.Insert(i, desired);
+        }
+
+        // Trim any excess items that were pushed to the end by the insertions above.
+        while (filtered.Count > newFiltered.Count)
+        {
+            filtered.RemoveAt(filtered.Count - 1);
         }
     }
 

@@ -192,9 +192,11 @@ The following are known areas where R3Ext's implementation differs from or lags 
 ### ReactiveUI Gaps
 
 **Bug fixes pending audit:**
-- `RxCommand` cancellation race condition (RxUI 22.3.1 #4196).
 - Nested property binding redundant setter calls (RxUI 23.1.0 #4240).
 - Builder StackOverflow / activator negative refcount (RxUI 23.1.8 #4301).
+
+**Fixed (this sprint):**
+- `RxCommand` cancellation/concurrent-execution race condition (RxUI 22.3.1 #4196) — resolved via `Interlocked` counter (`_executingCount`); `IsExecuting` clears only when the last concurrent execution completes.
 
 **Not yet ported:**
 - `IActivatableViewModel` / `WhenActivated` lifecycle pattern.

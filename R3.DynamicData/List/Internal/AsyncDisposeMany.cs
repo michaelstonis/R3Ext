@@ -49,11 +49,13 @@ internal sealed class AsyncDisposeMany<T>
                         }
                     });
 
-                return Disposable.Create(current, static current =>
-                {
-                    DisposeRange(current);
-                    current.Clear();
-                });
+                return Disposable.Combine(
+                    disp,
+                    Disposable.Create(current, static current =>
+                    {
+                        DisposeRange(current);
+                        current.Clear();
+                    }));
             });
     }
 

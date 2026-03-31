@@ -139,6 +139,14 @@ internal sealed class ToObservableChangeSet<TObject>
                         {
                             removalChanges = new List<Change<TObject>>();
                             EnforceLimit(removalChanges);
+
+                            // Remove timers for items evicted by EnforceLimit (they are no longer in the list).
+                            // Use a HashSet for O(1) lookups when pendingTimers and list are large.
+                            if (pendingTimers != null)
+                            {
+                                var listSet = new HashSet<TObject>(list);
+                                pendingTimers.RemoveAll(pt => !listSet.Contains(pt.item));
+                            }
                         }
                     }
 
@@ -156,13 +164,22 @@ internal sealed class ToObservableChangeSet<TObject>
                     {
                         foreach (var (item, expiry) in pendingTimers)
                         {
+                            // Subscribe the timer OUTSIDE the lock to prevent a deadlock if
+                            // Observable.Timer can invoke the callback synchronously (e.g., zero
+                            // expiry on a test scheduler).  After subscribing, acquire the lock
+                            // briefly to register the subscription; if a concurrent path already
+                            // registered one for this item, dispose the duplicate.
+                            var capturedItem = item;
+                            var timerSubscription = Observable.Timer(expiry).Subscribe(_ => RemoveExpired(capturedItem));
                             lock (gate)
                             {
-                                if (!expirations.ContainsKey(item))
+                                if (expirations.ContainsKey(capturedItem))
                                 {
-                                    var capturedItem = item;
-                                    var timer = Observable.Timer(expiry).Subscribe(_ => RemoveExpired(capturedItem));
-                                    expirations[item] = timer;
+                                    timerSubscription.Dispose();
+                                }
+                                else
+                                {
+                                    expirations[capturedItem] = timerSubscription;
                                 }
                             }
                         }
