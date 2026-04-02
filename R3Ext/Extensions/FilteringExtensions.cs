@@ -6,7 +6,7 @@ namespace R3Ext;
 /// <summary>
 /// Filtering and conditional extensions for R3 observables.
 /// </summary>
-public static class FilteringExtensions
+public static partial class FilteringExtensions
 {
     /// <summary>
     /// Logical NOT for boolean streams.
