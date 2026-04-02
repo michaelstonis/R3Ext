@@ -2,32 +2,6 @@ using R3;
 
 namespace R3Ext;
 
-public readonly struct TimeInterval<T>
-{
-    public T Value { get; }
-
-    public TimeSpan Interval { get; }
-
-    public TimeInterval(T value, TimeSpan interval)
-    {
-        Value = value;
-        Interval = interval;
-    }
-
-    public void Deconstruct(out T value, out TimeSpan interval)
-    {
-        value = Value;
-        interval = Interval;
-    }
-}
-
-public enum OverflowStrategy
-{
-    DropOldest,
-    DropLatest,
-    Error,
-}
-
 public static partial class TimingExtensions
 {
     /// <summary>
@@ -842,4 +816,37 @@ public static partial class TimingExtensions
             });
         });
     }
+}
+
+/// <summary>
+/// Represents a value paired with the time interval since the previous emission.
+/// </summary>
+/// <typeparam name="T">The type of value.</typeparam>
+public readonly struct TimeInterval<T>
+{
+    public T Value { get; }
+
+    public TimeSpan Interval { get; }
+
+    public TimeInterval(T value, TimeSpan interval)
+    {
+        Value = value;
+        Interval = interval;
+    }
+
+    public void Deconstruct(out T value, out TimeSpan interval)
+    {
+        value = Value;
+        interval = Interval;
+    }
+}
+
+/// <summary>
+/// Defines strategies for handling buffer overflow.
+/// </summary>
+public enum OverflowStrategy
+{
+    DropOldest,
+    DropLatest,
+    Error,
 }

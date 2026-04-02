@@ -529,6 +529,30 @@ public static class CombinationExtensions
                     return;
                 }
 
+                bool hasAdvanced = false;
+
+                void Advance()
+                {
+                    bool shouldAdvance;
+                    using (gate.EnterScope())
+                    {
+                        if (disposed || hasAdvanced)
+                        {
+                            shouldAdvance = false;
+                        }
+                        else
+                        {
+                            hasAdvanced = true;
+                            shouldAdvance = true;
+                        }
+                    }
+
+                    if (shouldAdvance)
+                    {
+                        SubscribeAt(i + 1);
+                    }
+                }
+
                 currentSub = sources[i].Subscribe(
                     x =>
                     {
@@ -553,18 +577,12 @@ public static class CombinationExtensions
 
                             observer.OnErrorResume(ex);
                         }
+
+                        Advance();
                     },
                     r =>
                     {
-                        using (gate.EnterScope())
-                        {
-                            if (disposed)
-                            {
-                                return;
-                            }
-
-                            SubscribeAt(i + 1);
-                        }
+                        Advance();
                     });
             }
 
