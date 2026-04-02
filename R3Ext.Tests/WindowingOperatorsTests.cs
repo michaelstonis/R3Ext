@@ -1,4 +1,4 @@
-#pragma warning disable SA1107, SA1124, SA1501, SA1503, SA1515, SA1025, SA1520, SA1513, SA1508, SA1516
+#pragma warning disable SA1107, SA1124, SA1501, SA1503, SA1515, SA1025, SA1520, SA1513, SA1508, SA1516, SA1028
 using Microsoft.Extensions.Time.Testing;
 using R3;
 using R3.Collections;
@@ -8,7 +8,7 @@ namespace R3Ext.Tests;
 public class WindowingOperatorsTests
 {
     // -----------------------------------------------------------------------
-    // WindowCount – argument validation
+    //  argument validationWindowCount 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -31,7 +31,7 @@ public class WindowingOperatorsTests
     }
 
     // -----------------------------------------------------------------------
-    // WindowCount – non-overlapping
+    //  non-overlappingWindowCount 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -42,11 +42,16 @@ public class WindowingOperatorsTests
         subject.WindowCount<int>(3).Subscribe(window =>
         {
             List<int> items = new();
+
             window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
         });
 
-        subject.OnNext(1); subject.OnNext(2); subject.OnNext(3); // window 1
-        subject.OnNext(4); subject.OnNext(5); subject.OnNext(6); // window 2
+        subject.OnNext(1);
+        subject.OnNext(2);
+        subject.OnNext(3);
+        subject.OnNext(4);
+        subject.OnNext(5);
+        subject.OnNext(6);
         subject.OnCompleted();
 
         Assert.Equal(2, windows.Count);
@@ -62,11 +67,15 @@ public class WindowingOperatorsTests
         subject.WindowCount<int>(3).Subscribe(window =>
         {
             List<int> items = new();
+
             window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
         });
 
-        subject.OnNext(1); subject.OnNext(2); subject.OnNext(3);
-        subject.OnNext(4); subject.OnNext(5); // incomplete last window
+        subject.OnNext(1);
+        subject.OnNext(2);
+        subject.OnNext(3);
+        subject.OnNext(4);
+        subject.OnNext(5);
         subject.OnCompleted();
 
         Assert.Equal(2, windows.Count);
@@ -82,10 +91,13 @@ public class WindowingOperatorsTests
         subject.WindowCount<int>(1).Subscribe(window =>
         {
             List<int> items = new();
+
             window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
         });
 
-        subject.OnNext(10); subject.OnNext(20); subject.OnNext(30);
+        subject.OnNext(10);
+        subject.OnNext(20);
+        subject.OnNext(30);
         subject.OnCompleted();
 
         Assert.Equal(3, windows.Count);
@@ -95,7 +107,7 @@ public class WindowingOperatorsTests
     }
 
     // -----------------------------------------------------------------------
-    // WindowCount – overlapping
+    //  overlappingWindowCount 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -103,15 +115,20 @@ public class WindowingOperatorsTests
     {
         Subject<int> subject = new();
         List<int[]> windows = new();
+
         // skip=2, count=3: W0={0,1,2}, W1={2,3,4}
         subject.WindowCount<int>(count: 3, skip: 2).Subscribe(window =>
         {
             List<int> items = new();
+
             window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
         });
 
-        subject.OnNext(0); subject.OnNext(1); subject.OnNext(2);
-        subject.OnNext(3); subject.OnNext(4);
+        subject.OnNext(0);
+        subject.OnNext(1);
+        subject.OnNext(2);
+        subject.OnNext(3);
+        subject.OnNext(4);
         subject.OnCompleted();
 
         Assert.True(windows.Count >= 2);
@@ -127,11 +144,14 @@ public class WindowingOperatorsTests
         subject.WindowCount<int>(count: 2, skip: 2).Subscribe(window =>
         {
             List<int> items = new();
+
             window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
         });
 
-        subject.OnNext(1); subject.OnNext(2);
-        subject.OnNext(3); subject.OnNext(4);
+        subject.OnNext(1);
+        subject.OnNext(2);
+        subject.OnNext(3);
+        subject.OnNext(4);
         subject.OnCompleted();
 
         Assert.Equal(2, windows.Count);
@@ -140,7 +160,7 @@ public class WindowingOperatorsTests
     }
 
     // -----------------------------------------------------------------------
-    // WindowTime – argument validation
+    //  argument validationWindowTime 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -165,7 +185,7 @@ public class WindowingOperatorsTests
     }
 
     // -----------------------------------------------------------------------
-    // WindowTime – behaviour
+    //  behaviourWindowTime 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -177,14 +197,16 @@ public class WindowingOperatorsTests
         subject.WindowTime<int>(TimeSpan.FromSeconds(1), tp).Subscribe(window =>
         {
             List<int> items = new();
+
             window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
         });
 
-        subject.OnNext(1); subject.OnNext(2);
-        tp.Advance(TimeSpan.FromSeconds(1)); // close window 1, open window 2
+        subject.OnNext(1);
+        subject.OnNext(2);
+        tp.Advance(TimeSpan.FromSeconds(1));
 
         subject.OnNext(3);
-        tp.Advance(TimeSpan.FromSeconds(1)); // close window 2, open window 3
+        tp.Advance(TimeSpan.FromSeconds(1));
 
         subject.OnCompleted();
         await Task.Yield();
@@ -202,8 +224,8 @@ public class WindowingOperatorsTests
         int windowCount = 0;
         subject.WindowTime<int>(TimeSpan.FromSeconds(1), tp).Subscribe(_ => windowCount++);
 
-        tp.Advance(TimeSpan.FromSeconds(1)); // closes first (empty) window
-        tp.Advance(TimeSpan.FromSeconds(1)); // closes second (empty) window
+        tp.Advance(TimeSpan.FromSeconds(1));
+        tp.Advance(TimeSpan.FromSeconds(1));
 
         subject.OnCompleted();
         await Task.Yield();
@@ -220,11 +242,12 @@ public class WindowingOperatorsTests
         subject.WindowTime<int>(TimeSpan.FromSeconds(10), tp).Subscribe(window =>
         {
             List<int> items = new();
+
             window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
         });
 
         subject.OnNext(42);
-        subject.OnCompleted(); // completes before timer fires
+        subject.OnCompleted();
         await Task.Yield();
 
         Assert.Single(windows);
@@ -232,7 +255,7 @@ public class WindowingOperatorsTests
     }
 
     // -----------------------------------------------------------------------
-    // WindowTime with maxCount – argument validation
+    // WindowTime with  argument validationmaxCount 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -243,7 +266,7 @@ public class WindowingOperatorsTests
     }
 
     // -----------------------------------------------------------------------
-    // WindowTime with maxCount – behaviour
+    // WindowTime with  behaviourmaxCount 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -255,11 +278,14 @@ public class WindowingOperatorsTests
         subject.WindowTime<int>(TimeSpan.FromSeconds(10), maxCount: 2, timeProvider: tp).Subscribe(window =>
         {
             List<int> items = new();
+
             window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
         });
 
-        subject.OnNext(1); subject.OnNext(2); // count hit – window 1 closes
-        subject.OnNext(3); subject.OnNext(4); // count hit – window 2 closes
+        subject.OnNext(1);
+        subject.OnNext(2);
+        subject.OnNext(3);
+        subject.OnNext(4);
         subject.OnCompleted();
         await Task.Yield();
 
@@ -277,11 +303,13 @@ public class WindowingOperatorsTests
         subject.WindowTime<int>(TimeSpan.FromSeconds(1), maxCount: 10, timeProvider: tp).Subscribe(window =>
         {
             List<int> items = new();
+
             window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
         });
 
-        subject.OnNext(1); subject.OnNext(2);
-        tp.Advance(TimeSpan.FromSeconds(1)); // timer fires before count reached
+        subject.OnNext(1);
+        subject.OnNext(2);
+        tp.Advance(TimeSpan.FromSeconds(1));
 
         subject.OnCompleted();
         await Task.Yield();
@@ -291,7 +319,7 @@ public class WindowingOperatorsTests
     }
 
     // -----------------------------------------------------------------------
-    // BufferToggle – argument validation
+    //  argument validationBufferToggle 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -299,25 +327,28 @@ public class WindowingOperatorsTests
     {
         Observable<int>? source = null;
         Assert.Throws<ArgumentNullException>(() =>
-            source!.BufferToggle(Observable.Empty<Unit>(), _ => Observable.Empty<Unit>()));
+            source!.BufferToggle<int, Unit, Unit>(Observable.Empty<Unit>(), _ => Observable.Empty<Unit>()));
     }
 
     [Fact]
     public void BufferToggle_NullOpenings_Throws()
     {
+        Observable<Unit>? nullOpenings = null;
         Assert.Throws<ArgumentNullException>(() =>
-            Observable.Return(1).BufferToggle<int, Unit, Unit>(null!, _ => Observable.Empty<Unit>()));
+            Observable.Return(1).BufferToggle<int, Unit, Unit>(nullOpenings!, _ => Observable.Empty<Unit>()));
     }
 
     [Fact]
     public void BufferToggle_NullClosingSelector_Throws()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            Observable.Return(1).BufferToggle(Observable.Empty<Unit>(), (Func<Unit, Observable<Unit>>)null!));
+            Observable.Return(1).BufferToggle<int, Unit, Unit>(
+                Observable.Empty<Unit>(),
+                (Func<Unit, Observable<Unit>>)null!));
     }
 
     // -----------------------------------------------------------------------
-    // BufferToggle – behaviour
+    //  behaviourBufferToggle 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -326,11 +357,12 @@ public class WindowingOperatorsTests
         Subject<int> source = new();
         Subject<Unit> opens = new();
         Subject<Unit> closes = new();
-        LiveList<int[]> result = source.BufferToggle(opens, _ => closes).ToLiveList();
+        LiveList<int[]> result = source.BufferToggle(opens, _ => (Observable<Unit>)closes).ToLiveList();
 
-        opens.OnNext(Unit.Default); // open buffer
-        source.OnNext(1); source.OnNext(2);
-        closes.OnNext(Unit.Default); // close buffer
+        opens.OnNext(Unit.Default);
+        source.OnNext(1);
+        source.OnNext(2);
+        closes.OnNext(Unit.Default);
 
         Assert.Single(result);
         Assert.Equal(new[] { 1, 2 }, result[0]);
@@ -342,9 +374,9 @@ public class WindowingOperatorsTests
         Subject<int> source = new();
         Subject<Unit> opens = new();
         Subject<Unit> closes = new();
-        LiveList<int[]> result = source.BufferToggle(opens, _ => closes).ToLiveList();
+        LiveList<int[]> result = source.BufferToggle(opens, _ => (Observable<Unit>)closes).ToLiveList();
 
-        source.OnNext(99); // emitted before any buffer opens – should be ignored
+        source.OnNext(99);
         opens.OnNext(Unit.Default);
         source.OnNext(1);
         closes.OnNext(Unit.Default);
@@ -365,16 +397,16 @@ public class WindowingOperatorsTests
 
         LiveList<int[]> result = source.BufferToggle(opens, _ =>
         {
-            return closers[callCount++];
+            return (Observable<Unit>)closers[callCount++];
         }).ToLiveList();
 
-        opens.OnNext(Unit.Default); // open buffer A (closes1)
+        opens.OnNext(Unit.Default);
         source.OnNext(1);
-        opens.OnNext(Unit.Default); // open buffer B (closes2)
+        opens.OnNext(Unit.Default);
         source.OnNext(2);
-        closes1.OnNext(Unit.Default); // close A → {1, 2}
+        closes1.OnNext(Unit.Default);
         source.OnNext(3);
-        closes2.OnNext(Unit.Default); // close B → {2, 3} (2 was in-flight when B opened)
+        closes2.OnNext(Unit.Default);
 
         Assert.Equal(2, result.Count);
         Assert.Equal(new[] { 1, 2 }, result[0]);
@@ -387,11 +419,12 @@ public class WindowingOperatorsTests
         Subject<int> source = new();
         Subject<Unit> opens = new();
         Subject<Unit> closes = new();
-        LiveList<int[]> result = source.BufferToggle(opens, _ => closes).ToLiveList();
+        LiveList<int[]> result = source.BufferToggle(opens, _ => (Observable<Unit>)closes).ToLiveList();
 
         opens.OnNext(Unit.Default);
-        source.OnNext(5); source.OnNext(6);
-        source.OnCompleted(); // closes + emits open buffer
+        source.OnNext(5);
+        source.OnNext(6);
+        source.OnCompleted();
 
         Assert.Single(result);
         Assert.Equal(new[] { 5, 6 }, result[0]);
@@ -399,7 +432,7 @@ public class WindowingOperatorsTests
     }
 
     // -----------------------------------------------------------------------
-    // BufferWhen – argument validation
+    //  argument validationBufferWhen 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -418,7 +451,7 @@ public class WindowingOperatorsTests
     }
 
     // -----------------------------------------------------------------------
-    // BufferWhen – behaviour
+    //  behaviourBufferWhen 
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -426,10 +459,11 @@ public class WindowingOperatorsTests
     {
         Subject<int> source = new();
         Subject<Unit> closer = new();
-        LiveList<int[]> result = source.BufferWhen(() => closer).ToLiveList();
+        LiveList<int[]> result = source.BufferWhen(() => (Observable<Unit>)closer).ToLiveList();
 
-        source.OnNext(1); source.OnNext(2);
-        closer.OnNext(Unit.Default); // emit buffer
+        source.OnNext(1);
+        source.OnNext(2);
+        closer.OnNext(Unit.Default);
 
         Assert.Single(result);
         Assert.Equal(new[] { 1, 2 }, result[0]);
@@ -440,9 +474,10 @@ public class WindowingOperatorsTests
     {
         Subject<int> source = new();
         Subject<Unit> closer = new();
-        LiveList<int[]> result = source.BufferWhen(() => closer).ToLiveList();
+        LiveList<int[]> result = source.BufferWhen(() => (Observable<Unit>)closer).ToLiveList();
 
-        source.OnNext(1); source.OnNext(2);
+        source.OnNext(1);
+        source.OnNext(2);
         closer.OnNext(Unit.Default);
 
         Assert.Equal(new[] { 1, 2 }, result[0]);
@@ -459,10 +494,11 @@ public class WindowingOperatorsTests
     {
         Subject<int> source = new();
         Subject<Unit> closer = new();
-        LiveList<int[]> result = source.BufferWhen(() => closer).ToLiveList();
+        LiveList<int[]> result = source.BufferWhen(() => (Observable<Unit>)closer).ToLiveList();
 
-        source.OnNext(7); source.OnNext(8);
-        source.OnCompleted(); // flush without explicit close
+        source.OnNext(7);
+        source.OnNext(8);
+        source.OnCompleted();
 
         Assert.Single(result);
         Assert.Equal(new[] { 7, 8 }, result[0]);
@@ -474,9 +510,9 @@ public class WindowingOperatorsTests
     {
         Subject<int> source = new();
         Subject<Unit> closer = new();
-        LiveList<int[]> result = source.BufferWhen(() => closer).ToLiveList();
+        LiveList<int[]> result = source.BufferWhen(() => (Observable<Unit>)closer).ToLiveList();
 
-        closer.OnNext(Unit.Default); // close with no items
+        closer.OnNext(Unit.Default);
 
         Assert.Single(result);
         Assert.Empty(result[0]);

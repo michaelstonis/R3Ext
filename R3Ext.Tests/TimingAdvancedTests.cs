@@ -1,3 +1,4 @@
+#pragma warning disable SA1107, SA1124, SA1501, SA1503, SA1515, SA1025, SA1520, SA1513, SA1508, SA1516
 using Microsoft.Extensions.Time.Testing;
 using R3;
 using R3.Collections;
