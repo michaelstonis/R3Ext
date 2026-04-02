@@ -144,12 +144,12 @@ public static class CombinationExtensions
     /// <summary>
     /// Subscribes to both sources concurrently and emits a tuple of the last values when both complete.
     /// </summary>
-    public static Observable<(T1, T2)> ForkJoin<T1, T2>(Observable<T1> source1, Observable<T2> source2)
+    public static Observable<(T1 Item1, T2 Item2)> ForkJoin<T1, T2>(Observable<T1> source1, Observable<T2> source2)
     {
         ArgumentNullException.ThrowIfNull(source1);
         ArgumentNullException.ThrowIfNull(source2);
 
-        return Observable.Create<(T1, T2)>(observer =>
+        return Observable.Create<(T1 Item1, T2 Item2)>(observer =>
         {
             Lock gate = new();
             bool disposed = false;
@@ -297,14 +297,14 @@ public static class CombinationExtensions
     /// <summary>
     /// Subscribes to all three sources concurrently and emits a tuple of the last values when all complete.
     /// </summary>
-    public static Observable<(T1, T2, T3)> ForkJoin<T1, T2, T3>(
+    public static Observable<(T1 Item1, T2 Item2, T3 Item3)> ForkJoin<T1, T2, T3>(
         Observable<T1> source1, Observable<T2> source2, Observable<T3> source3)
     {
         ArgumentNullException.ThrowIfNull(source1);
         ArgumentNullException.ThrowIfNull(source2);
         ArgumentNullException.ThrowIfNull(source3);
 
-        return Observable.Create<(T1, T2, T3)>(observer =>
+        return Observable.Create<(T1 Item1, T2 Item2, T3 Item3)>(observer =>
         {
             Lock gate = new();
             bool disposed = false;
@@ -594,7 +594,7 @@ public static class CombinationExtensions
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(next);
 
-        return OnErrorResumeNext(source, next);
+        return OnErrorResumeNext(new Observable<T>[] { source, next });
     }
 
     /// <summary>
