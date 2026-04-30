@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>netstandard2.0</TargetFramework>
+        <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
         <IsRoslynAnalyzer>true</IsRoslynAnalyzer>
         <AssemblyName>R3Ext.Bindings.SourceGenerator</AssemblyName>
         <RootNamespace>R3Ext.Bindings.SourceGenerator</RootNamespace>
