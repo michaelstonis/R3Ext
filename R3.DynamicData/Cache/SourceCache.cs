@@ -10,7 +10,6 @@ namespace R3.DynamicData.Cache;
 public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     where TKey : notnull
 {
-    private readonly Func<TObject, TKey> _keySelector;
     private readonly Dictionary<TKey, TObject> _data;
     private readonly Subject<IChangeSet<TObject, TKey>> _changes;
     private readonly Subject<int> _countChanged;
@@ -68,13 +67,16 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     /// <inheritdoc/>
     public Observable<int> CountChanged => _countChanged;
 
+    /// <inheritdoc />
+    public Func<TObject, TKey> KeySelector { get; }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SourceCache{TObject, TKey}"/> class.
     /// </summary>
     /// <param name="keySelector">The function to extract the key from an object.</param>
     public SourceCache(Func<TObject, TKey> keySelector)
     {
-        _keySelector = keySelector ?? throw new ArgumentNullException(nameof(keySelector));
+        KeySelector = keySelector ?? throw new ArgumentNullException(nameof(keySelector));
         _data = new Dictionary<TKey, TObject>();
         _changes = new Subject<IChangeSet<TObject, TKey>>();
         _countChanged = new Subject<int>();
@@ -325,7 +327,7 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
 
         public void AddOrUpdate(TObject item)
         {
-            var key = _cache._keySelector(item);
+            var key = _cache.KeySelector(item);
             var isUpdate = _cache._data.TryGetValue(key, out var previous);
 
             _cache._data[key] = item;
