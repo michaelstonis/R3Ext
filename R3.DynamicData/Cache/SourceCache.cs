@@ -318,6 +318,8 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
 
         public IEnumerable<TObject> Items => _cache._data.Values;
 
+        public IEnumerable<KeyValuePair<TKey, TObject>> KeyValues => _cache._data;
+
         public Kernel.Optional<TObject> Lookup(TKey key)
         {
             return _cache._data.TryGetValue(key, out var value)
