@@ -60,6 +60,15 @@ public sealed class ChangeSet<TObject, TKey> : IChangeSet<TObject, TKey>
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="ChangeSet{TObject, TKey}"/> class.
+    /// </summary>
+    /// <param name="changes">The initial values.</param>
+    public ChangeSet(IEnumerable<Change<TObject, TKey>> changes)
+    {
+        _changes = new List<Change<TObject, TKey>>(changes);
+    }
+
+    /// <summary>
     /// Adds a change to the collection.
     /// </summary>
     /// <param name="change">The change to add.</param>
