@@ -5,7 +5,7 @@
         <DefineConstants>$(DefineConstants);R3EXT_TRACE</DefineConstants>
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <CompilerGeneratedFilesOutputPath>obj/Generated</CompilerGeneratedFilesOutputPath>
-        <IsTrimmable>true</IsTrimmable>
+        <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsTrimmable>
         <!-- NuGet Package Settings -->
         <IsPackable>true</IsPackable>
         <PackageId>R3Ext</PackageId>
@@ -28,7 +28,7 @@
             <_Parameter1>R3Ext.Tests</_Parameter1>
         </AssemblyAttribute>
     </ItemGroup>
-    <ItemGroup Condition="$(TargetFramework) == 'netstandard2.0' Or $(TargetFramework) == 'netstandard2.1'">
+    <ItemGroup Condition="$(TargetFramework) == 'netstandard2.1'">
         <PackageReference Include="PolySharp" Version="1.14.1" />
         <PackageReference Include="Backport.System.Threading.Lock" Version="3.1.8" />
     </ItemGroup>
