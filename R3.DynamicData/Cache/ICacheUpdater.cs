@@ -26,6 +26,14 @@ public interface ICacheUpdater<TObject, TKey>
     IEnumerable<TObject> Items { get; }
 
     /// <summary>
+    /// Gets the items together with their keys.
+    /// </summary>
+    /// <value>
+    /// The key value pairs.
+    /// </value>
+    IEnumerable<KeyValuePair<TKey, TObject>> KeyValues { get; }
+
+    /// <summary>
     /// Looks up the value for the specified key.
     /// </summary>
     /// <param name="key">The key.</param>

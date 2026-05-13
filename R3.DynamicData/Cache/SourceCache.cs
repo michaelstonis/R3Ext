@@ -10,7 +10,6 @@ namespace R3.DynamicData.Cache;
 public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     where TKey : notnull
 {
-    private readonly Func<TObject, TKey> _keySelector;
     private readonly Dictionary<TKey, TObject> _data;
     private readonly Subject<IChangeSet<TObject, TKey>> _changes;
     private readonly Subject<int> _countChanged;
@@ -68,6 +67,9 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     /// <inheritdoc/>
     public Observable<int> CountChanged => _countChanged;
 
+    /// <inheritdoc />
+    public Func<TObject, TKey> KeySelector { get; }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SourceCache{TObject, TKey}"/> class.
     /// </summary>
@@ -75,8 +77,10 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     /// <param name="initialCapacity">Optional initial capacity for the internal dictionary.</param>
     public SourceCache(Func<TObject, TKey> keySelector, int initialCapacity = 0)
     {
-        _keySelector = keySelector ?? throw new ArgumentNullException(nameof(keySelector));
-        _data = initialCapacity > 0 ? new Dictionary<TKey, TObject>(initialCapacity) : new Dictionary<TKey, TObject>();
+        KeySelector = keySelector ?? throw new ArgumentNullException(nameof(keySelector));
+        _data = initialCapacity > 0
+            ? new Dictionary<TKey, TObject>(initialCapacity)
+            : new Dictionary<TKey, TObject>();
         _changes = new Subject<IChangeSet<TObject, TKey>>();
         _countChanged = new Subject<int>();
     }
@@ -317,6 +321,8 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
 
         public IEnumerable<TObject> Items => _cache._data.Values;
 
+        public IEnumerable<KeyValuePair<TKey, TObject>> KeyValues => _cache._data;
+
         public Kernel.Optional<TObject> Lookup(TKey key)
         {
             return _cache._data.TryGetValue(key, out var value)
@@ -326,7 +332,7 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
 
         public void AddOrUpdate(TObject item)
         {
-            var key = _cache._keySelector(item);
+            var key = _cache.KeySelector(item);
             var isUpdate = _cache._data.TryGetValue(key, out var previous);
 
             _cache._data[key] = item;
