@@ -22,10 +22,12 @@ Legend:
 | Transformation          | Cast / Convert                                       | Cache/List         | Implemented | Passing | Alias of Transform; list tests added                                                                                           |
 | Transformation          | ChangeKey                                            | Cache              | Implemented | Passing | Projects to new key space; emits Remove+Add on key change                                                                      |
 | Transformation          | AddKey                                               | List               | Implemented | Passing | Converts List changesets to Cache changesets via key selector; 7 tests covering all changeset reasons                          |
+| Transformation          | TransformOnObservable                                | Cache              | Implemented | Passing | Per-item observable transformation; preserves ordering; 5 tests                                                                |
 | Filtering               | Filter (static predicate)                            | Cache/List         | Implemented | Passing | 9 Cache + 4 List tests; basic filtering with fixed predicate                                                                   |
 | Filtering               | Filter (observable predicate)                        | Cache/List         | Implemented | Passing | Dynamic predicate support; re-evaluates all items when predicate changes; 2 tests for dynamic predicate                        |
+| Filtering               | Filter (predicate state stream)                      | Cache/List         | Implemented | Passing | Avoids delegate allocation on state changes; 10 tests. Ref: DD #941                                                           |
 | Filtering               | FilterOnObservable                                   | Cache/List         | Implemented | Passing | Item-level observable predicate; 1 Cache + 10 List tests; tracks per-item observable state                                     |
-| Filtering               | FilterOnProperty (obsolete)                          | Cache/List         | Deferred    | None    | Superseded by AutoRefresh + Filter pattern                                                                                     |
+| Filtering               | FilterOnProperty (obsolete)                          | Cache/List         | Deferred    | None    | Superseded by AutoRefresh + Filter pattern; fully removed from upstream DynamicData 9.4.31                                     |
 | Logical                 | And / Or / Except / Xor                              | Cache              | Implemented | Passing | Dynamic composite list versions needed                                                                                         |
 | Logical                 | And / Or / Except / Xor                              | List               | Implemented | Passing | 13 tests for And/Or/Except/Xor; full recomputation Combiner implementation                                                     |
 | Logical                 | Combine dynamic collections                          | Cache/List         | NotStarted  | None    | Implement DynamicCombiner equivalents                                                                                          |
@@ -39,6 +41,7 @@ Legend:
 | Refresh                 | SuppressRefresh                                      | Cache              | Implemented | Passing |                                                                                                                                |
 | Refresh                 | InvokeEvaluate                                       | Cache              | NotStarted  | None    | IEvaluateAware support                                                                                                         |
 | Lifecycle               | DisposeMany                                          | Cache/List         | Implemented | Passing |                                                                                                                                |
+| Lifecycle               | AsyncDisposeMany                                     | Cache/List         | Implemented | Passing | IAsyncDisposable support; fire-and-forget disposal; 9 tests                                                                    |
 | Lifecycle               | ExpireAfter                                          | Cache              | Implemented | Passing |                                                                                                                                |
 | Lifecycle               | LimitSizeTo                                          | List               | Implemented | Passing | Cache size/time combos pending                                                                                                 |
 | Lifecycle               | EnsureUniqueKeys                                     | Cache              | Implemented | Passing |                                                                                                                                |
@@ -67,18 +70,18 @@ Legend:
 
 ### Migration Summary
 
-**Status as of November 22, 2025:**
+**Status as of November 22, 2025 (last updated: March 30, 2026):**
 
--   **Total Operators**: 62 operator categories tracked
--   **Implemented**: 58 operators (93.5%)
--   **Optimized**: 3 operators (4.8%)
--   **Deferred**: 1 operator (1.6%)
--   **Not Started**: 2 operators (3.2%)
+-   **Total Operators**: 65 operator categories tracked
+-   **Implemented**: 61 operators (93.8%)
+-   **Optimized**: 3 operators (4.6%)
+-   **Deferred**: 1 operator (1.5%)
+-   **Not Started**: 2 operators (3.1%)
 
 **Test Coverage:**
 
--   **Total Tests**: 274
--   **Passing**: 274 (100%)
+-   **Total Tests**: 311
+-   **Passing**: 311 (100%)
 
 **Remaining Work:**
 

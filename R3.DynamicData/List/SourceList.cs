@@ -249,6 +249,18 @@ public sealed class SourceList<T> : ISourceList<T>
     }
 
     /// <inheritdoc/>
+    public void Refresh(int index)
+    {
+        lock (_lock)
+        {
+            var item = _items[index];
+            var changeSet = new ChangeSet<T>(1);
+            changeSet.Add(new Change<T>(ListChangeReason.Refresh, item, index));
+            PublishChanges(changeSet);
+        }
+    }
+
+    /// <inheritdoc/>
     public void Clear()
     {
         lock (_lock)

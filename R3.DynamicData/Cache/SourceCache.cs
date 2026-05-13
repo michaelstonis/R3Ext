@@ -74,7 +74,8 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     /// Initializes a new instance of the <see cref="SourceCache{TObject, TKey}"/> class.
     /// </summary>
     /// <param name="keySelector">The function to extract the key from an object.</param>
-    public SourceCache(Func<TObject, TKey> keySelector)
+    /// <param name="initialCapacity">Optional initial capacity for the internal dictionary.</param>
+    public SourceCache(Func<TObject, TKey> keySelector, int initialCapacity = 0)
     {
         KeySelector = keySelector ?? throw new ArgumentNullException(nameof(keySelector));
         _data = new Dictionary<TKey, TObject>();

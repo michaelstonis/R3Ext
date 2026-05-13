@@ -1,4 +1,9 @@
 // Port of DynamicData to R3.
+// DD #1027 audit: Cache AutoRefresh delegates per-item observable subscriptions to
+// the Merge operator chain. All subscriptions are tracked via `CompositeDisposable disp`
+// using .AddTo(disp). When the operator subscription is disposed, disp.Dispose() cleans
+// up both the source and buffered-refresh subscriptions. Debounce timers are internal to
+// R3 and disposed with their subscription. SAFE.
 using System.ComponentModel;
 
 namespace R3.DynamicData.Cache.Internal;

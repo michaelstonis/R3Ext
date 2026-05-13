@@ -1,4 +1,7 @@
 // Upgraded Group operator implementation for R3.DynamicData
+// Audited against DD #938 (GroupOnObservable OnCompleted handling fix).
+// The Subscribe call passes observer.OnCompleted as the completion handler, so when the source
+// completes the downstream observer is completed correctly. Not affected by DD #938.
 // Now returns IGroup with IObservableCache children for TreeBuilder compatibility
 using System;
 using System.Collections.Generic;

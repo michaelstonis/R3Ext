@@ -1,4 +1,7 @@
 // Combined Sort + Bind operator for cache side (inspired by DynamicData SortAndBind).
+// Audited against DD #935 (ResetOnFirstTimeLoad fix): SortAndBindOptions now exposes
+// ResetOnFirstTimeLoad (default true). SortAndBindInternal honours it by always doing a
+// full reset on the first changeset when the flag is set, regardless of ResetThreshold.
 // Provides lower allocation and avoids transmitting full sorted state via intermediate sorted change sets.
 using System.Collections.ObjectModel;
 using R3.DynamicData.Binding;
@@ -72,6 +75,7 @@ public static partial class ObservableCacheEx
         var sorted = new ChangeAwareList<TObject>();
         var keyMap = new Dictionary<TKey, TObject>();
         int pendingChangeCount = 0;
+        bool isFirstLoad = true;
 
         void RebuildAll()
         {
@@ -99,9 +103,7 @@ public static partial class ObservableCacheEx
                         break;
 
                     case ListChangeReason.Moved:
-                        var mv = target[change.PreviousIndex];
-                        target.RemoveAt(change.PreviousIndex);
-                        target.Insert(change.CurrentIndex, mv);
+                        target.Move(change.PreviousIndex, change.CurrentIndex);
                         break;
 
                     case ListChangeReason.Replace:
@@ -166,13 +168,16 @@ public static partial class ObservableCacheEx
                 }
             }
 
-            // Decide reset vs diff.
-            if (pendingChangeCount >= options.ResetThreshold)
+            // Decide reset vs diff. ResetOnFirstTimeLoad (DD #935 fix): always reset on first emission
+            // when that option is set, regardless of ResetThreshold.
+            if ((isFirstLoad && options.ResetOnFirstTimeLoad) || pendingChangeCount >= options.ResetThreshold)
             {
+                isFirstLoad = false;
                 RebuildAll();
             }
             else
             {
+                isFirstLoad = false;
                 var diffs = sorted.CaptureChanges();
                 if (diffs.Count > 0)
                 {

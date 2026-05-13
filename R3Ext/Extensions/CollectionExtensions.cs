@@ -161,7 +161,11 @@ public static class CollectionExtensions
             throw new ArgumentNullException(nameof(list));
         }
 
+#if NET6_0_OR_GREATER
         rng ??= Random.Shared;
+#else
+        rng ??= new();
+#endif
         for (int i = list.Count - 1; i > 0; i--)
         {
             int j = rng.Next(i + 1);

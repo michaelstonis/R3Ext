@@ -102,6 +102,12 @@ public interface ISourceList<T> : IDisposable
     void Move(int originalIndex, int destinationIndex);
 
     /// <summary>
+    /// Emits a refresh notification for the item at the specified index without changing its value.
+    /// </summary>
+    /// <param name="index">The zero-based index of the item to refresh.</param>
+    void Refresh(int index);
+
+    /// <summary>
     /// Removes all items from the list.
     /// </summary>
     void Clear();

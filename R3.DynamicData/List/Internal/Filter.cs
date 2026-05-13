@@ -262,9 +262,8 @@ internal sealed class Filter<T>
         bool newPass = predicate(slot.Item);
         if (slot.Passes && newPass)
         {
-            // emit refresh as replace
             int filteredIndex = CountPassingBefore(slots, sourceIndex);
-            filtered[filteredIndex] = slot.Item;
+            filtered.Refresh(filteredIndex);
             return;
         }
 
