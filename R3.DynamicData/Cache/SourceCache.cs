@@ -78,7 +78,9 @@ public sealed class SourceCache<TObject, TKey> : ISourceCache<TObject, TKey>
     public SourceCache(Func<TObject, TKey> keySelector, int initialCapacity = 0)
     {
         KeySelector = keySelector ?? throw new ArgumentNullException(nameof(keySelector));
-        _data = new Dictionary<TKey, TObject>();
+        _data = initialCapacity > 0
+            ? new Dictionary<TKey, TObject>(initialCapacity)
+            : new Dictionary<TKey, TObject>();
         _changes = new Subject<IChangeSet<TObject, TKey>>();
         _countChanged = new Subject<int>();
     }
