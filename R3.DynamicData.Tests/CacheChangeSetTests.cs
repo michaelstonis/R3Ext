@@ -34,7 +34,6 @@ public class CacheChangeSetTests
     [Fact]
     public void Construct_Enumerable_CheckCounts()
     {
-        var adds = Enumerable.Range(0, 1).Select(x => new Change<string, int>(ChangeReason.Add, x, x.ToString()));
         Change<string, int>[] changes = [
             ..Enumerable.Range(0, 1).Select(x => new Change<string, int>(ChangeReason.Add, x, x.ToString())),
             ..Enumerable.Range(0, 2).Select(x => new Change<string, int>(ChangeReason.Moved, x, x.ToString())),
