@@ -33,6 +33,12 @@ public class BindingOptions
 /// <typeparam name="T">The type of elements in the collection.</typeparam>
 public interface IObservableCollection<T> : IList<T>, INotifyCollectionChanged, INotifyPropertyChanged
 {
+    /// <summary>
+    /// Moves the item at the specified index to the new position.
+    /// </summary>
+    /// <param name="oldIndex">The index of the item to move.</param>
+    /// <param name="newIndex">The destination index.</param>
+    void Move(int oldIndex, int newIndex);
 }
 
 /// <summary>
@@ -41,6 +47,7 @@ public interface IObservableCollection<T> : IList<T>, INotifyCollectionChanged, 
 /// <typeparam name="T">The type of elements in the collection.</typeparam>
 public class ObservableCollectionExtended<T> : ObservableCollection<T>, IObservableCollection<T>
 {
+    void IObservableCollection<T>.Move(int oldIndex, int newIndex) => Move(oldIndex, newIndex);
 }
 
 /// <summary>

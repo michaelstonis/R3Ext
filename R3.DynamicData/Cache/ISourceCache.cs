@@ -36,6 +36,11 @@ public interface ISourceCache<TObject, TKey> : IDisposable
     Observable<int> CountChanged { get; }
 
     /// <summary>
+    /// Gets key selector used by the cache to retrieve keys from objects.
+    /// </summary>
+    Func<TObject, TKey> KeySelector { get; }
+
+    /// <summary>
     /// Looks up the value for the specified key.
     /// </summary>
     /// <param name="key">The key.</param>
