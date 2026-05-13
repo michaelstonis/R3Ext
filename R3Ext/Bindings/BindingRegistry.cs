@@ -75,7 +75,7 @@ public static class BindingRegistry
     public static void RegisterOneWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath,
         Func<TFrom, TTarget, Func<TFromProp, TTargetProp>?, IDisposable> factory)
     {
-        string key = fromPath + "|" + toPath;
+        string key = string.Concat(fromPath, "|", toPath);
         Log($"[BindingRegistry] RegisterOneWay {key} as {typeof(TFrom).Name}->{typeof(TTarget).Name}");
         if (!_oneWay.TryGetValue(key, out List<OneWayEntry>? list))
         {
@@ -94,7 +94,7 @@ public static class BindingRegistry
     public static void RegisterTwoWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath,
         Func<TFrom, TTarget, Func<TFromProp, TTargetProp>?, Func<TTargetProp, TFromProp>?, IDisposable> factory)
     {
-        string key = fromPath + "|" + toPath;
+        string key = string.Concat(fromPath, "|", toPath);
         Log($"[BindingRegistry] RegisterTwoWay {key} as {typeof(TFrom).Name}<->{typeof(TTarget).Name}");
         if (!_twoWay.TryGetValue(key, out List<TwoWayEntry>? list))
         {
@@ -142,7 +142,7 @@ public static class BindingRegistry
     public static bool TryCreateOneWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath, TFrom fromObj, TTarget targetObj,
         Func<TFromProp, TTargetProp>? conv, out IDisposable disposable)
     {
-        string key = fromPath + "|" + toPath;
+        string key = string.Concat(fromPath, "|", toPath);
         Log($"[BindingRegistry] TryCreateOneWay lookup {key} for {typeof(TFrom).Name}->{typeof(TTarget).Name}");
         if (_oneWay.TryGetValue(key, out List<OneWayEntry>? list))
         {
@@ -162,7 +162,7 @@ public static class BindingRegistry
     public static bool TryCreateTwoWay<TFrom, TFromProp, TTarget, TTargetProp>(string fromPath, string toPath, TFrom fromObj, TTarget targetObj,
         Func<TFromProp, TTargetProp>? hostToTarget, Func<TTargetProp, TFromProp>? targetToHost, out IDisposable disposable)
     {
-        string key = fromPath + "|" + toPath;
+        string key = string.Concat(fromPath, "|", toPath);
         Log($"[BindingRegistry] TryCreateTwoWay lookup {key} for {typeof(TFrom).Name}<->{typeof(TTarget).Name}");
         if (_twoWay.TryGetValue(key, out List<TwoWayEntry>? list))
         {
@@ -333,7 +333,13 @@ public static class BindingRegistry
             return (string.Empty, whenPath);
         }
 
+#if DEBUG
+        // In debug mode, include type part for logging
         return (whenPath.Substring(0, idx), whenPath.Substring(idx + 1));
+#else
+        // In release mode, avoid allocating the unused typePart string
+        return (string.Empty, whenPath.Substring(idx + 1));
+#endif
     }
 
     private static void Log(string message)

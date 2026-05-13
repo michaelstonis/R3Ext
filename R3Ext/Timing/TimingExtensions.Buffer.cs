@@ -26,7 +26,7 @@ public static partial class TimingExtensions
         {
             Lock gate = new();
             bool disposed = false;
-            List<T> buffer = new();
+            List<T> buffer = new(16); // Initial capacity to reduce early resizes
             IDisposable? upstream = null;
             ITimer? timer = null;
 

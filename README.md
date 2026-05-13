@@ -662,6 +662,18 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ---
 
+## Library Parity
+
+R3Ext tracks parity with its upstream source libraries. See [docs/LibraryParity.md](docs/LibraryParity.md) for the current sync status, component mapping, and update workflow.
+
+| Library | Our Sync Status |
+|---------|-----------------|
+| R3 (Cysharp) | ✅ Current (1.3.0) |
+| DynamicData (ReactiveMarbles) | 🔄 Synced to 9.4.31 (Mar 2026) |
+| ReactiveUI | 🔄 Reviewed to 23.1.8 (Mar 2026) |
+
+---
+
 ## Attribution
 
 R3Ext is built on the shoulders of giants, bringing together proven patterns from the reactive programming ecosystem:

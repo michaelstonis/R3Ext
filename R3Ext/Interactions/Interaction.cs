@@ -4,7 +4,7 @@ namespace R3Ext;
 
 public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
 {
-    private readonly List<Func<IInteractionContext<TInput, TOutput>, Observable<Unit>>> _handlers = new();
+    private readonly List<Func<IInteractionContext<TInput, TOutput>, Observable<Unit>>> _handlers = new(4);
     private readonly object _sync = new();
 
     public IDisposable RegisterHandler(Action<IInteractionContext<TInput, TOutput>> handler)
@@ -38,13 +38,9 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
             throw new ArgumentNullException(nameof(handler));
         }
 
-        Observable<Unit> Wrapper(IInteractionContext<TInput, TOutput> context)
-        {
-            return handler(context).Select(_ => Unit.Default);
-        }
-
-        this.AddHandler(Wrapper);
-        return Disposable.Create(() => this.RemoveHandler(Wrapper));
+        var wrappedHandler = new HandlerWrapper<TDontCare>(handler);
+        this.AddHandler(wrappedHandler.Invoke);
+        return new HandlerUnregistration<TInput, TOutput>(this, wrappedHandler.Invoke);
     }
 
     public IDisposable RegisterHandler<TDontCare>(Func<IInteractionContext<TInput, TOutput>, IObservable<TDontCare>> handler)
@@ -111,7 +107,7 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
         return new InteractionContext<TInput, TOutput>(input);
     }
 
-    private void AddHandler(Func<IInteractionContext<TInput, TOutput>, Observable<Unit>> handler)
+    internal void AddHandler(Func<IInteractionContext<TInput, TOutput>, Observable<Unit>> handler)
     {
         lock (_sync)
         {
@@ -119,11 +115,44 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
         }
     }
 
-    private void RemoveHandler(Func<IInteractionContext<TInput, TOutput>, Observable<Unit>> handler)
+    internal void RemoveHandler(Func<IInteractionContext<TInput, TOutput>, Observable<Unit>> handler)
     {
         lock (_sync)
         {
             _handlers.Remove(handler);
         }
+    }
+
+    /// <summary>
+    /// Wraps a handler function to convert Observable&lt;TDontCare&gt; to Observable&lt;Unit&gt;.
+    /// This avoids creating a closure for each registration.
+    /// </summary>
+    private sealed class HandlerWrapper<TDontCare>(Func<IInteractionContext<TInput, TOutput>, Observable<TDontCare>> handler)
+    {
+        public Observable<Unit> Invoke(IInteractionContext<TInput, TOutput> context)
+        {
+            return handler(context).Select(static _ => Unit.Default);
+        }
+    }
+}
+
+/// <summary>
+/// Disposable that removes a handler from an interaction when disposed.
+/// This avoids creating a closure for Disposable.Create.
+/// </summary>
+internal sealed class HandlerUnregistration<TInput, TOutput>(
+    Interaction<TInput, TOutput> interaction,
+    Func<IInteractionContext<TInput, TOutput>, Observable<Unit>> handler) : IDisposable
+{
+    private int _disposed;
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+        {
+            return;
+        }
+
+        interaction.RemoveHandler(handler);
     }
 }

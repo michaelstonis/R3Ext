@@ -1,5 +1,7 @@
 // Port of DynamicData to R3.
-
+// DD #1027 audit: Batch uses Observable.Interval whose subscription is stored in
+// `timerSubscription`. The Disposable.Create cleanup disposes both sourceSubscription
+// and timerSubscription, so no scheduler-held reference outlives the operator. SAFE.
 using System;
 using System.Collections.Generic;
 

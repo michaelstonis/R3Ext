@@ -531,6 +531,27 @@ public static partial class ObservableCacheEx
         return new Cache.Internal.DisposeMany<TObject, TKey>(source, disposeAction).Run();
     }
 
+    /// <summary>
+    /// Automatically disposes items that implement <see cref="IAsyncDisposable"/> when they are removed from the cache.
+    /// Disposal is fire-and-forget; exceptions are swallowed.
+    /// </summary>
+    /// <typeparam name="TObject">The type of the object (must be <see cref="IAsyncDisposable"/>).</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <param name="source">The source observable.</param>
+    /// <returns>An observable that mirrors the source change set.</returns>
+    public static Observable<IChangeSet<TObject, TKey>> AsyncDisposeMany<TObject, TKey>(
+        this Observable<IChangeSet<TObject, TKey>> source)
+        where TObject : notnull, IAsyncDisposable
+        where TKey : notnull
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        return new Cache.Internal.AsyncDisposeMany<TObject, TKey>(source).Run();
+    }
+
     // AutoRefresh variants for cache
 
     /// <summary>

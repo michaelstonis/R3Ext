@@ -1,3 +1,7 @@
+// Audited against DD #940 (ChangeSetMergeTracker value type support fix).
+// Our MergeChangeSets uses HashSet<T>(EqualityComparer<T>.Default) and
+// Dictionary<T, long>(EqualityComparer<T>.Default) throughout, which handle value types
+// (structs) correctly via .NET's default equality semantics. Not affected by DD #940.
 using System;
 using System.Collections.Generic;
 using System.Linq;

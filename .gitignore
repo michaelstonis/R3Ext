@@ -412,3 +412,5 @@ R3Ext.SampleApp/obj/
 R3Ext/bin/
 
 R3Ext/obj/
+
+*.lscache

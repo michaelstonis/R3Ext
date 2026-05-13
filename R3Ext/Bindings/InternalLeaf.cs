@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using R3Ext.Utilities;
 
 namespace R3Ext;
 
@@ -18,7 +19,7 @@ public sealed class InternalLeaf : INotifyPropertyChanged
             }
 
             _name = value;
-            this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Name)));
+            this.PropertyChanged?.Invoke(this, PropertyEventArgsCache.GetPropertyChanged(nameof(Name)));
         }
     }
 
@@ -40,7 +41,7 @@ public sealed class InternalMid : INotifyPropertyChanged
             }
 
             _leaf = value;
-            this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Leaf)));
+            this.PropertyChanged?.Invoke(this, PropertyEventArgsCache.GetPropertyChanged(nameof(Leaf)));
         }
     }
 
@@ -62,7 +63,7 @@ public sealed class InternalRoot : INotifyPropertyChanged
             }
 
             _mid = value;
-            this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Mid)));
+            this.PropertyChanged?.Invoke(this, PropertyEventArgsCache.GetPropertyChanged(nameof(Mid)));
         }
     }
 

@@ -82,4 +82,39 @@ public class FilterOperatorTests
         var removed = results[0].Select(c => c.Item).OrderBy(x => x).ToArray();
         Assert.Equal(new[] { 1, 2, 3 }, removed);
     }
+
+    [Fact]
+    public void Filter_Refresh_PassingItemEmitsRefreshDownstream()
+    {
+        var source = new SourceList<int>();
+        var results = new List<IChangeSet<int>>();
+        using var sub = source.Connect().Filter(x => x % 2 == 0).Subscribe(results.Add);
+
+        source.AddRange(new[] { 2, 3, 4 }); // 2 and 4 pass
+        results.Clear();
+
+        source.Refresh(0); // refresh 2 (passes) -> should emit Refresh
+        source.Refresh(1); // refresh 3 (fails) -> should emit nothing
+
+        Assert.Single(results);
+        var change = results[0].Single();
+        Assert.Equal(ListChangeReason.Refresh, change.Reason);
+        Assert.Equal(2, change.Item);
+    }
+
+    [Fact]
+    public void Filter_Refresh_ItemThatStillPassesEmitsRefresh()
+    {
+        var source = new SourceList<int>();
+        var results = new List<IChangeSet<int>>();
+        using var sub = source.Connect().Filter(x => x >= 5).Subscribe(results.Add);
+
+        source.AddRange(new[] { 6, 3 }); // 6 passes, 3 does not
+        results.Clear();
+
+        // Refresh 6 — still passes, expect Refresh
+        source.Refresh(0);
+        Assert.Single(results);
+        Assert.Equal(ListChangeReason.Refresh, results[0].Single().Reason);
+    }
 }
