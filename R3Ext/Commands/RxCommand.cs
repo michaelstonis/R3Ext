@@ -69,7 +69,11 @@ public sealed class RxCommand<TInput, TOutput> : ICommand, IObservable<TOutput>,
                 TOutput result = await _executeAsync(parameter, ct);
                 if (_outputScheduler != null)
                 {
+#if NET8_0_OR_GREATER
                     await Task.Delay(TimeSpan.Zero, _outputScheduler, ct);
+#else
+                    await _outputScheduler.Delay(TimeSpan.Zero, ct);
+#endif
                 }
 
                 _executionResults.OnNext(result);
