@@ -55,10 +55,10 @@ The `R3.DynamicData` project is a full port of [DynamicData](https://github.com/
 | `ObservableCacheEx` | `ObservableCacheEx` | Extension methods; split into per-operator files |
 | `ObservableListExtensions` | `ObservableListEx` | Renamed for consistency |
 | `IObservableCache<TObject, TKey>` | `IObservableCache<TObject, TKey>` | Full parity |
-| `IObservableList<T>` | `IObservableList<T>` | Full parity |
+| `IObservableList<T>` | Merged into `ISourceList<T>` | No separate type; `Count`/`CountChanged`/`Items`/`Connect()` absorbed into `ISourceList<T>`; `Connect(predicate)` overload and `Preview()` not ported — see Known Gaps |
 | `IChangeSet<T>` | `IChangeSet<T>` | List changeset |
 | `IChangeSet<TObject, TKey>` | `IChangeSet<TObject, TKey>` | Cache changeset |
-| `SortExpressionComparer<T>` | `SortExpressionComparer<T>` | Full parity |
+| `SortExpressionComparer<T>` | Not ported | Fluent comparer-builder not ported; Sort operators accept `IComparer<T>` directly — see Known Gaps |
 | `GroupWithImmutableState` | `GroupWithImmutableState` | Full parity |
 | `ChangeAwareList<T>` | `ChangeAwareList<T>` | Full parity |
 | `TransformOnObservable` | ✅ Ported | See `UpstreamChangesReview.md` §2 |
@@ -178,6 +178,15 @@ The following are known areas where R3Ext's implementation differs from or lags 
 
 ### DynamicData Gaps
 
+**Interface hierarchy differences:**
+- `IObservableList<T>` does not exist as a separate type. In upstream DynamicData, `IObservableList<T>` is the read-only base interface and `ISourceList<T>` extends it with a single `Edit()` method. In R3Ext, `ISourceList<T>` is a standalone interface that absorbs the read-only members (`Count`, `CountChanged`, `Items`, `Connect()`), but two members are not ported:
+  - `Connect(Func<T, bool>? predicate)` — the filtered overload is absent from the list interface (filtering is available via the `Filter` operator instead).
+  - `Preview(Func<T, bool>? predicate)` — pre-application change stream is absent from the list interface (it is present on `IObservableCache<TObject, TKey>`).
+
+**Missing convenience types:**
+- `SortExpressionComparer<T>` — the fluent comparer-builder class (`Ascending(x => x.Prop).ThenByDescending(x => x.Other)`) is not ported. The `Sort` operator accepts any `IComparer<T>`, so callers must supply their own implementation (e.g., `Comparer<T>.Create(...)` or a custom class).
+
+
 **Not yet ported (new upstream operators):**
 - _(None — all new operators from DD 9.0.x–9.4.31 have been ported: `AsyncDisposeMany`, `TransformOnObservable`, and `Filter` predicate state stream overloads.)_
 
@@ -208,4 +217,4 @@ None currently — on latest version (1.3.0). ✅
 
 ---
 
-_Last updated: 2026-03-30_
+_Last updated: 2026-05-12_
