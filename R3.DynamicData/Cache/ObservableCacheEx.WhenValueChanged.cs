@@ -1,4 +1,8 @@
 // Port of DynamicData to R3.
+// Audited against DD #1059 (WhenValueChanged null fallback for non-nullable value types).
+// Upstream added expression-tree support for null-fallback within expression bodies.
+// Our implementation uses explicit selectors (not expression trees) for AOT safety, so
+// callers can already pass default(T) or a custom fallback directly — not affected.
 // Uses R3Ext's AOT-compatible WhenChanged operator for property monitoring.
 
 using System.ComponentModel;

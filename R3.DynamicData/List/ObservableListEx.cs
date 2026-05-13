@@ -372,6 +372,40 @@ public static partial class ObservableListEx
     }
 
     /// <summary>
+    /// Filters the list using a predicate that takes an item and an external state value.
+    /// Re-evaluates all items when the state observable emits. Avoids allocating a new predicate
+    /// delegate on each state change (DD #941).
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list.</typeparam>
+    /// <typeparam name="TState">The type of the external filter state.</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <param name="stateStream">Observable that emits new state values.</param>
+    /// <param name="predicate">Predicate that receives an item and the current state.</param>
+    /// <returns>An observable that emits filtered change sets.</returns>
+    public static Observable<IChangeSet<T>> Filter<T, TState>(
+        this Observable<IChangeSet<T>> source,
+        Observable<TState> stateStream,
+        Func<T, TState, bool> predicate)
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        if (stateStream is null)
+        {
+            throw new ArgumentNullException(nameof(stateStream));
+        }
+
+        if (predicate is null)
+        {
+            throw new ArgumentNullException(nameof(predicate));
+        }
+
+        return new Internal.StatefulFilter<T, TState>(source, stateStream, predicate).Run();
+    }
+
+    /// <summary>
     /// Reverses the order of items in the list.
     /// </summary>
     /// <typeparam name="T">The type of the items in the list.</typeparam>
@@ -421,6 +455,25 @@ public static partial class ObservableListEx
         where T : notnull
     {
         return new Internal.DisposeMany<T>(source, disposeAction).Run();
+    }
+
+    /// <summary>
+    /// Automatically disposes items that implement <see cref="IAsyncDisposable"/> when they are removed from the list.
+    /// Disposal is fire-and-forget; exceptions are swallowed.
+    /// </summary>
+    /// <typeparam name="T">The type of the items in the list (must be <see cref="IAsyncDisposable"/>).</typeparam>
+    /// <param name="source">The source observable list.</param>
+    /// <returns>An observable that emits change sets with automatic async disposal.</returns>
+    public static Observable<IChangeSet<T>> AsyncDisposeMany<T>(
+        this Observable<IChangeSet<T>> source)
+        where T : notnull, IAsyncDisposable
+    {
+        if (source is null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
+        return new Internal.AsyncDisposeMany<T>(source).Run();
     }
 
     /// <summary>
@@ -751,6 +804,14 @@ public static partial class ObservableListEx
             }
         });
     }
+
+    // Audited against DD #1064-1069 (OnItemAdded/OnItemRemoved/OnItemRefreshed rewrites):
+    // - OnItemAdded (OnBeingAdded): handles Add (single item via change.Item) and AddRange
+    //   (multiple items via change.Range iteration). Correct.
+    // - OnItemRemoved (OnBeingRemoved): handles Remove, RemoveRange, Replace (previous item),
+    //   and Clear. Correct.
+    // - OnItemRefreshed: iterates Refresh changes and invokes callback per item. Correct.
+    // These implementations are not affected by the upstream rewrites.
 
     /// <summary>
     /// Callback for each item as and when it is being added to the stream.

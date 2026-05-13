@@ -200,6 +200,16 @@ public class ChangeAwareList<T> : IExtendedList<T>
     }
 
     /// <summary>
+    /// Emits a refresh notification for the item at the specified index without changing its value.
+    /// </summary>
+    /// <param name="index">The zero-based index of the item to refresh.</param>
+    public void Refresh(int index)
+    {
+        var item = _innerList[index];
+        _changes.Add(new Change<T>(ListChangeReason.Refresh, item, index));
+    }
+
+    /// <summary>
     /// Removes the first occurrence of a specific item from the list.
     /// </summary>
     /// <param name="item">The item to remove.</param>

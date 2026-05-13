@@ -1,4 +1,12 @@
 // Minimal InnerJoin implementation for DynamicData port. Marks Joins as Partial.
+// Audited against DD #945 (join initialization race / multiple initial changesets):
+//   RecomputeAndEmit() only emits when there are actual result changes. When only one side has
+//   data, no overlapping keys exist yet so no emission occurs. The single first emission happens
+//   only when both sides have provided matching keys → correct single-emission behavior.
+// Audited against DD #1012 (re-grouping when foreign key changes):
+//   All four join types process Update changes by replacing the entry in the left/right dictionary
+//   then calling RecomputeAndEmit(), which removes results for stale keys and adds results for new
+//   overlapping keys. Foreign key changes are handled correctly.
 // Provides diff emission (Add/Update/Remove) for joined pairs. Future work: Left/Right/Full joins and Many joins.
 using R3.DynamicData.Kernel;
 

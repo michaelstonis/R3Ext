@@ -186,6 +186,7 @@ The following are known areas where R3Ext's implementation differs from or lags 
 **Missing convenience types:**
 - `SortExpressionComparer<T>` — the fluent comparer-builder class (`Ascending(x => x.Prop).ThenByDescending(x => x.Other)`) is not ported. The `Sort` operator accepts any `IComparer<T>`, so callers must supply their own implementation (e.g., `Comparer<T>.Create(...)` or a custom class).
 
+
 **Not yet ported (new upstream operators):**
 - _(None — all new operators from DD 9.0.x–9.4.31 have been ported: `AsyncDisposeMany`, `TransformOnObservable`, and `Filter` predicate state stream overloads.)_
 

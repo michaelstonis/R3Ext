@@ -20,4 +20,12 @@ public sealed class SortAndBindOptions
 
     /// <summary>Gets or sets threshold of accumulated changes before performing a reset-style rebuild.</summary>
     public int ResetThreshold { get; set; } = BindingOptions.DefaultResetThreshold;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the first changeset should always trigger a full reset
+    /// (clear + repopulate) regardless of the <see cref="ResetThreshold"/>.
+    /// Fixes DD #935: previously ResetOnFirstTimeLoad was only honoured when the initial count exceeded
+    /// ResetThreshold; now the first emission always rebuilds when this flag is set.
+    /// </summary>
+    public bool ResetOnFirstTimeLoad { get; set; } = true;
 }
