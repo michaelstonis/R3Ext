@@ -65,7 +65,8 @@ public sealed class ChangeSet<TObject, TKey> : IChangeSet<TObject, TKey>
     /// <param name="changes">The initial values.</param>
     public ChangeSet(IEnumerable<Change<TObject, TKey>> changes)
     {
-        _changes = new List<Change<TObject, TKey>>(changes);
+        _changes = new List<Change<TObject, TKey>>();
+        AddRange(changes);
     }
 
     /// <summary>
