@@ -10,5 +10,3 @@
 
 # GitHub Agentic Workflows lock files
 .github/workflows/*.lock.yml linguist-generated=true merge=ours
-
-.github/workflows/*.lock.yml linguist-generated=true merge=ours
