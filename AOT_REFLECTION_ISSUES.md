@@ -1,6 +1,6 @@
 # AOT and Reflection Issues Matrix
 
-This document tracks all potential AOT (Ahead-of-Time) compilation, reflection, and expression evaluation issues found in R3Ext and R3.DynamicData projects.
+This document tracks all potential AOT (Ahead-of-Time) compilation, reflection, and expression evaluation issues found in R3Ext and R3Ext.DynamicData projects.
 
 ## Status Legend
 - ⏳ **Pending** - Not yet addressed
@@ -14,7 +14,7 @@ This document tracks all potential AOT (Ahead-of-Time) compilation, reflection, 
 ## 🎉 Summary: All Critical AOT Issues Resolved
 
 **Status:** ✅ **Complete**  
-**Test Coverage:** 459/459 tests passing (174 R3Ext + 285 R3.DynamicData)  
+**Test Coverage:** 459/459 tests passing (174 R3Ext + 285 R3Ext.DynamicData)  
 **Branch:** feature/aot-reflection-fixes (5 commits)
 
 All critical Expression.Compile() and reflection-based issues have been successfully eliminated. The codebase is now fully compatible with native AOT compilation.
@@ -29,12 +29,12 @@ All critical Expression.Compile() and reflection-based issues have been successf
 **AOT Impact:** Expression.Compile() creates dynamic methods that are incompatible with AOT
 
 #### Locations:
-1. **`R3.DynamicData/Cache/ObservableCacheEx.WhenValueChanged.cs`**
+1. **`R3Ext.DynamicData/Cache/ObservableCacheEx.WhenValueChanged.cs`**
    - ~~Line 31: `var getter = propertyAccessor.Compile();`~~
    - ~~Line 131: `var getter = propertyAccessor.Compile();`~~
    - **Context:** Used in WhenValueChanged operators to create property getters from expressions
    
-2. **`R3.DynamicData/Binding/BindingOptions.cs`**
+2. **`R3Ext.DynamicData/Binding/BindingOptions.cs`**
    - ~~Line 156: `propertyAccessor.Compile()(source)`~~
    - **Context:** Used in WhenPropertyChanged to compile property access expression
 
@@ -89,7 +89,7 @@ public static Observable<PropertyValue<TObject, TProperty>> WhenPropertyChanged<
 **AOT Impact:** Runtime reflection on types/properties fails with trimming
 
 #### Locations:
-1. **`R3.DynamicData/Cache/ObservableCacheEx.WhenValueChanged.cs`**
+1. **`R3Ext.DynamicData/Cache/ObservableCacheEx.WhenValueChanged.cs`**
    - ~~Lines 233-260: `GetKeySelector<TObject, TKey>()` method~~
    - ~~Uses `typeof(TObject).GetProperty()` and `GetProperties()`~~
    - ~~Searches for "Id", "[Key]" attribute, or naming patterns~~
@@ -157,7 +157,7 @@ The refactoring maintains the same functionality while being AOT-compatible:
 **AOT Impact:** Minor - GetType() for equality check
 
 #### Locations:
-1. **`R3.DynamicData/Cache/Node.cs`**
+1. **`R3Ext.DynamicData/Cache/Node.cs`**
    - ~~Line 156: `if (obj.GetType() != GetType())`~~
    - **Context:** Equality comparison in Node<TObject, TKey>
 
@@ -199,7 +199,7 @@ The refactoring maintains the same functionality while being AOT-compatible:
 **AOT Impact:** None - Compile-time expression tree inspection is safe
 
 #### Locations:
-1. **`R3.DynamicData/Cache/ObservableCacheEx.WhenValueChanged.cs`**
+1. **`R3Ext.DynamicData/Cache/ObservableCacheEx.WhenValueChanged.cs`**
    - Line 22: `if (expression.Body is MemberExpression memberExpr)`
    - Line 27: `memberExpr.Member.Name` - reading property name from expression
    - **Context:** ExtractPropertyPath helper for source generator key matching
@@ -255,7 +255,7 @@ var compiled = expression.Compile();  // ❌ Not AOT-safe
 
 ### Current AOT Settings:
 - **R3Ext.csproj**: `<IsTrimmable>true</IsTrimmable>`
-- **R3.DynamicData.csproj**: No specific AOT settings
+- **R3Ext.DynamicData.csproj**: No specific AOT settings
 
 ### Recommended Additions:
 ```xml
@@ -333,7 +333,7 @@ var compiled = expression.Compile();  // ❌ Not AOT-safe
 
 ### Test Results
 - ✅ **R3Ext Tests**: 174/174 passing
-- ✅ **R3.DynamicData Tests**: 285/285 passing
+- ✅ **R3Ext.DynamicData Tests**: 285/285 passing
 - ✅ **Total**: 459/459 tests passing (100%)
 
 ---

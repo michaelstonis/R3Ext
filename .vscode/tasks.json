@@ -17,7 +17,7 @@
 				"&&",
 				"dotnet",
 				"test",
-				"R3.DynamicData.Tests/R3.DynamicData.Tests.csproj",
+				"R3Ext.DynamicData.Tests/R3Ext.DynamicData.Tests.csproj",
 				"--nologo",
 				"--blame-hang",
 				"--blame-hang-timeout",

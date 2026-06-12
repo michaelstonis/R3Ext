@@ -3,7 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.Maui.Controls;
 using R3;
-using R3.DynamicData.List;
+using R3Ext.DynamicData.List;
 
 namespace R3Ext.SampleApp;
 

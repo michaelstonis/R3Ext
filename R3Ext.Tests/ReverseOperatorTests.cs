@@ -1,5 +1,5 @@
 using R3; // for Subscribe overloads
-using R3.DynamicData.List;
+using R3Ext.DynamicData.List;
 using Xunit;
 
 namespace R3Ext.Tests;
