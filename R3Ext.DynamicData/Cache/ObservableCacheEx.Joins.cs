@@ -1,0 +1,812 @@
+// Minimal InnerJoin implementation for DynamicData port. Marks Joins as Partial.
+// Audited against DD #945 (join initialization race / multiple initial changesets):
+//   RecomputeAndEmit() only emits when there are actual result changes. When only one side has
+//   data, no overlapping keys exist yet so no emission occurs. The single first emission happens
+//   only when both sides have provided matching keys → correct single-emission behavior.
+// Audited against DD #1012 (re-grouping when foreign key changes):
+//   All four join types process Update changes by replacing the entry in the left/right dictionary
+//   then calling RecomputeAndEmit(), which removes results for stale keys and adds results for new
+//   overlapping keys. Foreign key changes are handled correctly.
+// Provides diff emission (Add/Update/Remove) for joined pairs. Future work: Left/Right/Full joins and Many joins.
+using R3Ext.DynamicData.Kernel;
+
+namespace R3Ext.DynamicData.Cache;
+
+/// <summary>
+/// Extension methods for observable cache change sets.
+/// </summary>
+public static partial class ObservableCacheEx
+{
+    /// <summary>
+    /// Performs an inner join between two cache change streams with matching keys.
+    /// Emits Add when a matching pair first appears, Update when either side changes and result changes,
+    /// and Remove when either side of an existing pair is removed. If only one side has the key no result is emitted.
+    /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from left and right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the inner join results.</returns>
+    public static Observable<IChangeSet<TResult, TKey>> InnerJoin<TLeft, TRight, TKey, TResult>(
+        this Observable<IChangeSet<TLeft, TKey>> left,
+        Observable<IChangeSet<TRight, TKey>> right,
+        Func<TLeft, TRight, TResult> resultSelector,
+        IEqualityComparer<TResult>? resultComparer = null)
+        where TKey : notnull
+        where TLeft : notnull
+        where TRight : notnull
+        where TResult : notnull
+    {
+        if (left is null)
+        {
+            throw new ArgumentNullException(nameof(left));
+        }
+
+        if (right is null)
+        {
+            throw new ArgumentNullException(nameof(right));
+        }
+
+        if (resultSelector is null)
+        {
+            throw new ArgumentNullException(nameof(resultSelector));
+        }
+
+        var cmp = resultComparer ?? EqualityComparer<TResult>.Default;
+
+        return Observable.Create<IChangeSet<TResult, TKey>>(observer =>
+        {
+            var leftItems = new Dictionary<TKey, TLeft>();
+            var rightItems = new Dictionary<TKey, TRight>();
+            var currentResults = new Dictionary<TKey, TResult>();
+
+            void RecomputeAndEmit()
+            {
+                // Build new results for overlapping keys.
+                var newResults = new Dictionary<TKey, TResult>();
+                foreach (var kvp in leftItems)
+                {
+                    if (rightItems.TryGetValue(kvp.Key, out var r))
+                    {
+                        var res = resultSelector(kvp.Value, r);
+                        newResults[kvp.Key] = res;
+                    }
+                }
+
+                var changes = new List<Change<TResult, TKey>>();
+
+                // Removals
+                foreach (var existing in currentResults)
+                {
+                    if (!newResults.ContainsKey(existing.Key))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Remove, existing.Key, existing.Value, existing.Value));
+                    }
+                }
+
+                // Additions & Updates
+                foreach (var kvp in newResults)
+                {
+                    if (!currentResults.TryGetValue(kvp.Key, out var prev))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Add, kvp.Key, kvp.Value));
+                    }
+                    else if (!cmp.Equals(prev, kvp.Value))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Update, kvp.Key, kvp.Value, prev));
+                    }
+                }
+
+                if (changes.Count > 0)
+                {
+                    // Apply changes to snapshot.
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                            case ChangeReason.Update:
+                                currentResults[change.Key] = change.Current;
+                                break;
+                            case ChangeReason.Remove:
+                                currentResults.Remove(change.Key);
+                                break;
+                        }
+                    }
+
+                    var outSet = new ChangeSet<TResult, TKey>();
+                    outSet.AddRange(changes);
+                    observer.OnNext(outSet);
+                }
+            }
+
+            var dispLeft = left.Subscribe(
+                changes =>
+            {
+                try
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                                leftItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Update:
+                                leftItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                leftItems.Remove(change.Key);
+                                break;
+
+                            case ChangeReason.Refresh:
+
+                                // treat refresh as potential update; if result changes diff logic will emit Update
+                                if (leftItems.ContainsKey(change.Key))
+                                {
+                                    leftItems[change.Key] = change.Current;
+                                }
+
+                                break;
+
+                            case ChangeReason.Moved:
+                                break;
+                        }
+                    }
+
+                    RecomputeAndEmit();
+                }
+                catch (Exception ex)
+                {
+                    observer.OnErrorResume(ex);
+                }
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
+
+            var dispRight = right.Subscribe(
+                changes =>
+            {
+                try
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                                rightItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Update:
+                                rightItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                rightItems.Remove(change.Key);
+                                break;
+
+                            case ChangeReason.Refresh:
+                                if (rightItems.ContainsKey(change.Key))
+                                {
+                                    rightItems[change.Key] = change.Current;
+                                }
+
+                                break;
+
+                            case ChangeReason.Moved:
+                                break;
+                        }
+                    }
+
+                    RecomputeAndEmit();
+                }
+                catch (Exception ex)
+                {
+                    observer.OnErrorResume(ex);
+                }
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
+
+            return Disposable.Combine(dispLeft, dispRight);
+        });
+    }
+
+    /// <summary>
+    /// Performs a full outer join between two cache change streams. Emits a result for every key present in either cache,
+    /// pairing with the right item if present or null if absent.
+    /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from left and optional right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the left join results.</returns>
+    public static Observable<IChangeSet<TResult, TKey>> LeftJoin<TLeft, TRight, TKey, TResult>(
+        this Observable<IChangeSet<TLeft, TKey>> left,
+        Observable<IChangeSet<TRight, TKey>> right,
+        Func<TLeft, TRight?, TResult> resultSelector,
+        IEqualityComparer<TResult>? resultComparer = null)
+        where TKey : notnull
+        where TLeft : notnull
+        where TRight : class
+        where TResult : notnull
+    {
+        if (left is null)
+        {
+            throw new ArgumentNullException(nameof(left));
+        }
+
+        if (right is null)
+        {
+            throw new ArgumentNullException(nameof(right));
+        }
+
+        if (resultSelector is null)
+        {
+            throw new ArgumentNullException(nameof(resultSelector));
+        }
+
+        var cmp = resultComparer ?? EqualityComparer<TResult>.Default;
+
+        return Observable.Create<IChangeSet<TResult, TKey>>(observer =>
+        {
+            var leftItems = new Dictionary<TKey, TLeft>();
+            var rightItems = new Dictionary<TKey, TRight>();
+            var currentResults = new Dictionary<TKey, TResult>();
+
+            void RecomputeAndEmit()
+            {
+                var newResults = new Dictionary<TKey, TResult>();
+                foreach (var kvp in leftItems)
+                {
+                    rightItems.TryGetValue(kvp.Key, out var r);
+                    var res = resultSelector(kvp.Value, r);
+                    newResults[kvp.Key] = res;
+                }
+
+                var changes = new List<Change<TResult, TKey>>();
+                foreach (var existing in currentResults)
+                {
+                    if (!newResults.ContainsKey(existing.Key))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Remove, existing.Key, existing.Value, existing.Value));
+                    }
+                }
+
+                foreach (var kvp in newResults)
+                {
+                    if (!currentResults.TryGetValue(kvp.Key, out var prev))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Add, kvp.Key, kvp.Value));
+                    }
+                    else if (!cmp.Equals(prev, kvp.Value))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Update, kvp.Key, kvp.Value, prev));
+                    }
+                }
+
+                if (changes.Count > 0)
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                            case ChangeReason.Update:
+                                currentResults[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                currentResults.Remove(change.Key);
+                                break;
+                        }
+                    }
+
+                    var outSet = new ChangeSet<TResult, TKey>();
+                    outSet.AddRange(changes);
+                    observer.OnNext(outSet);
+                }
+            }
+
+            var dispLeft = left.Subscribe(
+                changes =>
+            {
+                try
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                                leftItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Update:
+                                leftItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                leftItems.Remove(change.Key);
+                                break;
+
+                            case ChangeReason.Refresh:
+                                if (leftItems.ContainsKey(change.Key))
+                                {
+                                    leftItems[change.Key] = change.Current;
+                                }
+
+                                break;
+
+                            case ChangeReason.Moved:
+                                break;
+                        }
+                    }
+
+                    RecomputeAndEmit();
+                }
+                catch (Exception ex)
+                {
+                    observer.OnErrorResume(ex);
+                }
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
+
+            var dispRight = right.Subscribe(
+                changes =>
+            {
+                try
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                                rightItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Update:
+                                rightItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                rightItems.Remove(change.Key);
+                                break;
+
+                            case ChangeReason.Refresh:
+                                if (rightItems.ContainsKey(change.Key))
+                                {
+                                    rightItems[change.Key] = change.Current;
+                                }
+
+                                break;
+
+                            case ChangeReason.Moved:
+                                break;
+                        }
+                    }
+
+                    RecomputeAndEmit();
+                }
+                catch (Exception ex)
+                {
+                    observer.OnErrorResume(ex);
+                }
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
+
+            return Disposable.Combine(dispLeft, dispRight);
+        });
+    }
+
+    /// <summary>
+    /// Performs a right outer join between two cache change streams. Emits a result for every right item,
+    /// pairing with the left item if present or null if absent.
+    /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from optional left and right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the right join results.</returns>
+    public static Observable<IChangeSet<TResult, TKey>> RightJoin<TLeft, TRight, TKey, TResult>(
+        this Observable<IChangeSet<TLeft, TKey>> left,
+        Observable<IChangeSet<TRight, TKey>> right,
+        Func<TLeft?, TRight, TResult> resultSelector,
+        IEqualityComparer<TResult>? resultComparer = null)
+        where TKey : notnull
+        where TLeft : class
+        where TRight : notnull
+        where TResult : notnull
+    {
+        if (left is null)
+        {
+            throw new ArgumentNullException(nameof(left));
+        }
+
+        if (right is null)
+        {
+            throw new ArgumentNullException(nameof(right));
+        }
+
+        if (resultSelector is null)
+        {
+            throw new ArgumentNullException(nameof(resultSelector));
+        }
+
+        var cmp = resultComparer ?? EqualityComparer<TResult>.Default;
+
+        return Observable.Create<IChangeSet<TResult, TKey>>(observer =>
+        {
+            var leftItems = new Dictionary<TKey, TLeft>();
+            var rightItems = new Dictionary<TKey, TRight>();
+            var currentResults = new Dictionary<TKey, TResult>();
+
+            void RecomputeAndEmit()
+            {
+                var newResults = new Dictionary<TKey, TResult>();
+                foreach (var kvp in rightItems)
+                {
+                    leftItems.TryGetValue(kvp.Key, out var l);
+                    var res = resultSelector(l, kvp.Value);
+                    newResults[kvp.Key] = res;
+                }
+
+                var changes = new List<Change<TResult, TKey>>();
+                foreach (var existing in currentResults)
+                {
+                    if (!newResults.ContainsKey(existing.Key))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Remove, existing.Key, existing.Value, existing.Value));
+                    }
+                }
+
+                foreach (var kvp in newResults)
+                {
+                    if (!currentResults.TryGetValue(kvp.Key, out var prev))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Add, kvp.Key, kvp.Value));
+                    }
+                    else if (!cmp.Equals(prev, kvp.Value))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Update, kvp.Key, kvp.Value, prev));
+                    }
+                }
+
+                if (changes.Count > 0)
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                            case ChangeReason.Update:
+                                currentResults[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                currentResults.Remove(change.Key);
+                                break;
+                        }
+                    }
+
+                    var outSet = new ChangeSet<TResult, TKey>();
+                    outSet.AddRange(changes);
+                    observer.OnNext(outSet);
+                }
+            }
+
+            var dispLeft = left.Subscribe(
+                changes =>
+            {
+                try
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                                leftItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Update:
+                                leftItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                leftItems.Remove(change.Key);
+                                break;
+
+                            case ChangeReason.Refresh:
+                                if (leftItems.ContainsKey(change.Key))
+                                {
+                                    leftItems[change.Key] = change.Current;
+                                }
+
+                                break;
+
+                            case ChangeReason.Moved:
+                                break;
+                        }
+                    }
+
+                    RecomputeAndEmit();
+                }
+                catch (Exception ex)
+                {
+                    observer.OnErrorResume(ex);
+                }
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
+
+            var dispRight = right.Subscribe(
+                changes =>
+            {
+                try
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                                rightItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Update:
+                                rightItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                rightItems.Remove(change.Key);
+                                break;
+
+                            case ChangeReason.Refresh:
+                                if (rightItems.ContainsKey(change.Key))
+                                {
+                                    rightItems[change.Key] = change.Current;
+                                }
+
+                                break;
+
+                            case ChangeReason.Moved:
+                                break;
+                        }
+                    }
+
+                    RecomputeAndEmit();
+                }
+                catch (Exception ex)
+                {
+                    observer.OnErrorResume(ex);
+                }
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
+
+            return Disposable.Combine(dispLeft, dispRight);
+        });
+    }
+
+    /// <summary>
+    /// Performs a full outer join between two cache change streams. Emits a result for every key present in either cache,
+    /// with both sides nullable when absent.
+    /// </summary>
+    /// <typeparam name="TLeft">The type of items in the left cache.</typeparam>
+    /// <typeparam name="TRight">The type of items in the right cache.</typeparam>
+    /// <typeparam name="TKey">The type of the key.</typeparam>
+    /// <typeparam name="TResult">The type of the join result.</typeparam>
+    /// <param name="left">The left cache observable.</param>
+    /// <param name="right">The right cache observable.</param>
+    /// <param name="resultSelector">Function to create the result from left and right items.</param>
+    /// <param name="resultComparer">Optional comparer for result equality.</param>
+    /// <returns>An observable that emits change sets containing the joined results.</returns>
+    public static Observable<IChangeSet<TResult, TKey>> FullOuterJoin<TLeft, TRight, TKey, TResult>(
+        this Observable<IChangeSet<TLeft, TKey>> left,
+        Observable<IChangeSet<TRight, TKey>> right,
+        Func<TLeft?, TRight?, TResult> resultSelector,
+        IEqualityComparer<TResult>? resultComparer = null)
+        where TKey : notnull
+        where TLeft : class
+        where TRight : class
+        where TResult : notnull
+    {
+        if (left is null)
+        {
+            throw new ArgumentNullException(nameof(left));
+        }
+
+        if (right is null)
+        {
+            throw new ArgumentNullException(nameof(right));
+        }
+
+        if (resultSelector is null)
+        {
+            throw new ArgumentNullException(nameof(resultSelector));
+        }
+
+        var cmp = resultComparer ?? EqualityComparer<TResult>.Default;
+
+        return Observable.Create<IChangeSet<TResult, TKey>>(observer =>
+        {
+            var leftItems = new Dictionary<TKey, TLeft>();
+            var rightItems = new Dictionary<TKey, TRight>();
+            var currentResults = new Dictionary<TKey, TResult>();
+
+            void RecomputeAndEmit()
+            {
+                var allKeys = new HashSet<TKey>(leftItems.Keys);
+                allKeys.UnionWith(rightItems.Keys);
+
+                var newResults = new Dictionary<TKey, TResult>();
+                foreach (var key in allKeys)
+                {
+                    leftItems.TryGetValue(key, out var l);
+                    rightItems.TryGetValue(key, out var r);
+                    var res = resultSelector(l, r);
+                    newResults[key] = res;
+                }
+
+                var changes = new List<Change<TResult, TKey>>();
+                foreach (var existing in currentResults)
+                {
+                    if (!newResults.ContainsKey(existing.Key))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Remove, existing.Key, existing.Value, existing.Value));
+                    }
+                }
+
+                foreach (var kvp in newResults)
+                {
+                    if (!currentResults.TryGetValue(kvp.Key, out var prev))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Add, kvp.Key, kvp.Value));
+                    }
+                    else if (!cmp.Equals(prev, kvp.Value))
+                    {
+                        changes.Add(new Change<TResult, TKey>(ChangeReason.Update, kvp.Key, kvp.Value, prev));
+                    }
+                }
+
+                if (changes.Count > 0)
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                            case ChangeReason.Update:
+                                currentResults[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                currentResults.Remove(change.Key);
+                                break;
+                        }
+                    }
+
+                    var outSet = new ChangeSet<TResult, TKey>();
+                    outSet.AddRange(changes);
+                    observer.OnNext(outSet);
+                }
+            }
+
+            var dispLeft = left.Subscribe(
+                changes =>
+            {
+                try
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                                leftItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Update:
+                                leftItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                leftItems.Remove(change.Key);
+                                break;
+
+                            case ChangeReason.Refresh:
+                                if (leftItems.ContainsKey(change.Key))
+                                {
+                                    leftItems[change.Key] = change.Current;
+                                }
+
+                                break;
+
+                            case ChangeReason.Moved:
+                                break;
+                        }
+                    }
+
+                    RecomputeAndEmit();
+                }
+                catch (Exception ex)
+                {
+                    observer.OnErrorResume(ex);
+                }
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
+
+            var dispRight = right.Subscribe(
+                changes =>
+            {
+                try
+                {
+                    foreach (var change in changes)
+                    {
+                        switch (change.Reason)
+                        {
+                            case ChangeReason.Add:
+                                rightItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Update:
+                                rightItems[change.Key] = change.Current;
+                                break;
+
+                            case ChangeReason.Remove:
+                                rightItems.Remove(change.Key);
+                                break;
+
+                            case ChangeReason.Refresh:
+                                if (rightItems.ContainsKey(change.Key))
+                                {
+                                    rightItems[change.Key] = change.Current;
+                                }
+
+                                break;
+
+                            case ChangeReason.Moved:
+                                break;
+                        }
+                    }
+
+                    RecomputeAndEmit();
+                }
+                catch (Exception ex)
+                {
+                    observer.OnErrorResume(ex);
+                }
+            },
+                observer.OnErrorResume,
+                observer.OnCompleted);
+
+            return Disposable.Combine(dispLeft, dispRight);
+        });
+    }
+}
+
+/// <summary>
+/// Placeholder for future Full/Left/Right join result modeling.
+/// </summary>
+/// <typeparam name="TKey">The type of the join key.</typeparam>
+/// <typeparam name="TLeft">The type of objects from the left source.</typeparam>
+/// <typeparam name="TRight">The type of objects from the right source.</typeparam>
+/// <param name="Key">The join key.</param>
+/// <param name="Left">The left object value.</param>
+/// <param name="Right">The right object value.</param>
+public readonly record struct JoinPair<TKey, TLeft, TRight>(TKey Key, TLeft Left, TRight Right)
+    where TKey : notnull;

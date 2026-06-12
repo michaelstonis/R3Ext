@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.Maui.Controls;
 using R3;
-using R3.DynamicData.List;
+using R3Ext.DynamicData.List;
 using R3Ext.SampleApp.ViewModels;
 
 namespace R3Ext.SampleApp;
@@ -46,7 +46,7 @@ public partial class DynamicDataFilterSortPage : ContentPage
         _comparerSubject.OnNext(NameAscComparer);
 
         // Prepare target collection
-        var target = new R3.DynamicData.Binding.ObservableCollectionExtended<PersonWithAge>();
+        var target = new R3Ext.DynamicData.Binding.ObservableCollectionExtended<PersonWithAge>();
         _people = new ReadOnlyObservableCollection<PersonWithAge>(target);
 
         // Pipeline: AutoRefresh on Name and Age changes -> Filter -> Sort -> Bind

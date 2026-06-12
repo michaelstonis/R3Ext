@@ -3,7 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.Maui.Controls;
 using R3;
-using R3.DynamicData.Cache;
+using R3Ext.DynamicData.Cache;
 using R3Ext.SampleApp.ViewModels;
 
 namespace R3Ext.SampleApp;
@@ -141,9 +141,9 @@ public partial class DynamicDataCachePage : ContentPage
                 {
                     var action = change.Reason switch
                     {
-                        R3.DynamicData.Kernel.ChangeReason.Add => "Added",
-                        R3.DynamicData.Kernel.ChangeReason.Update => "Updated",
-                        R3.DynamicData.Kernel.ChangeReason.Remove => "Removed",
+                        R3Ext.DynamicData.Kernel.ChangeReason.Add => "Added",
+                        R3Ext.DynamicData.Kernel.ChangeReason.Update => "Updated",
+                        R3Ext.DynamicData.Kernel.ChangeReason.Remove => "Removed",
                         _ => "Changed",
                     };
                     this.WatchLabel.Text = $"ID {id} {action}: {change.Current.Name} ({change.Current.City})";

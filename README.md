@@ -102,7 +102,7 @@ source.BindOneWay(
 -   **UnsafeAccessor**: Access internal/private members without reflection (NET8.0+)
 -   **Zero Runtime Cost**: All binding code generated at compile-time
 
-### 📊 Reactive Collections (R3.DynamicData)
+### 📊 Reactive Collections (R3Ext.DynamicData)
 
 High-performance observable collections with rich transformation operators, ported from DynamicData:
 
@@ -319,7 +319,7 @@ dotnet add package R3Ext
 dotnet add package R3Ext.Bindings.SourceGenerator
 
 # Reactive collections (DynamicData port)
-dotnet add package R3.DynamicData
+dotnet add package R3Ext.DynamicData
 
 # .NET MAUI integration (optional, for MAUI apps)
 dotnet add package R3Ext.Bindings.MauiTargets
@@ -479,7 +479,7 @@ R3Ext/
 │   │   └── Interaction.cs              # View-ViewModel communication
 │   └── RxObject.cs                     # MVVM base class
 │
-├── R3.DynamicData/                     # Reactive collections (NEW!)
+├── R3Ext.DynamicData/                     # Reactive collections (NEW!)
 │   ├── List/                           # Observable list operators
 │   ├── Cache/                          # Observable cache operators
 │   ├── Operators/                      # Transformation operators
@@ -493,7 +493,7 @@ R3Ext/
 │   └── GenerateUiBindingTargetsTask.cs # MSBuild task for UI bindings
 │
 ├── R3Ext.Tests/                        # Core library tests
-├── R3.DynamicData.Tests/               # DynamicData tests (NEW!)
+├── R3Ext.DynamicData.Tests/               # DynamicData tests (NEW!)
 └── R3Ext.SampleApp/                    # .NET MAUI sample app
 ```
 

@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <CompilerGeneratedFilesOutputPath>obj/Generated</CompilerGeneratedFilesOutputPath>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector"
+                          Version="6.0.4" />
+        <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing"
+                          Version="9.0.0" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+        <PackageReference Include="xunit"
+                          Version="2.9.3" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+    <ItemGroup>
+        <Using Include="Xunit" />
+        <!-- Namespaces were renamed from R3.DynamicData.* to R3Ext.DynamicData.*, so R3 types
+             (Observable<T>, Subject<T>, etc.) are no longer resolved via enclosing-namespace
+             lookup. Import R3 globally to preserve resolution. -->
+        <Using Include="R3" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\R3Ext.DynamicData\R3Ext.DynamicData.csproj" />
+        <ProjectReference Include="..\R3Ext.Bindings.SourceGenerator\R3Ext.Bindings.SourceGenerator.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" />
+    </ItemGroup>
+</Project>
