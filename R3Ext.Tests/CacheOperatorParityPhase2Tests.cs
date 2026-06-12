@@ -5,10 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using R3;
-using R3.DynamicData.Cache;
-using R3.DynamicData.Kernel;
-using R3.DynamicData.List;
-using R3.DynamicData.Operators;
+using R3Ext.DynamicData.Cache;
+using R3Ext.DynamicData.Kernel;
+using R3Ext.DynamicData.List;
+using R3Ext.DynamicData.Operators;
 using Xunit;
 
 namespace R3Ext.Tests;
@@ -120,7 +120,7 @@ public class CacheOperatorParityPhase2Tests
         var results = new List<IQuery<Item, int>>();
         var emitTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        Observable<R3.DynamicData.Cache.IChangeSet<Item, int>> keyed = list.Connect().AddKey<Item, int>(i => i.Id);
+        Observable<R3Ext.DynamicData.Cache.IChangeSet<Item, int>> keyed = list.Connect().AddKey<Item, int>(i => i.Id);
         using var sub = keyed.QueryWhenChanged().Subscribe(x =>
         {
             results.Add(x);

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using R3; // R3 observable extensions
-using R3.DynamicData.Cache;
-using R3.DynamicData.Kernel;
+using R3Ext.DynamicData.Cache;
+using R3Ext.DynamicData.Kernel;
 #pragma warning disable SA1208
 #pragma warning disable SA1516
 #pragma warning disable SA1501

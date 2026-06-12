@@ -1,4 +1,4 @@
-# Closure Elimination Plan for R3.DynamicData
+# Closure Elimination Plan for R3Ext.DynamicData
 
 ## Current Status (Updated: November 23, 2025)
 
@@ -10,7 +10,7 @@
 
 ## Overview
 
-This document outlines the strategy to eliminate closures in the R3.DynamicData codebase by leveraging R3's closure-free overloads: `Observable.Create<T, TState>`, `Observable.Select<T, TResult, TState>`, and `Observable.Subscribe<T, TState>`.
+This document outlines the strategy to eliminate closures in the R3Ext.DynamicData codebase by leveraging R3's closure-free overloads: `Observable.Create<T, TState>`, `Observable.Select<T, TResult, TState>`, and `Observable.Subscribe<T, TState>`.
 
 ## R3 Closure-Free Patterns
 
@@ -327,7 +327,7 @@ These weren't fully enumerated in the original plan but have significant closure
 
 ### Code Structure
 
-1. **Create Utility Types** (in R3.DynamicData/Utilities/):
+1. **Create Utility Types** (in R3Ext.DynamicData/Utilities/):
 
     - `RefInt.cs`: Mutable int wrapper (sealed class for reference semantics)
     - `RefBool.cs`: Mutable bool wrapper (sealed class for reference semantics)

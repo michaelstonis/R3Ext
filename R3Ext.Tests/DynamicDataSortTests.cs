@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using R3;
-using R3.DynamicData.Binding;
-using R3.DynamicData.List;
+using R3Ext.DynamicData.Binding;
+using R3Ext.DynamicData.List;
 using Xunit;
 
 namespace R3Ext.Tests;

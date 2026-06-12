@@ -35,9 +35,9 @@ R3Ext borrows from, ports, or depends on three upstream libraries. This document
 
 ## Component Mapping
 
-### R3.DynamicData ← DynamicData
+### R3Ext.DynamicData ← DynamicData
 
-The `R3.DynamicData` project is a full port of [DynamicData](https://github.com/reactivemarbles/DynamicData) (by Roland Pheasant / ReactiveMarbles) from `System.Reactive` to R3. The port was performed in November 2025 against DynamicData ~9.0.x.
+The `R3Ext.DynamicData` project is a full port of [DynamicData](https://github.com/reactivemarbles/DynamicData) (by Roland Pheasant / ReactiveMarbles) from `System.Reactive` to R3. The port was performed in November 2025 against DynamicData ~9.0.x.
 
 **Key architectural differences from upstream:**
 - Uses R3 `Observable<T>` and `Observer<T>` instead of `System.Reactive` equivalents.
@@ -47,9 +47,9 @@ The `R3.DynamicData` project is a full port of [DynamicData](https://github.com/
 
 **Namespace / Class Mapping:**
 
-| DynamicData (upstream) | R3.DynamicData (ours) | Notes |
+| DynamicData (upstream) | R3Ext.DynamicData (ours) | Notes |
 |------------------------|-----------------------|-------|
-| `DynamicData` | `R3.DynamicData` | Root namespace |
+| `DynamicData` | `R3Ext.DynamicData` | Root namespace |
 | `SourceCache<TObject, TKey>` | `SourceCache<TObject, TKey>` | Full parity |
 | `SourceList<T>` | `SourceList<T>` | Full parity |
 | `ObservableCacheEx` | `ObservableCacheEx` | Extension methods; split into per-operator files |
@@ -65,7 +65,7 @@ The `R3.DynamicData` project is a full port of [DynamicData](https://github.com/
 | `AsyncDisposeMany` | ✅ Ported | See `UpstreamChangesReview.md` §2 |
 | `FilterOnProperty` (obsolete) | Deferred | Superseded upstream; use `AutoRefresh + Filter` |
 
-**File layout in `R3.DynamicData/`:**
+**File layout in `R3Ext.DynamicData/`:**
 
 ```
 Cache/
@@ -141,7 +141,7 @@ R3Ext takes a **direct NuGet dependency** on [R3](https://github.com/Cysharp/R3)
 3. **For R3**: Check if the NuGet version needs bumping. Scan release notes for breaking changes or new operators that overlap with R3Ext's extension operators.
 
 4. **For DynamicData**: Compare the release notes from the "Last Upstream Synced Against" version through the latest. For each change:
-   - Bug fixes → Audit the equivalent operator in `R3.DynamicData/` and fix if the same bug exists.
+   - Bug fixes → Audit the equivalent operator in `R3Ext.DynamicData/` and fix if the same bug exists.
    - New operators → Evaluate whether to port; add to `docs/MigrationMatrix.md` if accepted.
    - Performance improvements → Assess for adoption.
 
