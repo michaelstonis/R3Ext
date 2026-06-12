@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Maui.Controls;
 using R3;
-using R3.DynamicData.List;
+using R3Ext.DynamicData.List;
 using R3Ext.SampleApp.ViewModels;
 
 namespace R3Ext.SampleApp;

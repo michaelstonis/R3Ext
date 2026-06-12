@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using R3;
-using R3.DynamicData.Cache;
-using R3.DynamicData.Kernel;
+using R3Ext.DynamicData.Cache;
+using R3Ext.DynamicData.Kernel;
 #pragma warning disable SA1516, SA1503, SA1513, SA1107, SA1502, SA1515
 
 namespace R3Ext.Tests;

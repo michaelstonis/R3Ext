@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using R3;
-using R3.DynamicData.Cache;
+using R3Ext.DynamicData.Cache;
 #pragma warning disable SA1516, SA1503, SA1513, SA1107, SA1502, SA1515, SA1508
 
 namespace R3Ext.Tests;
@@ -34,7 +34,7 @@ public class TransformAsyncCacheTests
             {
                 foreach (var change in changeSet)
                 {
-                    if (change.Reason == R3.DynamicData.Kernel.ChangeReason.Add)
+                    if (change.Reason == R3Ext.DynamicData.Kernel.ChangeReason.Add)
                     {
                         results.Add(change.Current);
                         if (results.Count == 2) completionTcs.TrySetResult(true);
@@ -86,7 +86,7 @@ public class TransformAsyncCacheTests
             {
                 foreach (var change in changeSet)
                 {
-                    if (change.Reason == R3.DynamicData.Kernel.ChangeReason.Add)
+                    if (change.Reason == R3Ext.DynamicData.Kernel.ChangeReason.Add)
                     {
                         results.Add(change.Current);
                     }
@@ -110,7 +110,7 @@ public class TransformAsyncCacheTests
     public async Task TransformAsync_Update()
     {
         var cache = new SourceCache<Person, int>(p => p.Id);
-        var results = new List<R3.DynamicData.Cache.IChangeSet<string, int>>();
+        var results = new List<R3Ext.DynamicData.Cache.IChangeSet<string, int>>();
         var emitCount = 0;
         var tcs1 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var tcs2 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -140,7 +140,7 @@ public class TransformAsyncCacheTests
         await tcs1.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Single(results);
-        Assert.Equal(R3.DynamicData.Kernel.ChangeReason.Add, results[0].First().Reason);
+        Assert.Equal(R3Ext.DynamicData.Kernel.ChangeReason.Add, results[0].First().Reason);
 
         // Update the value - need new TCS for update
         itemTcs[1] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -149,7 +149,7 @@ public class TransformAsyncCacheTests
         await tcs2.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(2, results.Count);
-        Assert.Equal(R3.DynamicData.Kernel.ChangeReason.Update, results[1].First().Reason);
+        Assert.Equal(R3Ext.DynamicData.Kernel.ChangeReason.Update, results[1].First().Reason);
         Assert.Equal("ALICIA", results[1].First().Current);
     }
 }

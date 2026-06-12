@@ -22,7 +22,7 @@
 
 ---
 
-## Section 1 — R3.DynamicData Port: Bug Fixes
+## Section 1 — R3Ext.DynamicData Port: Bug Fixes
 
 These are bugs fixed in DynamicData that may have equivalent issues in our ported operators. Each item should be investigated and fixed if the same defect exists locally.
 
@@ -34,7 +34,7 @@ These are bugs fixed in DynamicData that may have equivalent issues in our porte
 
 - [x] 🔴 **[DD 9.4.31 #1063] List Filter — Refresh Change Support and Ordering Preservation**  
   _Type: Bug Fix_  
-  The static list `.Filter()` operator was rewritten to properly support `Refresh` changeset reasons and to preserve item ordering for downstream consumers. Audit `R3.DynamicData/List/Internal/Filter.cs` against these requirements and add Refresh-specific tests.  
+  The static list `.Filter()` operator was rewritten to properly support `Refresh` changeset reasons and to preserve item ordering for downstream consumers. Audit `R3Ext.DynamicData/List/Internal/Filter.cs` against these requirements and add Refresh-specific tests.  
   _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1063  
   _(fixed: `List/Internal/Filter.cs` updated to handle `Refresh` change reasons and maintain stable ordering; Refresh-specific tests added.)_
 
@@ -100,7 +100,7 @@ These are bugs fixed in DynamicData that may have equivalent issues in our porte
 
 ---
 
-## Section 2 — R3.DynamicData Port: New Operators
+## Section 2 — R3Ext.DynamicData Port: New Operators
 
 These are new operators added to DynamicData after the initial port that are not currently in our migration matrix.
 
@@ -108,7 +108,7 @@ These are new operators added to DynamicData after the initial port that are not
   _Type: New Operator_  
   DynamicData added `.AsyncDisposeMany()`, equivalent to `.DisposeMany()` but for items implementing `IAsyncDisposable`. This operator does not exist in our port and should be added to both Cache and List variants.  
   _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1011  
-  _File to add_: `R3.DynamicData/Cache/ObservableCacheEx.AsyncDisposeMany.cs`, `R3.DynamicData/List/ObservableListEx.cs`  
+  _File to add_: `R3Ext.DynamicData/Cache/ObservableCacheEx.AsyncDisposeMany.cs`, `R3Ext.DynamicData/List/ObservableListEx.cs`  
   _(implemented: Cache and List variants added; IAsyncDisposable support with fire-and-forget disposal; 9 tests passing.)_
 
 - [x] 🟡 **[DD 9.4.1 #1008] TransformOnObservable — New Cache Operator (with ordering)**  
@@ -116,7 +116,7 @@ These are new operators added to DynamicData after the initial port that are not
   DynamicData has a `TransformOnObservable` Cache operator (transforms each item via an observable, preserving changeset ordering). This operator is not in our migration matrix or codebase. Assess whether it warrants porting.  
   _Upstream source_: `src/DynamicData/Cache/Internal/TransformOnObservable.cs`  
   _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1008  
-  _File to add_: `R3.DynamicData/Cache/Internal/TransformOnObservable.cs`  
+  _File to add_: `R3Ext.DynamicData/Cache/Internal/TransformOnObservable.cs`  
   _(implemented: Cache operator added with ordering preservation; 5 tests passing.)_
 
 - [x] 🔵 **[DD 9.1.1 #941] Filter — Predicate State Stream Overloads**  
@@ -127,7 +127,7 @@ These are new operators added to DynamicData after the initial port that are not
 
 ---
 
-## Section 3 — R3.DynamicData Port: Performance and Correctness Improvements
+## Section 3 — R3Ext.DynamicData Port: Performance and Correctness Improvements
 
 Improvements that don't introduce new APIs but improve the behavior or performance of existing operators.
 
@@ -157,7 +157,7 @@ Improvements that don't introduce new APIs but improve the behavior or performan
 
 ---
 
-## Section 4 — R3.DynamicData Port: MigrationMatrix Updates
+## Section 4 — R3Ext.DynamicData Port: MigrationMatrix Updates
 
 These items update the existing migration tracking matrix in `docs/MigrationMatrix.md`.
 
@@ -277,7 +277,7 @@ These items are from `docs/ClosureEliminationStatus.md` and `docs/MigrationMatri
 ## Section 9 — Infrastructure / Housekeeping
 
 - [ ] 🔵 **[DD 9.4.31] .NET 10 Target Framework Support**  
-  DynamicData added a `net10.0` target. Track .NET 10 availability and add it to R3.DynamicData and R3Ext target frameworks when it reaches GA.
+  DynamicData added a `net10.0` target. Track .NET 10 availability and add it to R3Ext.DynamicData and R3Ext target frameworks when it reaches GA.
 
 - [ ] 🔵 **[DD 9.3.1] Verify Net 9.0 Test Package Alignment**  
   DynamicData 9.3.1 upgraded test packages for .NET 9.0 compatibility. Verify our `Microsoft.NET.Test.Sdk`, `xunit`, and coverage packages are at current stable versions (upstream now uses `18.x` SDK and `xunit` v3).

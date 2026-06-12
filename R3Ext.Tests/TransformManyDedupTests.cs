@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using R3;
-using R3.DynamicData.Cache;
-using R3.DynamicData.Kernel;
-using R3.DynamicData.List;
+using R3Ext.DynamicData.Cache;
+using R3Ext.DynamicData.Kernel;
+using R3Ext.DynamicData.List;
 using Xunit;
 
 #pragma warning disable SA1503, SA1513, SA1515, SA1107, SA1502, SA1508, SA1516

@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-We've successfully eliminated closures in 18 operators across the R3.DynamicData codebase, establishing clear patterns for readonly struct and sealed class state containers. All 285 tests continue to pass. Approximately **32+ operators with closures remain**.
+We've successfully eliminated closures in 18 operators across the R3Ext.DynamicData codebase, establishing clear patterns for readonly struct and sealed class state containers. All 285 tests continue to pass. Approximately **32+ operators with closures remain**.
 
 ## Completed Work (18 Operators)
 

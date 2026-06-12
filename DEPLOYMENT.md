@@ -75,9 +75,11 @@ When a tag starting with `v` is pushed:
 The following packages are published:
 
 - **R3Ext**: Core library with extensions
+- **R3Ext.DynamicData**: DynamicData port — reactive collections powered by R3
 - **R3Ext.Bindings.SourceGenerator**: Data binding source generator
 - **R3Ext.Bindings.MauiTargets**: MAUI-specific build targets
-- **R3Ext.PropertyChanged.SourceGenerator**: PropertyChanged source generator
+
+Any project with `<IsPackable>true</IsPackable>` in its `.csproj` is automatically picked up by CI without further workflow changes.
 
 ## GitHub Secrets
 
@@ -92,15 +94,17 @@ Required secrets in repository settings:
 Test package creation locally:
 
 ```bash
-# Restore and build
-dotnet restore
-dotnet build -c Release
+# Restore packable libraries and test projects
+PACKABLE=$(find . -name "*.csproj" -not -path "*/obj/*" | xargs grep -l '<IsPackable>true</IsPackable>' | sort)
+for proj in $PACKABLE; do dotnet restore "$proj"; done
+dotnet restore R3Ext.Tests/R3Ext.Tests.csproj
+dotnet restore R3Ext.DynamicData.Tests/R3Ext.DynamicData.Tests.csproj
+
+# Build packable libraries
+for proj in $PACKABLE; do dotnet build "$proj" -c Release --no-restore; done
 
 # Create packages
-dotnet pack R3Ext/R3Ext.csproj -c Release -o ./artifacts
-dotnet pack R3Ext.Bindings.SourceGenerator/R3Ext.Bindings.SourceGenerator.csproj -c Release -o ./artifacts
-dotnet pack R3Ext.Bindings.MauiTargets/R3Ext.Bindings.MauiTargets.csproj -c Release -o ./artifacts
-dotnet pack R3Ext.PropertyChanged.SourceGenerator/R3Ext.PropertyChanged.SourceGenerator.csproj -c Release -o ./artifacts
+for proj in $PACKABLE; do dotnet pack "$proj" -c Release --no-build -o ./artifacts; done
 
 # Inspect packages
 dotnet nuget verify ./artifacts/*.nupkg
