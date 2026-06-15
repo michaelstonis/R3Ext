@@ -22,7 +22,7 @@ safe-outputs:
     reviewers: [copilot]
     allowed-files:
       - "R3Ext/**/*.cs"
-      - "R3.DynamicData/**/*.cs"
+      - "R3Ext.DynamicData/**/*.cs"
       - "R3Ext.Bindings.SourceGenerator/**/*.cs"
       - "R3Ext.Bindings.MauiTargets/**/*.cs"
       - "docs/**/*.md"
@@ -44,7 +44,7 @@ Keep R3Ext aligned with the latest ReactiveUI and DynamicData APIs and features.
 
 - **R3Ext repo (this repo)** — a reactive MVVM + dynamic-data library built on R3.
   - `R3Ext/` — ReactiveUI-compatible APIs: commands, interactions, bindings, MVVM helpers.
-  - `R3.DynamicData/` — DynamicData port: observable caches, lists, operators, change sets.
+  - `R3Ext.DynamicData/` — DynamicData port: observable caches, lists, operators, change sets.
 - **ReactiveUI upstream**: `https://github.com/reactiveui/reactiveui`
 - **DynamicData upstream**: `https://github.com/reactivemarbles/DynamicData`
 
@@ -64,6 +64,8 @@ For **DynamicData** (`reactivemarbles/DynamicData`):
 - Fetch the latest release tag and release notes.
 - List recently modified public C# files to spot new or changed public APIs.
 
+Before reading local source files, decide whether the upstream changes actually affect public APIs. If both upstream repos show no relevant public API changes in the last 7 days, call `noop` immediately with a short explanation.
+
 ### 2 — Inspect the current R3Ext implementation
 
 Read relevant files in this repo to understand the current state:
@@ -71,7 +73,9 @@ Read relevant files in this repo to understand the current state:
 - `R3Ext/Interactions/` — RxInteraction implementations.
 - `R3Ext/Bindings/` — binding helpers and source-generator hooks.
 - `R3Ext/Extensions/` — observable extension methods.
-- `R3.DynamicData/` — DynamicData port.
+- `R3Ext.DynamicData/` — DynamicData port.
+
+Only inspect files that correspond to the candidate upstream API changes. Use targeted searches and small snippets instead of reading entire large files unless a specific candidate change clearly requires it.
 
 ### 3 — Identify gaps
 
