@@ -113,7 +113,7 @@ var cache = new SourceCache<Person, int>(p => p.Id);
 // Observe changes with automatic caching
 cache.Connect()
     .Filter(p => p.IsActive)
-    .Sort(SortExpressionComparer<Person>.Ascending(p => p.Name))
+    .Sort(Comparer<Person>.Create((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal)))
     .Transform(p => new PersonViewModel(p))
     .Bind(out var items)  // Bind to ObservableCollection
     .Subscribe();
@@ -139,10 +139,10 @@ cache.Connect()
 | ------------------- | ---------------------------------------------- |
 | **Filtering**       | `Filter`, `FilterOnObservable`, `AutoRefresh`  |
 | **Transformation**  | `Transform`, `TransformMany`, `TransformAsync` |
-| **Sorting**         | `Sort`, `SortAsync`                            |
+| **Sorting**         | `Sort`, `SortAndBind`                          |
 | **Grouping**        | `Group`, `GroupWithImmutableState`, `GroupOn`  |
 | **Aggregation**     | `Count`, `Sum`, `Avg`, `Min`, `Max`            |
-| **Change Tracking** | `DistinctValues`, `MergeChangeSet`, `Clone`    |
+| **Change Tracking** | `DistinctValues`, `MergeChangeSets`, `Clone`   |
 | **Binding**         | `Bind`, `ObserveOn`, `SubscribeMany`           |
 
 **Performance Features:**
@@ -479,7 +479,7 @@ R3Ext/
 │   │   └── Interaction.cs              # View-ViewModel communication
 │   └── RxObject.cs                     # MVVM base class
 │
-├── R3Ext.DynamicData/                     # Reactive collections (NEW!)
+├── R3Ext.DynamicData/                     # Reactive collections
 │   ├── List/                           # Observable list operators
 │   ├── Cache/                          # Observable cache operators
 │   ├── Operators/                      # Transformation operators
@@ -493,7 +493,7 @@ R3Ext/
 │   └── GenerateUiBindingTargetsTask.cs # MSBuild task for UI bindings
 │
 ├── R3Ext.Tests/                        # Core library tests
-├── R3Ext.DynamicData.Tests/               # DynamicData tests (NEW!)
+├── R3Ext.DynamicData.Tests/               # DynamicData tests
 └── R3Ext.SampleApp/                    # .NET MAUI sample app
 ```
 
