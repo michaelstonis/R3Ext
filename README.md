@@ -113,7 +113,7 @@ var cache = new SourceCache<Person, int>(p => p.Id);
 // Observe changes with automatic caching
 cache.Connect()
     .Filter(p => p.IsActive)
-    .Sort(SortExpressionComparer<Person>.Ascending(p => p.Name))
+    .Sort(p => p.Name)
     .Transform(p => new PersonViewModel(p))
     .Bind(out var items)  // Bind to ObservableCollection
     .Subscribe();
