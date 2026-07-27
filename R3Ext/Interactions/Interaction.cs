@@ -7,6 +7,9 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
     private readonly List<Func<IInteractionContext<TInput, TOutput>, Observable<Unit>>> _handlers = new(4);
     private readonly object _sync = new();
 
+    /// <summary>Cached handler snapshot; invalidated when handlers change to avoid repeated allocations.</summary>
+    private Func<IInteractionContext<TInput, TOutput>, Observable<Unit>>[]? _handlersSnapshot;
+
     public IDisposable RegisterHandler(Action<IInteractionContext<TInput, TOutput>> handler)
     {
         if (handler is null)
@@ -28,7 +31,18 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
             throw new ArgumentNullException(nameof(handler));
         }
 
-        return this.RegisterHandler(ctx => Observable.FromAsync(_ => new ValueTask(handler(ctx))));
+        return this.RegisterHandler(ctx => Observable.FromAsync(_ => new ValueTask(InvokeAsync(ctx, handler))));
+
+        // Yield before invoking the handler so it is not called inside the current scheduler trampoline.
+        // Task.Yield() resumes on the captured SynchronizationContext, ensuring that a handler registered
+        // from a UI thread runs back on that context rather than a thread-pool thread.
+        static async Task InvokeAsync(
+            IInteractionContext<TInput, TOutput> interaction,
+            Func<IInteractionContext<TInput, TOutput>, Task> asyncHandler)
+        {
+            await Task.Yield();
+            await asyncHandler(interaction).ConfigureAwait(false);
+        }
     }
 
     public IDisposable RegisterHandler<TDontCare>(Func<IInteractionContext<TInput, TOutput>, Observable<TDontCare>> handler)
@@ -98,7 +112,7 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
     {
         lock (_sync)
         {
-            return _handlers.ToArray();
+            return _handlersSnapshot ??= _handlers.ToArray();
         }
     }
 
@@ -112,6 +126,7 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
         lock (_sync)
         {
             _handlers.Add(handler);
+            _handlersSnapshot = null;
         }
     }
 
@@ -120,6 +135,7 @@ public class Interaction<TInput, TOutput> : IInteraction<TInput, TOutput>
         lock (_sync)
         {
             _handlers.Remove(handler);
+            _handlersSnapshot = null;
         }
     }
 
