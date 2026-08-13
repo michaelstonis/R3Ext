@@ -23,6 +23,7 @@ safe-outputs:
     if-no-changes: ignore
     allowed-files:
       - "*.md"
+      - "docs/*.md"
       - "docs/**/*.md"
 ---
 
