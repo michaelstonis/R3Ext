@@ -107,21 +107,14 @@ public static partial class TimingExtensions
                 },
                 ex =>
                 {
-                    IDisposable[]? subs;
+                    // OnErrorResume is non-terminal: forward it but keep open buffers and their
+                    // closing subscriptions alive so windowing continues after a resumable error.
                     using (gate.EnterScope())
                     {
                         if (disposed)
                         {
                             return;
                         }
-
-                        subs = openBuffers.Select(b => b.ClosingSub).Where(s => s is not null).ToArray()!;
-                        openBuffers.Clear();
-                    }
-
-                    foreach (IDisposable s in subs)
-                    {
-                        s.Dispose();
                     }
 
                     observer.OnErrorResume(ex);
@@ -146,28 +139,14 @@ public static partial class TimingExtensions
                 },
                 ex =>
                 {
-                    T[][]? toEmit;
-                    IDisposable[]? subs;
+                    // OnErrorResume is non-terminal: forward it but keep open buffers (and the items
+                    // already collected in them) alive so values after a resumable error are not dropped.
                     using (gate.EnterScope())
                     {
                         if (disposed)
                         {
                             return;
                         }
-
-                        toEmit = openBuffers.Select(b => b.Buffer.ToArray()).ToArray();
-                        subs = openBuffers.Select(b => b.ClosingSub).Where(s => s is not null).ToArray()!;
-                        openBuffers.Clear();
-                    }
-
-                    foreach (IDisposable s in subs)
-                    {
-                        s.Dispose();
-                    }
-
-                    foreach (T[] arr in toEmit)
-                    {
-                        observer.OnNext(arr);
                     }
 
                     observer.OnErrorResume(ex);
@@ -254,40 +233,60 @@ public static partial class TimingExtensions
 
             void SubscribeToCloser()
             {
-                IDisposable? sub = null;
-                sub = closingSelector().Take(1).Subscribe(
-                    _ =>
-                    {
-                        T[] toEmit;
-                        using (gate.EnterScope())
+                // Re-subscribe iteratively. A closing observable that emits synchronously on
+                // subscription (e.g. Observable.Return) would otherwise recurse through this
+                // method once per close and overflow the stack; the loop keeps that flat.
+                bool resubscribe = true;
+                while (resubscribe)
+                {
+                    resubscribe = false;
+                    bool subscribed = false;
+                    IDisposable? sub = null;
+
+                    sub = closingSelector().Take(1).Subscribe(
+                        _ =>
                         {
-                            if (disposed)
+                            T[] toEmit;
+                            using (gate.EnterScope())
                             {
-                                return;
+                                if (disposed)
+                                {
+                                    return;
+                                }
+
+                                toEmit = buffer.ToArray();
+                                buffer.Clear();
                             }
 
-                            toEmit = buffer.ToArray();
-                            buffer.Clear();
+                            observer.OnNext(toEmit);
+
+                            if (subscribed)
+                            {
+                                // Asynchronous close (after Subscribe returned): a fresh call
+                                // stack, so re-subscribing recursively here is safe.
+                                SubscribeToCloser();
+                            }
+                            else
+                            {
+                                // Synchronous close (during Subscribe): loop instead of recursing.
+                                resubscribe = true;
+                            }
+                        },
+                        ex => observer.OnErrorResume(ex),
+                        _ => { });
+
+                    using (gate.EnterScope())
+                    {
+                        if (disposed)
+                        {
+                            sub?.Dispose();
+                            return;
                         }
 
-                        observer.OnNext(toEmit);
-
-                        // Subscribe to the next closer outside the lock
-                        SubscribeToCloser();
-                    },
-                    ex => observer.OnErrorResume(ex),
-                    _ => { });
-
-                using (gate.EnterScope())
-                {
-                    if (disposed)
-                    {
-                        sub?.Dispose();
-                    }
-                    else
-                    {
                         closingSub = sub;
                     }
+
+                    subscribed = true;
                 }
             }
 

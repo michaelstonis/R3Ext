@@ -146,6 +146,52 @@ public class ErrorHandlingExtraTests
     }
 
     [Fact]
+    public void RetryWhen_HandlerCompletes_DoesNotForwardSourceAfterCompletion()
+    {
+        Subject<int> relay = new();
+        Subject<Unit> trigger = new();
+        List<int> values = new();
+        bool completed = false;
+
+        relay.RetryWhen(_ => trigger).Subscribe(
+            values.Add,
+            _ => { },
+            _ => completed = true);
+
+        relay.OnNext(1);
+        trigger.OnCompleted(); // handler completes -> downstream completes
+        Assert.True(completed);
+
+        // The source is still live; emissions after completion must not be forwarded.
+        relay.OnNext(2);
+        relay.OnNext(3);
+
+        Assert.Equal(new[] { 1 }, values);
+    }
+
+    [Fact]
+    public void RetryWhen_HandlerCompletesImmediately_DoesNotForwardSourceAfterCompletion()
+    {
+        Subject<int> relay = new();
+        List<int> values = new();
+        bool completed = false;
+
+        // The handler completes synchronously during subscription (before the source is first
+        // subscribed). The downstream must complete and never forward later source emissions.
+        relay.RetryWhen(_ => Observable.Empty<Unit>()).Subscribe(
+            values.Add,
+            _ => { },
+            _ => completed = true);
+
+        Assert.True(completed);
+
+        relay.OnNext(1);
+        relay.OnNext(2);
+
+        Assert.Empty(values);
+    }
+
+    [Fact]
     public void RetryWhen_NullSource_ThrowsArgumentNullException()
     {
         Observable<int> nullSource = null!;

@@ -179,6 +179,25 @@ public class TimingAdvancedTests
     }
 
     [Fact]
+    public void DelayWhen_DurationErrorResume_AfterSourceCompletion_StillCompletes()
+    {
+        Subject<int> subject = new();
+        Subject<Unit> trigger = new();
+        LiveList<int> result = subject.DelayWhen(_ => trigger).ToLiveList();
+
+        subject.OnNext(1);
+        subject.OnCompleted();
+        Assert.False(result.IsCompleted); // in-flight duration not yet resolved
+
+        // The duration faults instead of firing. This removes the last in-flight item, so the
+        // sequence must now complete. Previously CheckComplete() was skipped here and it hung.
+        trigger.OnErrorResume(new InvalidOperationException("boom"));
+
+        Assert.True(result.IsCompleted);
+        Assert.Empty(result.ToArray()); // faulted duration => item was never emitted
+    }
+
+    [Fact]
     public void DelayWhen_WithSubscriptionDelay_NullDelay_Throws()
     {
         var source = Observable.Return(1);
@@ -239,6 +258,24 @@ public class TimingAdvancedTests
         Assert.Equal(new[] { 1, 2 }, result.ToArray());
 
         tp.Advance(TimeSpan.FromSeconds(1)); // next window
+        Assert.Equal(new[] { 1, 2, 3 }, result.ToArray());
+    }
+
+    [Fact]
+    public void RateLimit_OnErrorResume_IsNonTerminal_KeepsDrainingQueue()
+    {
+        FakeTimeProvider tp = new();
+        Subject<int> subject = new();
+        LiveList<int> result = subject.RateLimit(1, TimeSpan.FromSeconds(1), tp).ToLiveList();
+
+        subject.OnNext(1); // emitted immediately
+        subject.OnNext(2); // queued
+        subject.OnNext(3); // queued
+        subject.OnErrorResume(new InvalidOperationException("boom")); // non-terminal
+
+        tp.Advance(TimeSpan.FromSeconds(1)); // drain timer must still fire -> 2
+        tp.Advance(TimeSpan.FromSeconds(1)); // -> 3
+
         Assert.Equal(new[] { 1, 2, 3 }, result.ToArray());
     }
 

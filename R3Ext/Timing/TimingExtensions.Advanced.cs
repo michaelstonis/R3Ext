@@ -189,9 +189,19 @@ public static partial class TimingExtensions
                                 }
                             }
 
-                            if (wasActive && !disposed)
+                            if (wasActive)
                             {
-                                observer.OnErrorResume(ex);
+                                if (!disposed)
+                                {
+                                    observer.OnErrorResume(ex);
+                                }
+
+                                // A faulting duration removes an in-flight item, so the sequence
+                                // may now be able to complete (source already done, no inners left).
+                                using (gate.EnterScope())
+                                {
+                                    CheckComplete();
+                                }
                             }
                         },
                         r =>
@@ -511,14 +521,14 @@ public static partial class TimingExtensions
                 },
                 ex =>
                 {
+                    // OnErrorResume is non-terminal: forward it but keep the drain timer running so
+                    // queued items continue to drain and rate-limiting stays active afterwards.
                     using (gate.EnterScope())
                     {
                         if (disposed)
                         {
                             return;
                         }
-
-                        timer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                     }
 
                     observer.OnErrorResume(ex);
@@ -581,8 +591,7 @@ public static partial class TimingExtensions
     public static Observable<T> BufferWithOverflow<T>(
         this Observable<T> source,
         int capacity,
-        OverflowStrategy strategy = OverflowStrategy.DropOldest,
-        TimeProvider? timeProvider = null)
+        OverflowStrategy strategy = OverflowStrategy.DropOldest)
     {
         if (source is null)
         {

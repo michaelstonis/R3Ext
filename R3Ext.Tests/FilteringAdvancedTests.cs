@@ -91,6 +91,31 @@ public class FilteringAdvancedTests
         Assert.Throws<ArgumentNullException>(() => nullSource!.IsEmpty());
     }
 
+    [Fact]
+    public void IsEmpty_SourceFailsWithoutValue_DoesNotEmitTrue()
+    {
+        Subject<int> subject = new();
+        List<bool> values = new();
+        Result completion = default;
+        bool completed = false;
+        subject.IsEmpty().Subscribe(
+            values.Add,
+            _ => { },
+            r =>
+            {
+                completion = r;
+                completed = true;
+            });
+
+        // A failure terminal with no preceding value must NOT be reported as "empty == true";
+        // the failure should propagate instead.
+        subject.OnCompleted(Result.Failure(new InvalidOperationException("boom")));
+
+        Assert.Empty(values);
+        Assert.True(completed);
+        Assert.True(completion.IsFailure);
+    }
+
     // ─── Every / All ─────────────────────────────────────────────────────────
 
     [Fact]

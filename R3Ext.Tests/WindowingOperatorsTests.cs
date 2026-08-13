@@ -369,6 +369,30 @@ public class WindowingOperatorsTests
     }
 
     [Fact]
+    public void BufferToggle_OnErrorResume_IsNonTerminal_KeepsCollecting()
+    {
+        Subject<int> source = new();
+        Subject<Unit> opens = new();
+        Subject<Unit> closes = new();
+        List<int[]> buffers = new();
+        List<Exception> errors = new();
+        source.BufferToggle(opens, _ => (Observable<Unit>)closes).Subscribe(
+            buffers.Add,
+            errors.Add,
+            _ => { });
+
+        opens.OnNext(Unit.Default); // open a buffer
+        source.OnNext(1);
+        source.OnErrorResume(new InvalidOperationException("boom")); // non-terminal
+        source.OnNext(2);                   // must still be collected into the open buffer
+        closes.OnNext(Unit.Default);        // close -> emit [1, 2]
+
+        Assert.Single(errors);
+        Assert.Single(buffers);
+        Assert.Equal(new[] { 1, 2 }, buffers[0]);
+    }
+
+    [Fact]
     public void BufferToggle_ItemsBeforeOpenAreNotCollected()
     {
         Subject<int> source = new();
@@ -516,5 +540,125 @@ public class WindowingOperatorsTests
 
         Assert.Single(result);
         Assert.Empty(result[0]);
+    }
+
+    // -----------------------------------------------------------------------
+    // OnErrorResume is non-terminal: windowing must survive a resumable error
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void WindowCount_OnErrorResume_IsNonTerminal_DoesNotDropSubsequentItems()
+    {
+        Subject<int> subject = new();
+        List<int[]> windows = new();
+        List<Exception> outerErrors = new();
+        subject.WindowCount<int>(3).Subscribe(
+            window =>
+            {
+                List<int> items = new();
+                window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
+            },
+            outerErrors.Add,
+            _ => { });
+
+        subject.OnNext(1);
+        subject.OnNext(2);
+        subject.OnErrorResume(new InvalidOperationException("boom"));
+        subject.OnNext(3); // must still complete the first window: [1, 2, 3]
+        subject.OnNext(4);
+        subject.OnNext(5);
+        subject.OnNext(6); // completes the second window: [4, 5, 6]
+        subject.OnCompleted();
+
+        Assert.Single(outerErrors); // error forwarded downstream, not swallowed
+        Assert.Equal(2, windows.Count);
+        Assert.Equal(new[] { 1, 2, 3 }, windows[0]);
+        Assert.Equal(new[] { 4, 5, 6 }, windows[1]);
+    }
+
+    [Fact]
+    public async Task WindowTime_OnErrorResume_IsNonTerminal_KeepsTimerAndWindowAlive()
+    {
+        FakeTimeProvider tp = new();
+        Subject<int> subject = new();
+        List<int[]> windows = new();
+        List<Exception> outerErrors = new();
+        subject.WindowTime<int>(TimeSpan.FromSeconds(1), tp).Subscribe(
+            window =>
+            {
+                List<int> items = new();
+                window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
+            },
+            outerErrors.Add,
+            _ => { });
+
+        subject.OnNext(1);
+        subject.OnErrorResume(new InvalidOperationException("boom"));
+        subject.OnNext(2); // must still land in the live window
+        tp.Advance(TimeSpan.FromSeconds(1)); // timer must still roll the window closed: [1, 2]
+        subject.OnCompleted();
+        await Task.Yield();
+
+        Assert.Single(outerErrors);
+        Assert.True(windows.Count >= 1);
+        Assert.Equal(new[] { 1, 2 }, windows[0]);
+    }
+
+    [Fact]
+    public async Task WindowTimeMaxCount_OnErrorResume_IsNonTerminal_KeepsCountingWindowAlive()
+    {
+        FakeTimeProvider tp = new();
+        Subject<int> subject = new();
+        List<int[]> windows = new();
+        List<Exception> outerErrors = new();
+        subject.WindowTime<int>(TimeSpan.FromSeconds(10), maxCount: 3, timeProvider: tp).Subscribe(
+            window =>
+            {
+                List<int> items = new();
+                window.Subscribe(items.Add, _ => { }, _ => windows.Add(items.ToArray()));
+            },
+            outerErrors.Add,
+            _ => { });
+
+        subject.OnNext(1);
+        subject.OnErrorResume(new InvalidOperationException("boom"));
+        subject.OnNext(2);
+        subject.OnNext(3); // must still close the count-saturated window: [1, 2, 3]
+        subject.OnCompleted();
+        await Task.Yield();
+
+        Assert.Single(outerErrors);
+        Assert.True(windows.Count >= 1);
+        Assert.Equal(new[] { 1, 2, 3 }, windows[0]);
+    }
+
+    [Fact]
+    public void BufferWhen_SynchronousCloser_DoesNotStackOverflow()
+    {
+        // A closer that emits synchronously on subscription forces immediate re-subscription.
+        // The operator must handle this iteratively; a recursive implementation overflows the
+        // stack after a few thousand closes. Reaching the assertions at all proves no overflow.
+        const int synchronousCloses = 50_000;
+        int closeCount = 0;
+        Subject<int> source = new();
+        Subject<Unit> idle = new();
+        List<int[]> buffers = new();
+
+        source.BufferWhen(() =>
+        {
+            closeCount++;
+            return closeCount <= synchronousCloses
+                ? Observable.Return(Unit.Default) // emits synchronously -> re-subscribe
+                : (Observable<Unit>)idle;         // never emits -> loop stops
+        }).Subscribe(buffers.Add);
+
+        Assert.Equal(synchronousCloses, buffers.Count);
+        Assert.All(buffers, b => Assert.Empty(b));
+
+        source.OnNext(7);
+        source.OnCompleted();
+
+        Assert.Equal(synchronousCloses + 1, buffers.Count);
+        Assert.Equal(new[] { 7 }, buffers[^1]);
     }
 }

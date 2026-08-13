@@ -88,7 +88,7 @@ public static partial class FilteringExtensions
                         }
 
                         disposed = true;
-                        emitTrue = !hadValue;
+                        emitTrue = r.IsSuccess && !hadValue;
                     }
 
                     if (emitTrue)

@@ -116,21 +116,15 @@ public static partial class TimingExtensions
                 },
                 ex =>
                 {
-                    Subject<T>[]? windows;
+                    // OnErrorResume is non-terminal in R3: forward the error downstream but keep
+                    // every open window (and the windowing state) alive so that subsequent source
+                    // items are not dropped.
                     using (gate.EnterScope())
                     {
                         if (disposed)
                         {
                             return;
                         }
-
-                        windows = openWindows.Select(w => w.Subject).ToArray();
-                        openWindows.Clear();
-                    }
-
-                    foreach (Subject<T> w in windows)
-                    {
-                        w.OnCompleted();
                     }
 
                     observer.OnErrorResume(ex);
@@ -249,20 +243,16 @@ public static partial class TimingExtensions
                 },
                 ex =>
                 {
-                    Subject<T>? window;
+                    // OnErrorResume is non-terminal in R3: forward the error downstream but keep
+                    // the timer and current window alive so windowing continues afterwards.
                     using (gate.EnterScope())
                     {
                         if (disposed)
                         {
                             return;
                         }
-
-                        timer?.Dispose();
-                        window = currentWindow;
-                        currentWindow = null;
                     }
 
-                    window?.OnCompleted();
                     observer.OnErrorResume(ex);
                 },
                 r =>
@@ -396,20 +386,16 @@ public static partial class TimingExtensions
                 },
                 ex =>
                 {
-                    Subject<T>? window;
+                    // OnErrorResume is non-terminal in R3: forward the error downstream but keep
+                    // the timer and current window alive so windowing continues afterwards.
                     using (gate.EnterScope())
                     {
                         if (disposed)
                         {
                             return;
                         }
-
-                        timer?.Dispose();
-                        window = currentWindow;
-                        currentWindow = null;
                     }
 
-                    window?.OnCompleted();
                     observer.OnErrorResume(ex);
                 },
                 r =>
