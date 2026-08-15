@@ -2,15 +2,15 @@
 
 **Date**: November 23, 2025  
 **Branch**: `feature/eliminate-closures`  
-**Progress**: 18 of 50+ operators completed (36%)
+**Progress**: 22 of 50+ operators completed (44%)
 
 ## Executive Summary
 
-We've successfully eliminated closures in 18 operators across the R3Ext.DynamicData codebase, establishing clear patterns for readonly struct and sealed class state containers. All 285 tests continue to pass. Approximately **32+ operators with closures remain**.
+We've successfully eliminated closures in 22 operators across the R3Ext.DynamicData codebase, establishing clear patterns for readonly struct and sealed class state containers. All 317 tests continue to pass. Approximately **28+ operators with closures remain**.
 
 ## Completed Work (18 Operators)
 
-### ✅ List Operators (13 operators)
+### ✅ List Operators (20 operators)
 
 1. **RemoveIndex** - Simple observer state
 2. **DisposeMany** - Disposal tracking
@@ -28,22 +28,19 @@ We've successfully eliminated closures in 18 operators across the R3Ext.DynamicD
 14. **TransformAsync** - Task management
 15. **ToObservableChangeSet** - Buffer transformation
 16. **Bind** - Direct parameter passing
+17. **Max** (aggregate) - Sealed class with max tracking and recalculation
+18. **Min** (aggregate) - Sealed class with min tracking and recalculation
+19. **Avg** (aggregate) - Sealed class with sum/count accumulation
+20. **StdDev** (aggregate) - Sealed class with variance/mean tracking
 
 ### ✅ Cache Operators (2 operators)
 
 1. **Cache/Internal/SubscribeMany** - Per-item subscriptions
 2. **TrueForAny/TrueForAll** - Nested state tracking
 
-## Remaining Work (32+ Operators)
+## Remaining Work (28+ Operators)
 
-### List Operators Remaining (11 operators)
-
-#### Aggregates (4 operators) - HIGH PRIORITY
-
--   **Max** (`ObservableListAggregates.cs` L131-230) - Complex min/max tracking
--   **Min** (`ObservableListAggregates.cs` L316-410) - Complex min/max tracking
--   **Avg** (`ObservableListAggregates.cs` L494-590) - Sum/count accumulation
--   **StdDev** (`ObservableListAggregates.cs` L595-690) - Variance calculation
+### List Operators Remaining (7 operators)
 
 #### Internal Operators (5 operators)
 
@@ -253,8 +250,8 @@ sealed class InnerState { ... }
 
 ### Achieved ✅
 
--   18 operators converted
--   285 tests passing
+-   22 operators converted
+-   317 tests passing
 -   Zero public API changes
 -   Consistent pattern application
 -   Clean commit history

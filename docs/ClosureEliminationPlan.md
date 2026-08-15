@@ -1,12 +1,11 @@
 # Closure Elimination Plan for R3Ext.DynamicData
 
-## Current Status (Updated: November 23, 2025)
+## Current Status (Updated: August 2026)
 
-**Progress: 18 of ~50 operators completed (36%)**
+**Progress: 22 of ~50 operators completed (44%)**
 
--   ✅ 20 commits on `feature/eliminate-closures` branch
--   ✅ All 285 tests passing
--   ✅ Phases 1-6 substantially complete
+-   ✅ All 317 tests passing
+-   ✅ Phases 1-6 complete (including all aggregate operators)
 
 ## Overview
 
@@ -65,14 +64,14 @@ source.Subscribe(capturedVariable, static (x, state) => DoSomething(x, state))
 5. **Virtualize + Page.cs** (Commit: 2b8edff) - Complex window state management
 6. **FilterOnObservable.cs** (Commit: 87cd3c8) - 4-variable nested subscriptions
 
-### ✅ Phase 2: Aggregate Operators (2/5 complete)
+### ✅ Phase 2: Aggregate Operators (6/6 complete)
 
 1. **Count** (Commit: 453c978) - RefInt wrapper for mutable counter
 2. **Sum** (Commit: c2c4eb3) - RefInt wrapper for mutable sum
-3. ❌ **Max** - Not yet implemented
-4. ❌ **Min** - Not yet implemented
-5. ❌ **Avg** - Not yet implemented
-6. ❌ **StdDev** - Not yet implemented
+3. ✅ **Max** - Sealed class `MaxState<TSource, TProperty>` with value tracking and recalculation
+4. ✅ **Min** - Sealed class `MinState<TSource, TProperty>` with value tracking and recalculation
+5. ✅ **Avg** - Sealed class `AvgState<TSource, TProperty>` with sum/count accumulation
+6. ✅ **StdDev** - Sealed class `StdDevState<TSource, TProperty>` with variance/mean tracking
 
 ### ✅ Phase 3: Internal Operators (5/5 complete)
 
@@ -98,49 +97,9 @@ source.Subscribe(capturedVariable, static (x, state) => DoSomething(x, state))
 
 ## Remaining Work
 
-### Phase 2 Remaining: Aggregate Operators (3 operators)
+### Phase 2: ✅ Complete
 
-**Priority: Medium | Complexity: Medium**
-
-#### 2.1 Max (ObservableListAggregates.cs)
-
--   **Line 26-127**: Subscribe with 4-variable closure (trackedItems, includedItems, predicateSelector, observer)
--   **Line 177**: Nested Subscribe (tracked, item, includedItems, observer)
--   **Impact**: Core filtering operation used heavily
--   **State Struct**:
-
-```csharp
-readonly struct FilterOnObservableState
-{
-    public readonly Dictionary<T, TrackedItem> TrackedItems;
-    public readonly List<T> IncludedItems;
-    public readonly Func<T, Observable<bool>> PredicateSelector;
-    public readonly Observer<IChangeSet<T>> Observer;
-}
-```
-
-#### 2.2 Min (ObservableListAggregates.cs)
-
--   **Lines 311-401**: Subscribe with complex state tracking
--   **Complexity**: Similar to Max - itemValues, valueCounts, hasValue, currentMin
--   **Estimated Effort**: 2-3 hours
--   **State Pattern**: sealed class with mutable RefValue wrappers
-
-#### 2.3 Avg (ObservableListAggregates.cs)
-
--   **Lines 489-592**: Subscribe with sum/count accumulation
--   **Complexity**: Dictionary tracking + running sum/count
--   **Estimated Effort**: 2-3 hours
--   **State Pattern**: sealed class with RefValue<double> Sum, RefInt Count
-
-#### 2.4 StdDev (ObservableListAggregates.cs)
-
--   **Lines 590-690**: Subscribe with sum/sumSquares/count
--   **Complexity**: Similar to Avg with additional sumSquares tracking
--   **Estimated Effort**: 2-3 hours
--   **State Pattern**: sealed class extending Avg pattern
-
-**Phase 2 Total Estimate**: 6-9 hours
+All aggregate operators (Max, Min, Avg, StdDev) have been implemented using the sealed class state pattern. See the Phase 2 section above for details.
 
 ---
 
@@ -202,15 +161,10 @@ These weren't fully enumerated in the original plan but have significant closure
 
 ### Tier 1: High Impact, Medium Effort (Next Sprint)
 
-**Focus on completing Phase 2 aggregates + exploring Cache operators**
+**Focus on exploring Cache operators (Phase 2 aggregates are complete)**
 
-1. **Max** (2-3 hours) - Common statistical operation
-2. **Min** (2-3 hours) - Common statistical operation
-3. **Avg** (2-3 hours) - Frequently used
-4. **StdDev** (2-3 hours) - Less common but completes aggregates
-5. **Cache operator survey** (2 hours) - Identify high-value targets
-
-**Total**: ~12-15 hours (1.5-2 weeks)
+1. **Cache operator survey** (2 hours) - Identify high-value targets
+2. **Cache Filter / Transform** (3-4 hours each) - Core operators with highest usage
 
 ### Tier 2: High Impact, Higher Complexity
 
@@ -252,7 +206,7 @@ These weren't fully enumerated in the original plan but have significant closure
 
 -   **Minimum**: ~30 operators
 -   **Effort**: 60-100 hours (8-12 weeks at current pace)
--   **Current Progress**: 18/48+ operators (37.5%)
+-   **Current Progress**: 22/50+ operators (44%)
 
 ---
 
@@ -273,7 +227,7 @@ These weren't fully enumerated in the original plan but have significant closure
 
 ### Remaining 📋
 
--   Complete Phase 2 aggregates
+-   ~~Complete Phase 2 aggregates~~ ✅ Done
 -   Survey and convert Cache operators
 -   Add performance benchmarks
 -   Create allocation comparison report
@@ -284,10 +238,9 @@ These weren't fully enumerated in the original plan but have significant closure
 
 ### Immediate (Next Session)
 
-1. **Complete Phase 2 Aggregates** - Max, Min, Avg, StdDev
-    - Clear patterns established by Count/Sum
-    - Relatively straightforward conversions
-    - High-value operations
+1. **Survey Cache Operators** - Identify all remaining closures in Cache/ directory
+    - Prioritize by usage frequency
+    - Convert high-impact operators first
 
 ### Short Term (Next 1-2 Weeks)
 
@@ -460,13 +413,13 @@ dotnet test R3Ext.sln
 
 ## Timeline
 
--   **Week 1**: Phase 1 - Core operators (6 files)
--   **Week 2**: Phase 2 - Aggregates (5 operators in 1 file)
--   **Week 3**: Phase 3 - Internal operators (5 files)
--   **Week 4**: Phase 4 - Async operations (1 file)
--   **Week 5**: Phase 5 - Simple transformations (3 files)
--   **Week 6**: Phase 6 - Cache operators (2 files)
--   **Total**: ~22 files, ~50+ closure elimination sites
+-   **Week 1**: Phase 1 - Core operators (6 files) ✅
+-   **Week 2**: Phase 2 - Aggregates (6 operators in 1 file) ✅
+-   **Week 3**: Phase 3 - Internal operators (5 files) ✅
+-   **Week 4**: Phase 4 - Async operations (1 file) ✅
+-   **Week 5**: Phase 5 - Simple transformations (3 files) ✅
+-   **Week 6**: Phase 6 - Cache operators (2 files) ✅
+-   **Ongoing**: Remaining Cache and List internal operators (~28+ remaining)
 
 ## References
 
