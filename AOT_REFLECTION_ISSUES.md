@@ -14,8 +14,8 @@ This document tracks all potential AOT (Ahead-of-Time) compilation, reflection, 
 ## 🎉 Summary: All Critical AOT Issues Resolved
 
 **Status:** ✅ **Complete**  
-**Test Coverage:** 459/459 tests passing (174 R3Ext + 285 R3Ext.DynamicData)  
-**Branch:** feature/aot-reflection-fixes (5 commits)
+**Test Coverage:** 776/776 tests passing (459 R3Ext + 317 R3Ext.DynamicData)  
+**Branch:** feature/aot-reflection-fixes (7 commits)
 
 All critical Expression.Compile() and reflection-based issues have been successfully eliminated. The codebase is now fully compatible with native AOT compilation.
 
@@ -46,7 +46,7 @@ All critical Expression.Compile() and reflection-based issues have been successf
 - ✅ Enhanced BindingGeneratorV2 to detect WhenValueChanged calls
 - ✅ **WhenPropertyChanged**: Refactored to use `WhenChangedWithPath` with explicit path extraction
 - ✅ Enhanced generator to detect AutoRefresh calls (which use WhenPropertyChanged internally)
-- ✅ All 9 WhenValueChanged tests passing + 285 DynamicData tests passing
+- ✅ All 9 WhenValueChanged tests passing + 317 DynamicData tests passing
 
 #### Implementation Details:
 **WhenValueChanged Pattern:**
@@ -134,7 +134,7 @@ source.WhenValueChanged(x => x.Name, x => x.Id)
 - ✅ Eliminated `Distance()` method that navigated type hierarchy via `BaseType`
 - ✅ Changed from runtime `IsAssignableFrom()` checks to compile-time assignability
 - ✅ Exact type matching first, then compile-time assignable types as fallback
-- ✅ All 174 R3Ext tests passing
+- ✅ All 459 R3Ext tests passing
 
 #### Details:
 The refactoring maintains the same functionality while being AOT-compatible:
@@ -166,7 +166,7 @@ The refactoring maintains the same functionality while being AOT-compatible:
 - ✅ Changed: `if (obj.GetType() != GetType())` → `if (obj is not Node<TObject, TKey> other)`
 - ✅ Simplified cast: `return Equals((Node<TObject, TKey>)obj);` → `return Equals(other);`
 - ✅ More AOT-friendly and idiomatic C#
-- ✅ All 285 DynamicData tests passing after change
+- ✅ All 317 DynamicData tests passing after change
 
 ---
 
@@ -187,7 +187,7 @@ The refactoring maintains the same functionality while being AOT-compatible:
 - ✅ Added `UiBindingTargetsJsonContext` with `[JsonSerializable]` attributes  
 - ✅ Changed DTO classes from private to internal for source generator access
 - ✅ Updated JsonSerializer calls to use generated context
-- ✅ All 174 R3Ext tests passing
+- ✅ All 459 R3Ext tests passing
 
 ---
 
@@ -332,12 +332,12 @@ var compiled = expression.Compile();  // ❌ Not AOT-safe
 7. **7107e75** - Node.cs pattern matching refactor
 
 ### Test Results
-- ✅ **R3Ext Tests**: 174/174 passing
-- ✅ **R3Ext.DynamicData Tests**: 285/285 passing
-- ✅ **Total**: 459/459 tests passing (100%)
+- ✅ **R3Ext Tests**: 459/459 passing
+- ✅ **R3Ext.DynamicData Tests**: 317/317 passing
+- ✅ **Total**: 776/776 tests passing (100%)
 
 ---
 
 **Status:** ✅ **All Critical AOT Issues Resolved**  
 **Last Updated:** 2025-11-23  
-**Branch:** feature/aot-reflection-fixes (5 commits, ready for merge)
+**Branch:** feature/aot-reflection-fixes (7 commits, ready for merge)

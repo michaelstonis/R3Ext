@@ -113,7 +113,7 @@ var cache = new SourceCache<Person, int>(p => p.Id);
 // Observe changes with automatic caching
 cache.Connect()
     .Filter(p => p.IsActive)
-    .Sort(SortExpressionComparer<Person>.Ascending(p => p.Name))
+    .Sort(Comparer<Person>.Create((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal)))
     .Transform(p => new PersonViewModel(p))
     .Bind(out var items)  // Bind to ObservableCollection
     .Subscribe();
@@ -139,7 +139,7 @@ cache.Connect()
 | ------------------- | ---------------------------------------------- |
 | **Filtering**       | `Filter`, `FilterOnObservable`, `AutoRefresh`  |
 | **Transformation**  | `Transform`, `TransformMany`, `TransformAsync` |
-| **Sorting**         | `Sort`, `SortAsync`                            |
+| **Sorting**         | `Sort`, `SortAndBind`                          |
 | **Grouping**        | `Group`, `GroupWithImmutableState`, `GroupOn`  |
 | **Aggregation**     | `Count`, `Sum`, `Avg`, `Min`, `Max`            |
 | **Change Tracking** | `DistinctValues`, `MergeChangeSet`, `Clone`    |

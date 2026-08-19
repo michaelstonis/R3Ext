@@ -2,10 +2,10 @@
 
 ## Current Status (Updated: November 23, 2025)
 
-**Progress: 18 of ~50 operators completed (36%)**
+**Progress: 22 of ~50 operators completed (44%)**
 
 -   ✅ 20 commits on `feature/eliminate-closures` branch
--   ✅ All 285 tests passing
+-   ✅ All 317 tests passing
 -   ✅ Phases 1-6 substantially complete
 
 ## Overview
@@ -65,14 +65,14 @@ source.Subscribe(capturedVariable, static (x, state) => DoSomething(x, state))
 5. **Virtualize + Page.cs** (Commit: 2b8edff) - Complex window state management
 6. **FilterOnObservable.cs** (Commit: 87cd3c8) - 4-variable nested subscriptions
 
-### ✅ Phase 2: Aggregate Operators (2/5 complete)
+### ✅ Phase 2: Aggregate Operators (6/6 complete)
 
 1. **Count** (Commit: 453c978) - RefInt wrapper for mutable counter
 2. **Sum** (Commit: c2c4eb3) - RefInt wrapper for mutable sum
-3. ❌ **Max** - Not yet implemented
-4. ❌ **Min** - Not yet implemented
-5. ❌ **Avg** - Not yet implemented
-6. ❌ **StdDev** - Not yet implemented
+3. ✅ **Max** - Implemented (sealed class state, static lambdas)
+4. ✅ **Min** - Implemented (sealed class state, static lambdas)
+5. ✅ **Avg** - Implemented (sealed class state, static lambdas)
+6. ✅ **StdDev** - Implemented (sealed class state, static lambdas)
 
 ### ✅ Phase 3: Internal Operators (5/5 complete)
 
@@ -98,49 +98,10 @@ source.Subscribe(capturedVariable, static (x, state) => DoSomething(x, state))
 
 ## Remaining Work
 
-### Phase 2 Remaining: Aggregate Operators (3 operators)
+### ~~Phase 2 Remaining: Aggregate Operators~~ ✅ Complete
 
-**Priority: Medium | Complexity: Medium**
-
-#### 2.1 Max (ObservableListAggregates.cs)
-
--   **Line 26-127**: Subscribe with 4-variable closure (trackedItems, includedItems, predicateSelector, observer)
--   **Line 177**: Nested Subscribe (tracked, item, includedItems, observer)
--   **Impact**: Core filtering operation used heavily
--   **State Struct**:
-
-```csharp
-readonly struct FilterOnObservableState
-{
-    public readonly Dictionary<T, TrackedItem> TrackedItems;
-    public readonly List<T> IncludedItems;
-    public readonly Func<T, Observable<bool>> PredicateSelector;
-    public readonly Observer<IChangeSet<T>> Observer;
-}
-```
-
-#### 2.2 Min (ObservableListAggregates.cs)
-
--   **Lines 311-401**: Subscribe with complex state tracking
--   **Complexity**: Similar to Max - itemValues, valueCounts, hasValue, currentMin
--   **Estimated Effort**: 2-3 hours
--   **State Pattern**: sealed class with mutable RefValue wrappers
-
-#### 2.3 Avg (ObservableListAggregates.cs)
-
--   **Lines 489-592**: Subscribe with sum/count accumulation
--   **Complexity**: Dictionary tracking + running sum/count
--   **Estimated Effort**: 2-3 hours
--   **State Pattern**: sealed class with RefValue<double> Sum, RefInt Count
-
-#### 2.4 StdDev (ObservableListAggregates.cs)
-
--   **Lines 590-690**: Subscribe with sum/sumSquares/count
--   **Complexity**: Similar to Avg with additional sumSquares tracking
--   **Estimated Effort**: 2-3 hours
--   **State Pattern**: sealed class extending Avg pattern
-
-**Phase 2 Total Estimate**: 6-9 hours
+Max, Min, Avg, and StdDev have all been implemented in `ObservableListAggregates.cs`
+using sealed class state containers and static lambdas (closure-eliminated).
 
 ---
 
@@ -202,15 +163,11 @@ These weren't fully enumerated in the original plan but have significant closure
 
 ### Tier 1: High Impact, Medium Effort (Next Sprint)
 
-**Focus on completing Phase 2 aggregates + exploring Cache operators**
+**Focus on Cache operators**
 
-1. **Max** (2-3 hours) - Common statistical operation
-2. **Min** (2-3 hours) - Common statistical operation
-3. **Avg** (2-3 hours) - Frequently used
-4. **StdDev** (2-3 hours) - Less common but completes aggregates
-5. **Cache operator survey** (2 hours) - Identify high-value targets
+1. **Cache operator survey** (2 hours) - Identify high-value targets
 
-**Total**: ~12-15 hours (1.5-2 weeks)
+**Total**: ~2 hours
 
 ### Tier 2: High Impact, Higher Complexity
 
@@ -252,7 +209,7 @@ These weren't fully enumerated in the original plan but have significant closure
 
 -   **Minimum**: ~30 operators
 -   **Effort**: 60-100 hours (8-12 weeks at current pace)
--   **Current Progress**: 18/48+ operators (37.5%)
+-   **Current Progress**: 22/48+ operators (45.8%)
 
 ---
 
@@ -260,9 +217,9 @@ These weren't fully enumerated in the original plan but have significant closure
 
 ### Completed ✅
 
-1. ✅ All existing tests pass (285 tests green)
+1. ✅ All existing tests pass (317 tests green)
 2. ✅ No public API changes
-3. ✅ 18 operators converted with consistent patterns
+3. ✅ 22 operators converted with consistent patterns
 4. ✅ Documentation maintained in commit messages
 5. ✅ Clean git history (one commit per operator group)
 
@@ -273,7 +230,6 @@ These weren't fully enumerated in the original plan but have significant closure
 
 ### Remaining 📋
 
--   Complete Phase 2 aggregates
 -   Survey and convert Cache operators
 -   Add performance benchmarks
 -   Create allocation comparison report
@@ -284,10 +240,7 @@ These weren't fully enumerated in the original plan but have significant closure
 
 ### Immediate (Next Session)
 
-1. **Complete Phase 2 Aggregates** - Max, Min, Avg, StdDev
-    - Clear patterns established by Count/Sum
-    - Relatively straightforward conversions
-    - High-value operations
+1. **Survey Cache Operators** - Identify high-value closure elimination targets
 
 ### Short Term (Next 1-2 Weeks)
 

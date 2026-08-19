@@ -2,15 +2,15 @@
 
 **Date**: November 23, 2025  
 **Branch**: `feature/eliminate-closures`  
-**Progress**: 18 of 50+ operators completed (36%)
+**Progress**: 22 of 50+ operators completed (44%)
 
 ## Executive Summary
 
-We've successfully eliminated closures in 18 operators across the R3Ext.DynamicData codebase, establishing clear patterns for readonly struct and sealed class state containers. All 285 tests continue to pass. Approximately **32+ operators with closures remain**.
+We've successfully eliminated closures in 22 operators across the R3Ext.DynamicData codebase, establishing clear patterns for readonly struct and sealed class state containers. All 317 tests continue to pass. Approximately **28+ operators with closures remain**.
 
-## Completed Work (18 Operators)
+## Completed Work (22 Operators)
 
-### ✅ List Operators (13 operators)
+### ✅ List Operators (17 operators)
 
 1. **RemoveIndex** - Simple observer state
 2. **DisposeMany** - Disposal tracking
@@ -20,32 +20,27 @@ We've successfully eliminated closures in 18 operators across the R3Ext.DynamicD
 6. **FilterOnObservable** - Nested subscriptions
 7. **Count** (aggregate) - Mutable counter
 8. **Sum** (aggregate) - Mutable sum
-9. **DistinctValues** - Dictionary tracking
-10. **MergeMany** - Nested subscriptions
-11. **SubscribeMany** - Per-item subscriptions
-12. **Combiner** - Multi-source coordination
-13. **BufferIf** - Pause/resume buffering
-14. **TransformAsync** - Task management
-15. **ToObservableChangeSet** - Buffer transformation
-16. **Bind** - Direct parameter passing
+9. **Max** (aggregate) - Sealed class state, static lambdas
+10. **Min** (aggregate) - Sealed class state, static lambdas
+11. **Avg** (aggregate) - Sealed class state, static lambdas
+12. **StdDev** (aggregate) - Sealed class state, static lambdas
+13. **DistinctValues** - Dictionary tracking
+14. **MergeMany** - Nested subscriptions
+15. **SubscribeMany** - Per-item subscriptions
+16. **Combiner** - Multi-source coordination
+17. **BufferIf** - Pause/resume buffering
+18. **TransformAsync** - Task management
+19. **ToObservableChangeSet** - Buffer transformation
+20. **Bind** - Direct parameter passing
 
 ### ✅ Cache Operators (2 operators)
 
 1. **Cache/Internal/SubscribeMany** - Per-item subscriptions
 2. **TrueForAny/TrueForAll** - Nested state tracking
 
-## Remaining Work (32+ Operators)
+## Remaining Work (28+ Operators)
 
-### List Operators Remaining (11 operators)
-
-#### Aggregates (4 operators) - HIGH PRIORITY
-
--   **Max** (`ObservableListAggregates.cs` L131-230) - Complex min/max tracking
--   **Min** (`ObservableListAggregates.cs` L316-410) - Complex min/max tracking
--   **Avg** (`ObservableListAggregates.cs` L494-590) - Sum/count accumulation
--   **StdDev** (`ObservableListAggregates.cs` L595-690) - Variance calculation
-
-#### Internal Operators (5 operators)
+### List Operators Remaining (7 operators)
 
 -   **GroupBy** (`Internal/GroupBy.cs` L21+) - Group management
 -   **TransformMany** (`Internal/TransformMany.cs` L30+) - Parent/child tracking
@@ -253,8 +248,8 @@ sealed class InnerState { ... }
 
 ### Achieved ✅
 
--   18 operators converted
--   285 tests passing
+-   22 operators converted
+-   317 tests passing
 -   Zero public API changes
 -   Consistent pattern application
 -   Clean commit history
@@ -295,10 +290,9 @@ sealed class InnerState { ... }
 
 ## Conclusion
 
-We've made excellent progress on closure elimination, completing 36% of identified operators. The patterns are well-established, and the remaining work follows similar approaches. Recommended focus:
+We've made excellent progress on closure elimination, completing 44% of identified operators. The patterns are well-established, and the remaining work follows similar approaches. Recommended focus:
 
-1. **Short term**: Complete aggregates (immediate value)
-2. **Medium term**: Cache operators (high impact)
-3. **Long term**: Specialized operators (completeness)
+1. **Short term**: Cache operators (high impact)
+2. **Long term**: Specialized operators (completeness)
 
 Estimated completion: **2-4 months** depending on pace and priority.
