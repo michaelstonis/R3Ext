@@ -1,6 +1,9 @@
 ---
 emoji: 📚
 description: Daily documentation sync — identifies doc files out of sync with recent code changes and opens a pull request with the necessary updates.
+engine:
+  id: copilot
+  model: claude-sonnet-5.5
 on:
   schedule: daily around 8am UTC
 permissions:
