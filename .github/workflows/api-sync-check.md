@@ -1,6 +1,9 @@
 ---
 emoji: 🔄
 description: Weekly check to keep R3Ext APIs and features in sync with ReactiveUI and DynamicData. Identifies out-of-sync APIs and opens a pull request with the necessary updates.
+engine:
+  id: copilot
+  model: claude-sonnet-5.5
 on:
   schedule: weekly on Monday
   skip-if-match: 'is:pr is:open label:api-sync in:title "[api-sync]"'
