@@ -1,5 +1,203 @@
 # Upstream Changes Review
 
+This document holds one section per review window, newest first. See [docs/LibraryParity.md](LibraryParity.md) for how reviews feed the parity tracking workflow.
+
+---
+
+# Review — 2026-08-13 (Window: March 2026 → August 2026)
+
+> **Status as of 2026-08-13 — INVENTORY ONLY**
+> This is the Sprint 1 deliverable of the parity health assessment. Items are classified and prioritized but **not yet audited against our code** — applicability annotations (Applicable / Not Affected / Already Fixed / Architecturally N/A) land in Sprint 2. No decision to merge any change has been made.
+
+**Review Date**: 2026-08-13
+**Review Window**: March 2026 → August 2026 (since the 2026-03-30 review below)
+**Baseline (per LibraryParity.md)**: DynamicData 9.4.31 · ReactiveUI 23.1.8
+**Upstream Sources**:
+- [reactivemarbles/DynamicData](https://github.com/reactivemarbles/DynamicData) — latest release: **9.4.33** (2026-06-30); `main` is now **10.0-preview** with significant unreleased fixes
+- [reactiveui/ReactiveUI](https://github.com/reactiveui/ReactiveUI) — latest release: **24.1.0** (2026-08-02); **24.0.0 (2026-07-26) is a major re-platform release**
+
+Prior-review coverage check: the 2026-03-30 review covered DynamicData through PR #1064 and ReactiveUI through PR #4301. Every item below is newer; there is no overlap.
+
+## Headline findings
+
+1. **ReactiveUI 24.0 re-platformed onto `ReactiveUI.Primitives`** — an allocation-conscious engine with System.Reactive now *optional*, custom sinks/schedulers (`ISequencer`, `RxVoid`, `Signal<T>`), and AOT-friendly activation. Upstream is converging on the same design thesis R3Ext was founded on (low-alloc, AOT-safe, no mandatory System.Reactive). None of this code ports directly (different engine), but it changes the competitive/strategic picture and its perf work is worth studying. Claimed benchmarks: 3–4× faster `WhenAnyValue`/`ToProperty` subscribe+emit, 5–13× less allocation.
+2. **DynamicData has a cluster of unreleased correctness fixes on `main`** (Switch completion semantics, deadlock rework, notification-suspension race, filter index bugs) that exist in operators we ported. These are merged upstream but not in any 9.4.x release — our drift is against `main`, not just released versions.
+3. **ReactiveUI 23.1.1–23.2.27 were unlisted due to a revoked code-signing certificate** (NuGet `NU3012`); 23.2.28 is the re-signed consolidation. No code impact on us; noted for ecosystem awareness.
+4. Several upstream fix areas (activation, suspension, routing, `BindCommand`, WPF/WinForms/Blazor platform code) **have no counterpart surface in R3Ext** and are expected to resolve as Architecturally N/A in Sprint 2.
+
+---
+
+## Section A — [DD] Released in 9.4.33 (2026-06-30)
+
+- [ ] 🔴 **[DD 9.4.33 #1076] ExpireAfter — race when item removed/updated before expiration fires**
+  _Type: Bug Fix_
+  Race condition in `ExpireAfter` when an item is removed or updated before its expiration timer fires. We ported this operator (`Cache/Internal/ExpireAfter.cs`) and rebuilt it on `TimeProvider`; the same interleaving may be reproducible.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1076
+
+- [ ] 🔵 **[DD 9.4.33 #1084] Cache dynamic Filter — dictionary mutation during enumeration on old TFMs**
+  _Type: Bug Fix_
+  The cache-land dynamic `.Filter()` relied on limited mutation of an internal `Dictionary<,>` during enumeration — unsupported before .NET Core 3.0. Upstream now copies keys on older TFMs. We target `netstandard2.1`+ (≈ .NET Core 3.0 semantics), so likely Not Affected, but our Filter internals should be checked for the same enumeration-mutation pattern as a latent-bug matter.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1084
+
+- [ ] 🔵 **[DD 9.4.33 #1085] Change — corrected docs and exception messages**
+  _Type: Enhancement (docs/diagnostics)_
+  Fixes incorrect XML docs and exception message text on the `Change` types. Cheap to mirror if our ported `Change` carries the same text.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1085
+
+- [ ] 🔵 **[DD 9.4.33 #1077] SwappableLock — support .NET 9+ `System.Threading.Lock`**
+  _Type: Performance_
+  Upstream's lock abstraction now uses the .NET 9 `Lock` type where available. Our port has its own locking; adopting `Lock` on `net9.0`+ targets is an optional perf/idiom improvement.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1077
+
+- [ ] 🔵 **[DD 9.4.33 #1087] BindingListEx — `DynamicallyAccessedMembers` attributes**
+  _Type: Enhancement (AOT)_
+  AOT/trimming annotations for WinForms `BindingList` binding. We have no `BindingListEx`; expected Architecturally N/A, but flagging because AOT-annotation hygiene is core to our value proposition.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1087
+
+- [ ] 🔵 **[DD 9.4.33 #1080/#1081] XML documentation overhaul for `ObservableCacheEx` / `ObservableListEx`**
+  _Type: Enhancement (docs)_
+  Comprehensive doc-comment rewrites for both extension surfaces. Candidate source for improving our own XML docs where operator semantics match.
+  _Upstream PRs_: https://github.com/reactivemarbles/DynamicData/pull/1080, https://github.com/reactivemarbles/DynamicData/pull/1081
+
+Not applicable (CI/repo housekeeping, no library code): #1078 (Copilot instruction files), #1088, #1092, #1123, #1124, #1125 (release/CI plumbing), #1082 (CI test timeout).
+
+---
+
+## Section B — [DD] Merged on `main`, UNRELEASED (post-9.4.33, 10.0-preview branch)
+
+> These fixes are not in any shipped DynamicData package yet (`main` was bumped to 10.0-preview in #1128). They are drift all the same: real defects fixed upstream in operators we ported.
+
+- [ ] 🔴 **[DD main #1079] Cross-cache deadlocks — queue-drain delivery pattern**
+  _Type: Bug Fix (architectural)_
+  Reworks changeset delivery to a queue-drain pattern to eliminate deadlocks when caches are chained/interconnected. Our port kept lock-based delivery (and our 2026-03 review already fixed one lock-inversion in `ToObservableChangeSet` from #1017 — this is the general fix). High-value audit; potentially significant to port.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1079
+
+- [ ] 🔴 **[DD main #1111] WhenPropertyChanged — events fired during subscribe are dropped**
+  _Type: Bug Fix_
+  Property-change events raised while subscription setup is in progress were lost. We ported `WhenPropertyChanged` (cache + list); same window likely exists.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1111
+
+- [ ] 🔴 **[DD main #1120] List static Filter — exception from index assumptions**
+  _Type: Bug Fix_
+  Fixes an exception caused by incorrect index assumptions in the static list `Filter`. Directly relevant: we rewrote `List/Internal/Filter.cs` in the 2026-03 sprint (per #1063); must audit whether our rewrite shares the index assumption.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1120
+
+- [ ] 🔴 **[DD main #1137/#1139/#1141/#1145] Switch operator family — completion & error-propagation cluster**
+  _Type: Bug Fix (4 PRs)_
+  - #1137: cache `Switch` never completes.
+  - #1139: list `Switch` drops completion and throws errors incorrectly.
+  - #1141: a source failure is reported as successful completion to deferred subscriptions.
+  - #1145: internal misuse of `ObservableCacheEx.Switch()` where `Observable.Switch()` was intended.
+  We ported `List/Internal/Switch.cs` and the cache variant; completion/error semantics in R3 differ from Rx (`OnCompleted(Result)`), so this audit doubles as a semantics check.
+  _Upstream PRs_: https://github.com/reactivemarbles/DynamicData/pull/1137, https://github.com/reactivemarbles/DynamicData/pull/1139, https://github.com/reactivemarbles/DynamicData/pull/1141, https://github.com/reactivemarbles/DynamicData/pull/1145
+
+- [ ] 🔴 **[DD main #1132] SuspendNotifications / ResumeNotifications — race condition (fixes upstream #1131)**
+  _Type: Bug Fix_
+  Race between suspending and resuming notifications. Initial grep finds no `SuspendNotifications` in our port — either we didn't port it (gap to record in MigrationMatrix) or it's named differently. Sprint 2 resolves which.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1132
+
+- [ ] 🟡 **[DD main #1113] FilterImmutable — wrong Current value when Update transitions to Remove**
+  _Type: Bug Fix_
+  `FilterImmutable` emitted the wrong `Current` when an update caused an item to leave the filter. No `FilterImmutable` found in our port — expected Not Ported (MigrationMatrix check).
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1113
+
+- [ ] 🟡 **[DD main #1153] BatchIf — make every overload shape resolve**
+  _Type: Bug Fix_
+  Overload-resolution fixes for the `BatchIf` family. We ported `BatchIf` (`ObservableCacheEx.Batch.cs`); our overload surface should be compared.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1153
+
+- [ ] 🟡 **[DD main #1155] WhenPropertyChanged — support implicit casts in property expressions**
+  _Type: Enhancement_
+  Expression-tree cast handling. Our AOT design uses explicit selectors, not expression trees — likely Not Affected by construction, mirroring the #1059 outcome from the previous review.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1155
+
+- [ ] 🟡 **[DD main #1135] TransformAsync — cancellation support** *(feature: case-by-case)*
+  _Type: New Feature_
+  Adds `CancellationToken` flow to `TransformAsync`. We ported `TransformAsync` (cache + list). Fits R3Ext's async ergonomics (our `RxCommand.CreateFromTask` already leads with cancellation) — strong candidate under the features filter, pending API-shape review.
+  _Upstream PR_: https://github.com/reactivemarbles/DynamicData/pull/1135
+
+- [ ] 🔵 **[DD main #1154] Switch — document shadowing behavior** · **[#1096/#1095] split `ObservableListEx`/`ObservableCacheEx` into per-family partials**
+  _Type: Docs / Structural_
+  The file splits mirror the per-operator layout we already use — informational only. The Switch shadowing docs are worth mirroring alongside the Section B Switch audit.
+  _Upstream PRs_: https://github.com/reactivemarbles/DynamicData/pull/1154, https://github.com/reactivemarbles/DynamicData/pull/1096, https://github.com/reactivemarbles/DynamicData/pull/1095
+
+- [ ] 🔵 **[DD main — test hardening] #1100, #1098, #1101, #1161, #1071**
+  _Type: Tests_
+  Determinism and coverage improvements (MergeManyChangeSets quiescence waits, SizeLimit dedup, AutoRefresh test rewrite, ToCollection tests, Sum tests). Candidate patterns for our own flaky-test defenses.
+
+Not applicable (repo tooling): #1134 (file nesting), #1159 (internals-visible-to cleanup), #1118 (benchmarks), #1102/#1058/#1128 (CI/branch management).
+
+---
+
+## Section C — [RxUI] Strategic: the 24.0 re-platform
+
+- [ ] 🔴 **[RxUI 24.0 #4382 + #4363 + #4387 + #4418] Re-platform onto `ReactiveUI.Primitives`; custom sinks**
+  _Type: Breaking Change / Performance (strategic review, not a port)_
+  ReactiveUI now runs on an allocation-conscious engine: System.Reactive optional, `IScheduler`→`ISequencer`, `Unit`→`RxVoid`, subjects→`Signal<T>` family, dual package distributions (`ReactiveUI` vs `ReactiveUI.Reactive`). DynamicData integration moved out of core into `ReactiveUI.Routing`.
+  **Why it matters to us**: (a) validates R3Ext's founding thesis; (b) narrows our headline differentiation — "faster and AOT-ready" is now partially claimed upstream; (c) their sink implementations and benchmark methodology are a rich comparison target for `R3Ext.Benchmarks`. Proposed Sprint 2/3 action: benchmark R3Ext vs RxUI 24 on `WhenChanged`-equivalent paths and reflect findings in positioning docs.
+  _Upstream PRs_: https://github.com/reactiveui/ReactiveUI/pull/4382, https://github.com/reactiveui/ReactiveUI/pull/4363, https://github.com/reactiveui/ReactiveUI/pull/4387, https://github.com/reactiveui/ReactiveUI/pull/4418
+
+- [ ] 🟡 **[RxUI 24.0 #4413] AOT-friendly `WhenActivated` overloads**
+  _Type: New Feature_
+  New `IActivatableView.WhenActivated` overloads accepting an `IObservable<object?>` ViewModel-change source, avoiding reflection/trim warnings. R3Ext has no activation system today — this is input to the case-by-case decision on whether to add one, not a fix to port.
+  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4413
+
+---
+
+## Section D — [RxUI] Bug fixes with potential R3Ext analogs
+
+- [ ] 🔴 **[RxUI 24.0 #4381] WhenAnyValue — subscribes to PropertyChanged before reading initial value**
+  _Type: Bug Fix_
+  A concurrent first change could be lost because the initial value was read before the PropertyChanged subscription existed. Our source-generated `WhenChanged`/`WhenObserved` perform the same initial-read-then-subscribe dance in generated code — the highest-value RxUI audit in this window.
+  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4381
+
+- [ ] 🔴 **[RxUI 23.2 #4351 + 24.0 #4409] Interactions — async-handler scheduling; resume on captured context**
+  _Type: Bug Fix (2 PRs)_
+  #4351 fixes async interaction-handler scheduling (upstream #4280); #4409 makes interaction task handlers resume on the captured UI context. We ported Interactions (`R3Ext/Interactions/`); both semantics apply directly.
+  _Upstream PRs_: https://github.com/reactiveui/ReactiveUI/pull/4351, https://github.com/reactiveui/ReactiveUI/pull/4409
+
+- [ ] 🟡 **[RxUI 24.0 #4361] WaitForDispatcherScheduler — marshal to UI thread from non-UI threads**
+  _Type: Bug Fix_
+  UI-thread marshaling defect when scheduled from background threads. We advertise automatic UI-thread marshaling on MAUI/Avalonia/Uno — our `TimeProvider`-based marshaling paths should be audited for the analogous early-dispatch case.
+  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4361
+
+- [ ] 🟡 **[RxUI 23.2 #4324] BindCommand — wrong parameter after new ViewModel assigned to View**
+  _Type: Bug Fix_
+  Stale-parameter capture across ViewModel replacement. We have no `BindCommand`, but our source-generated command bindings re-resolve targets on VM swap — the same staleness class is worth one audit pass over `R3Ext.Bindings.SourceGenerator` output.
+  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4324
+
+- [ ] 🟡 **[RxUI 24.0 #4410] ObservableMixins helpers usable before builder initialization**
+  _Type: Bug Fix_
+  Init-order robustness for pure helpers. We have no RxApp-style builder/global state by design — expected Architecturally N/A; confirm no hidden init-order dependencies in our static registries (`BindingRegistry`).
+  _Upstream PR_: https://github.com/reactiveui/ReactiveUI/pull/4410
+
+Expected Architecturally N/A (no counterpart surface in R3Ext — confirm in Sprint 2): #4349 (activation null load state), #4353 (suspension persistence), #4350 (WPF inherited `DependencyProperty` lookup), #4313/#4337/#4404/#4412 (WPF), #4314/#4339/#4358/#4369 (WinForms), #4318 (Blazor), #4316 (builder `WithCoreServices`), #4427 (testing-package TFMs), #4321/#4320 (sample apps).
+
+---
+
+## Section E — Infrastructure ideas observed upstream (optional)
+
+- [ ] 🔵 **[RxUI #4428/#4429/#4432] PublicApiSharp.Analyzers for public API tracking**
+  Upstream now gates public-API changes via analyzer. We hand-maintain parity docs; an API-surface analyzer would mechanize part of what `api-sync-check` does. Candidate future infra sprint, out of scope for this assessment.
+- [ ] 🔵 **[DD #1088 / RxUI #4388] Preview/beta release channels** — context for how quickly upstream fixes reach consumers; informs how we weigh "unreleased" Section B items.
+
+---
+
+## Prioritized summary (inventory counts)
+
+| Priority | Count | Items |
+|----------|-------|-------|
+| 🔴 High | 7 | DD #1076, #1079, #1111, #1120, Switch cluster (#1137/#1139/#1141/#1145), #1132 · RxUI #4381, #4351+#4409, Primitives strategic review |
+| 🟡 Medium | 7 | DD #1113, #1153, #1155, #1135 · RxUI #4361, #4324, #4410, #4413 |
+| 🔵 Low | 8 | DD #1084, #1085, #1077, #1087, #1080/#1081, #1154/#1096/#1095, test hardening · RxUI/DD infra ideas |
+| Expected N/A | ~15 | Platform-specific (WPF/WinForms/Blazor), builder/activation/suspension/routing surfaces we don't have, CI/housekeeping |
+
+**Filter applied** (per project decision 2026-08-13): bug fixes and performance items are presumed-relevant pending Sprint 2 code audit; features (#1135, #4413) and strategic items are case-by-case against R3Ext's AOT/source-gen goals.
+
+---
+
+# Review — 2026-03-30 (Window: November 2025 → March 2026)
+
 > **Status as of 2026-03-30**
 > This review was created on 2026-03-30 and covers the period from the initial migration (November 2025) through March 2026.
 > Items are being addressed in the current sprint — see the checklist below for progress.
