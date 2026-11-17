@@ -4,6 +4,8 @@ description: Daily documentation sync — identifies doc files out of sync with 
 engine:
   id: copilot
   model: claude-sonnet-5.5
+# gh-aw's sudo -E launcher requires environment preservation, unsupported by Ubuntu 26.04's sudo-rs.
+runs-on: ubuntu-24.04
 on:
   schedule: daily around 8am UTC
 permissions:
@@ -18,6 +20,8 @@ tools:
     mode: gh-proxy
     toolsets: [default]
 safe-outputs:
+  threat-detection:
+    runs-on: ubuntu-24.04
   create-pull-request:
     title-prefix: "[doc-sync] "
     branch-prefix: doc-sync/
